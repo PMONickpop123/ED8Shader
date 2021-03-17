@@ -8,6 +8,7 @@
         [Enum(Off,0,Front,1,Back,2)] _Culling ("Culling Mode", Int) = 2
         [Toggle(NOTHING_ENABLED)]_NothingEnabled ("Nothing Enabled (No Lighting)", Float) = 0
         _GlobalAmbientColor("Global Ambient Color", Color) = (0.50, 0.50, 0.50, 1)
+
         _PerMaterialMainLightClampFactor("Per Material MainLight Clamp", Range(0.0, 2.0)) = 1.50
 
         // #if defined (MAINLIGHT_CLAMP_FACTOR_ENABLED)
@@ -388,6 +389,11 @@
             #pragma vertex DefaultVPShader
             #pragma fragment DefaultFPShader
             #pragma multi_compile_fwdbase
+            #include "../CGIncludes/ED8_Defines.cginc"
+            #include "../CGIncludes/ED8_HelperFunctions.cginc"
+            #include "../CGIncludes/ED8_Lighting.cginc"
+            #include "../CGIncludes/ED8_Vert.cginc"
+            #include "../CGIncludes/ED8_Frag.cginc"
             
             #ifndef UNITY_PASS_FORWARDBASE
                 #define UNITY_PASS_FORWARDBASE
@@ -455,11 +461,6 @@
             #pragma shader_feature GLARE_MAP_ENABLED
             #pragma shader_feature GLARE_HIGHTPASS_ENABLED
 
-            #include "../CGIncludes/ED8_Defines.cginc"
-            #include "../CGIncludes/ED8_HelperFunctions.cginc"
-            #include "../CGIncludes/ED8_Lighting.cginc"
-            #include "../CGIncludes/ED8_Vert.cginc"
-            #include "../CGIncludes/ED8_Frag.cginc"
             ENDCG
         }
 
@@ -567,7 +568,6 @@
 
             #pragma skip_variants FOG_LINEAR FOG_EXP FOG_EXP2
             #define ALPHA_TESTING_ENABLED
-            //#pragma shader_feature ALPHA_TESTING_ENABLED
             #pragma shader_feature WINDY_GRASS_ENABLED
             #pragma shader_feature WINDY_GRASS_TEXV_WEIGHT_ENABLED
 

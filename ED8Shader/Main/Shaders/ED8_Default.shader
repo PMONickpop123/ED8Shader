@@ -385,7 +385,7 @@
             
             CGPROGRAM
 
-            #pragma target 3.0
+            #pragma target 4.0
             #pragma vertex DefaultVPShader
             #pragma fragment DefaultFPShader
             #pragma multi_compile_fwdbase
@@ -469,7 +469,7 @@
 
             CGPROGRAM
 
-            #pragma target 3.0
+            #pragma target 4.0
             #pragma vertex DefaultVPShader
             #pragma fragment DefaultFPShader
             #pragma multi_compile_fwdadd_fullshadows
@@ -552,7 +552,7 @@
             ZWrite On ZTest LEqual
             CGPROGRAM
 
-            #pragma target 3.0
+            #pragma target 4.0
             #pragma vertex ShadowVPShader
             #pragma fragment ShadowFPShader
             #pragma fragmentoption ARB_precision_hint_fastest
@@ -562,10 +562,9 @@
                 #define UNITY_PASS_SHADOWCASTER
             #endif
 
+            #pragma skip_variants FOG_LINEAR FOG_EXP FOG_EXP2
             #pragma shader_feature WINDY_GRASS_ENABLED
             #pragma shader_feature WINDY_GRASS_TEXV_WEIGHT_ENABLED
-
-            #pragma skip_variants FOG_LINEAR FOG_EXP FOG_EXP2
 
             #include "../CGIncludes/ED8_Defines.cginc"
             #include "../CGIncludes/ED8_HelperFunctions.cginc"
