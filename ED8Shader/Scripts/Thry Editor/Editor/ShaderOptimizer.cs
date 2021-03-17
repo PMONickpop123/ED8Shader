@@ -202,7 +202,8 @@ namespace Thry
             "fixed",
             "fixed2",
             "fixed3",
-            "fixed4"
+            "fixed4",
+            "int"
         };
 
         public static readonly string[] IllegalPropertyRenames = new string[]
