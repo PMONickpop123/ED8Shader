@@ -493,7 +493,7 @@ struct DefaultVPInput {
 
 //-----------------------------------------------------------------------------
 struct DefaultVPOutput {
-    float4 pos			: SV_Position;		// xyzw:[Proj]
+    float4 pos			: SV_POSITION;		// xyzw:[Proj]
     float4 Color0			: COLOR0;		// xyzw:VertexColor x GameDiffuse
     float4 Color1			: COLOR1;		// [V] xyz:000 w:Fog
                                 // [P] xyz:SubLight w:Fog
@@ -557,7 +557,7 @@ struct DefaultVPOutput {
 
 //-----------------------------------------------------------------------------
 struct EdgeVPOutput {
-    float4 Position			: SV_Position ;		// xyzw:[Proj] 
+    float4 Position			: SV_POSITION ;		// xyzw:[Proj] 
     float4 Color0			: COLOR0;		// xyzw:EdgeColor + GameEmission
     float3 TexCoord			: TEXCOORD0;	// xy: z:Fog
 };

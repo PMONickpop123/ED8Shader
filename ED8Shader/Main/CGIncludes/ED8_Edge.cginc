@@ -1,9 +1,9 @@
 #if !defined(NOTHING_ENABLED)
     EdgeVPOutput EdgeVPShader(EdgeVPInput IN) {
         EdgeVPOutput OUT;
-        float3 worldSpacePosition = mul(float4(IN.Position.xyz, 1.0f), unity_ObjectToWorld);
+        float3 worldSpacePosition = mul(unity_ObjectToWorld, float4(IN.Position.xyz, 1.0f));
         OUT.Position = mul(float4(worldSpacePosition.xyz, 1.0f), UNITY_MATRIX_VP);	
-        float3 worldSpaceNormal = normalize(mul(float4(IN.Normal.xyz, 0.0f), unity_ObjectToWorld).xyz);
+        float3 worldSpaceNormal = normalize(mul(unity_ObjectToWorld, float4(IN.Normal.xyz, 0.0f)).xyz);
         float2 projSpaceNormal = mul(float4(worldSpaceNormal.xyz, 0.0), UNITY_MATRIX_VP).xy;
         projSpaceNormal = normalize(projSpaceNormal);
         projSpaceNormal *= OUT.Position.w;

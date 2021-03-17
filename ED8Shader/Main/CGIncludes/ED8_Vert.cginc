@@ -8,12 +8,12 @@ DefaultVPOutput DefaultVPShader (DefaultVPInput IN) {
 
     float3 normal = IN.Normal;
     float3 position = IN.Position.xyz;
-    float3 worldSpacePosition = mul(float4(position.xyz, 1.0f), unity_ObjectToWorld).xyz; 
-    float3 worldSpaceNormal = normalize(mul(float4(normal.xyz, 0.0f), unity_ObjectToWorld).xyz); 
+    float3 worldSpacePosition = mul(unity_ObjectToWorld, float4(position.xyz, 1.0f)).xyz; 
+    float3 worldSpaceNormal = normalize(mul(unity_ObjectToWorld, float4(normal.xyz, 0.0f)).xyz); 
 
     #if !defined(USE_PER_VERTEX_LIGHTING) && defined(USE_LIGHTING)
         #if defined(USE_TANGENTS)
-            float3 tangent = normalize(mul(float4(IN.Tangent.xyz, 0.0f), unity_ObjectToWorld).xyz);
+            float3 tangent = normalize(mul(unity_ObjectToWorld, float4(IN.Tangent.xyz, 0.0f)).xyz);
             OUT.Tangent = (float3)tangent;
         #endif // USE_TANGENTS
     #endif // !USE_PER_VERTEX_LIGHTING && USE_LIGHTING
