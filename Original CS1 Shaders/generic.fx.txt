@@ -1,0 +1,812 @@
+#line 1 "Z:/data/shaders/generic.fx"
+
+#line 1 "Z:/data/shaders/PhyreShaderPlatform.h"
+/* SCE CONFIDENTIAL
+PhyreEngine(TM) Package 3.4.0.0
+* Copyright (C) 2012 Sony Computer Entertainment Inc.
+* All Rights Reserved.
+*/
+
+#ifndef PHYRE_SHADER_PLATFORM_H
+#define PHYRE_SHADER_PLATFORM_H
+
+
+#ifdef PHYRE_D3DFX
+	#define FRAG_OUTPUT_COLOR SV_TARGET
+	#define FRAG_OUTPUT_COLOR0 SV_TARGET0
+	#define FRAG_OUTPUT_COLOR1 SV_TARGET1
+	#define FRAG_OUTPUT_COLOR2 SV_TARGET2
+	#define FRAG_OUTPUT_COLOR3 SV_TARGET3
+#endif //! _PHYRE_D3DFX
+
+//! Define fragment shader outputs if not defined yet.
+#ifndef FRAG_OUTPUT_COLOR
+	#define FRAG_OUTPUT_COLOR COLOR
+#endif //! FRAG_OUTPUT_COLOR
+
+#ifndef FRAG_OUTPUT_COLOR0
+	#define FRAG_OUTPUT_COLOR0 COLOR0
+#endif //! FRAG_OUTPUT_COLOR0
+
+#ifndef FRAG_OUTPUT_COLOR1
+	#define FRAG_OUTPUT_COLOR1 COLOR1
+#endif //! FRAG_OUTPUT_COLOR1
+
+#ifndef FRAG_OUTPUT_COLOR2
+	#define FRAG_OUTPUT_COLOR2 COLOR2
+#endif //! FRAG_OUTPUT_COLOR2
+
+#ifndef FRAG_OUTPUT_COLOR3
+	#define FRAG_OUTPUT_COLOR3 COLOR3
+#endif //! FRAG_OUTPUT_COLOR3
+
+#endif //! PHYRE_SHADER_PLATFORM_H
+
+#line 2 "Z:/data/shaders/generic.fx"
+
+#line 1 "Z:/data/shaders/ed8_SceneWideParameters.h"
+/* SCE CONFIDENTIAL
+PhyreEngine(TM) Package 3.4.0.0
+* Copyright (C) 2012 Sony Computer Entertainment Inc.
+* All Rights Reserved.
+*/
+
+#ifndef PHYRE_SCENE_WIDE_PARAMETERS_H
+#define PHYRE_SCENE_WIDE_PARAMETERS_H
+
+///////////////////////////////////////////////////////////////////////////////
+// Scene wide parameters
+///////////////////////////////////////////////////////////////////////////////
+
+//struct SceneWideParameters
+//{
+	float3		scene_EyePosition				: EYEPOSITIONWS;
+
+	float4x4	scene_View					: View;
+	float4x4	scene_ViewProjection			: ViewProjection;
+
+	float4		scene_cameraNearFarParameters		: CameraNearFarParameters;	// near, far, near*far, far-near
+	float4		scene_viewportSizeParameters		: ViewportSizeParameters;	// viewportWidth, viewportHeight, 1/viewportWidth, 1/viewportHeight
+
+	float3		scene_FakeRimLightDir			: FakeRimLightDir;
+	float3		scene_GlobalAmbientColor		: GlobalAmbientColor;
+	float3		scene_FogColor				: FOGCOLOR;
+	float4		scene_FogRangeParameters		: FogRangeParameters;
+
+	// â€»é«˜ã•ãƒ•ã‚©ã‚°å»ƒæ­¢å¾Œã€åˆ¥ç”¨é€”ã§ä½¿ç”¨
+	float3		scene_MiscParameters1			: HeightFogColor;				// xyzw = æœªä½¿ç”¨
+	float4		scene_MiscParameters2			: HeightFogRangeParameters;		// x = 1 / ã‚·ãƒ£ãƒ‰ã‚¦ãƒžãƒƒãƒ—ã®æ¸›è¡°è·é›¢ï¼ˆåž‚ç›´æ–¹å‘ï¼‰, y = ã‚·ãƒ£ãƒ‰ã‚¦ãƒžãƒƒãƒ—æ¸›è¡°ã®åŸºæº–é«˜ã•, zw = æœªä½¿ç”¨
+
+	float		AdditionalShadowOffset	: AdditionalShadowOffset;
+
+	#ifdef USE_POINT_LIGHT_0
+	float4		scene_light1_position			: LIGHT1_POSITIONANDCOUNT;
+
+	float3		scene_light1_colorIntensity	: LIGHT1_COLORINTENSITY;
+	float4		scene_light1_attenuation		: LIGHT1_ATTENUATION;
+
+		#ifdef USE_POINT_LIGHT_1
+	float3		scene_light2_position			: LIGHT2_POSITION;
+	float3		scene_light2_colorIntensity	: LIGHT2_COLORINTENSITY;
+	float4		scene_light2_attenuation		: LIGHT2_ATTENUATION;
+
+//			#ifdef USE_POINT_LIGHT_2
+//	float3		light3_position			: LIGHT3_POSITION;
+//	half3		light3_colorIntensity	: LIGHT3_COLORINTENSITY;
+//	float4		light3_attenuation		: LIGHT3_ATTENUATION;
+//
+//			#endif // USE_POINT_LIGHT_2
+		#endif // USE_POINT_LIGHT_1
+	#endif // USE_POINT_LIGHT_0
+
+//};
+
+#ifdef DCC_TOOL
+/*
+float3 GlobalAmbientColor : AMBIENT
+<
+    string UIName = UINAME_GlobalAmbientColor;
+	string UIWidget = "Color";
+> = {0.50, 0.50, 0.50 };
+
+float Timer : Time
+<
+	string UIWidget = "None";
+>;
+*/
+#endif // DCC_TOOL
+
+//sampler2D	DitherNoiseTexture : DITHERNOISETEXTURE;
+
+
+//SceneWideParameters scene;
+
+
+float3 getGlobalAmbientColor()
+{
+	return scene_GlobalAmbientColor.rgb;
+}
+
+float4 PackNormalAndViewSpaceDepth(float3 normal, float viewSpaceZ)
+{
+	float normalizedViewZ = viewSpaceZ / scene_cameraNearFarParameters.y;
+	float2 depthPacked = float2( floor(normalizedViewZ * 256.0f) / 255.0f,  frac(normalizedViewZ * 256.0f) );
+	float4 rslt = float4(normal.xy, depthPacked.xy);
+	return rslt;
+}
+float4 PackNormalAndDepth(float3 normal, float depth)
+{
+	float viewSpaceZ = -(scene_cameraNearFarParameters.z / (depth * scene_cameraNearFarParameters.w - scene_cameraNearFarParameters.y));	// near*far / (depth * (far-near) - far)
+	return PackNormalAndViewSpaceDepth(normal,viewSpaceZ);
+}
+
+
+#endif //! PHYRE_SCENE_WIDE_PARAMETERS_H
+
+#line 4 "Z:/data/shaders/generic.fx"
+
+//------------------------------------------------------------------------------
+// PhyreEngingå…±é€š
+//------------------------------------------------------------------------------
+float4x4 World					: World;
+float4x4 View					: View;
+//float4x4 Projection				: Projection;
+//float4x4 ViewProjection			: ViewProjection;
+//float4x4 WorldView				: WorldView;
+float4x4 WorldViewProjection	: WorldViewProjection;
+float4x4 WorldViewInverse		: WorldViewInverse;	
+
+//------------------------------------------------------------------------------
+//ãƒ—ãƒ­ã‚°ãƒ©ãƒ å…¥åŠ›å¤‰æ•°
+//------------------------------------------------------------------------------
+Texture2D<float4>	DepthBuffer;
+Texture2D<float4>	TextureSampler;
+Texture2D<float4>	Texture2Sampler;
+
+SamplerState PointClampSampler
+{
+	Filter = Min_Mag_Mip_Point;
+    AddressU = Wrap;
+    AddressV = Wrap;
+};
+
+SamplerState LinearClampSampler
+{
+	Filter = Min_Mag_Linear_Mip_Point;
+    AddressU = Clamp;
+    AddressV = Clamp;
+};
+
+SamplerState Texture2SamplerS
+{
+	Filter = Min_Mag_Linear_Mip_Point;
+    AddressU = Clamp;
+    AddressV = Clamp;
+};
+
+float 		CameraAspectRatio;
+float4 		inputColor = { 1.0f, 1.0f, 1.0f, 1.f };					//è‰²
+float4 		inputSpecular = { 0.0f, 0.0f, 0.0f, 0.f };				//ã‚¹ãƒšã‚­ãƒ¥ãƒ©
+float4		inputUVShift = {1,1,0,0};								//UVãšã‚‰ã—å€¤
+float		inputAlphaThreshold = 0.0;								//Î±ãƒ†ã‚¹ãƒˆã®ã—ãã„å€¤(Vitaã§ã¯Î±ãƒ†ã‚¹ãƒˆã‚’ã‚·ã‚§ãƒ¼ãƒ€ãƒ¼ã§ã‚„ã‚‹å¿…è¦ã‚ã‚‹ï¼‰
+float4		inputCenter  = {0.0f, 0.0f, 0.0f, 0.f};
+//float3	inputCameraVector = {0.0f, 0.0f, -1.0f};				//ã‚«ãƒ¡ãƒ©ãƒ™ã‚¯ãƒˆãƒ« eye-lookat
+float2		inputUVtraspose = {1.0f, 0.0f};							//UVè»¢ç½®ç”¨
+//float3	inputLightVector = {0.0f, 0.0f, 0.0f};
+float4		inputShaderParam = {0.0f,0.0f,0.0f,0.0f};
+float2		inputScreenOffset= {0.0f,0.0f};							//3Dæç”»ã§ã®ã‚¹ã‚¯ãƒªãƒ¼ãƒ³åº§æ¨™ã‚ªãƒ•ã‚»ãƒƒãƒˆ
+float		inputDepth = 0.f;
+float4		inputUVShiftMT = {1,1,0,0};								//UVãšã‚‰ã—å€¤MT
+
+// fxãƒ•ã‚¡ã‚¤ãƒ«ã¨ã®äº’æ›æ€§ã‚’é«˜ã‚ã‚‹ãŸã‚æ§‹é€ ä½“åž‹ã®å…¥å‡ºåŠ›ã«ã—ã¾ã—ãŸ
+struct SpriteC_VPInput
+{
+	float4 position		: POSITION;
+	float4 color		: COLOR0;
+};
+struct SpriteC_VPOutput
+{
+	float4 position		: SV_Position;
+	float4 color		: COLOR0;
+};
+#define SpriteC_FPInput SpriteC_VPOutput
+//SpriteC_VPOutputã‚’ä½¿ã†
+//struct SpriteC_FPInput
+//{
+//	float4 color		: COLOR0;
+//};
+
+
+struct SpriteCT_VPInput
+{
+	float4 position		: POSITION;
+	float4 color		: COLOR0;
+	float2 texCoord		: TEXCOORD0;
+};
+
+struct SpriteCT_VPOutput
+{
+	float4 position		: SV_Position;
+	float4 color		: COLOR0;
+	float2 texCoord		: TEXCOORD0;
+};
+#define SpriteCT_FPInput SpriteCT_VPOutput
+//SpriteCT_VPOutputã‚’ä½¿ã†
+//struct SpriteCT_FPInput
+//{
+//	float4 color		: COLOR0;
+//	float2 texCoord		: TEXCOORD0;
+//};
+
+struct SpriteCTMT_VPOutput
+{
+	float4 position		: SV_Position;
+	float4 color		: COLOR0;
+	float2 texCoord		: TEXCOORD0;
+	float2 texCoord2	: TEXCOORD1;
+};
+#define SpriteCTMT_FPInput SpriteCTMT_VPOutput
+//SpriteCTMT_VPOutputã‚’ä½¿ã†
+//struct SpriteCTMT_FPInput
+//{
+//	float4 color		: COLOR0;
+//	float2 texCoord		: TEXCOORD0;
+//	float2 texCoord2	: TEXCOORD1;
+//};
+
+struct SpriteCT3D_VPOutput
+{
+	float4 position		: SV_Position;
+	float4 color		: COLOR0;
+	float2 texCoord		: TEXCOORD0;
+	float4 texCoord1	: TEXCOORD1;
+};
+#define SpriteCT3D_FPInput SpriteCT3D_VPOutput
+//SpriteCT3D_VPOutputã‚’ä½¿ã†
+//struct SpriteCT3D_FPInput
+//{
+//	float4 color		: COLOR0;
+//	float2 texCoord		: TEXCOORD0;
+//	float4 texCoord1	: TEXCOORD1;
+//};
+
+//-----------------------------------------------------------------------------
+// è¦–ç‚¹ã®ä½ç½®
+//-----------------------------------------------------------------------------
+float3 getEyePosition()
+{
+	return scene_EyePosition;
+}
+
+//------------------------------------------------------------------------------
+// ä»®æƒ³é™°å½±å€¤ã‚’è¨ˆç®—
+// pos:é ‚ç‚¹ãƒ¯ãƒ¼ãƒ«ãƒ‰åº§æ¨™
+//------------------------------------------------------------------------------
+float getShadeFactor(float3 worldPos )
+{
+	float dh		= worldPos.y - inputCenter.y;
+	
+	dh += inputCenter.w;			//w==0ã§åˆæœŸå€¤ãŒå‹•ãã‚ˆã†ã«
+
+	dh = clamp(dh, 0.f, 1.f);
+	return dh;
+}
+
+
+//-----------------------------------------------------------------------------
+// Depthãƒãƒƒãƒ•ã‚¡ã‹ã‚‰Depthå€¤ã‚’
+//-----------------------------------------------------------------------------
+float ReadDepth( Texture2D <float4> depthMap, float2 uv )
+{
+	float3 zBuffer_fragment = saturate( depthMap.SampleLevel(PointClampSampler, uv.xy, 0).xyz );	
+	float currentDepth = dot(zBuffer_fragment, ((float3(65536, 256, 1)*255.0f) / 16777215.0f));
+
+	return currentDepth;
+}
+
+float ReadDepth2( Texture2D <float4> depthMap, float2 uv )
+{
+	float currentDepth = saturate( depthMap.SampleLevel(PointClampSampler, uv.xy, 0).x);
+	return currentDepth;
+}
+
+//------------------------------------------------------------------------------
+// Mimic the functionality of texDepth2D.
+//------------------------------------------------------------------------------
+float GetDepth(float4 depthSample)
+{
+	return dot(depthSample.xyz, ((float3(65536, 256, 1)*255.0f) / 16777215.0f));	
+}
+
+//------------------------------------------------------------------------------
+// Convert a depth value from post projection space to view space. 
+//------------------------------------------------------------------------------
+float ConvertDepth(float depth)
+{				
+	float viewSpaceZ = -(scene_cameraNearFarParameters.z / (depth * scene_cameraNearFarParameters.w - scene_cameraNearFarParameters.y));	// near*far / (depth * (far-near) - far)
+	return saturate(viewSpaceZ);
+}
+
+
+//------------------------------------------------------------------------------
+// è»¢ç½®UVã‚’è¿”ã™
+// inputUVtraspose = {1,0} ã§é€šå¸¸UV {0,1}ã§è»¢ç½®
+//------------------------------------------------------------------------------
+float2 getUV( float2 IN )
+{
+	// UVè»¢ç½®
+	float2 OUT = float2(0.0f, 0.0f);
+	float2 uv1 = IN * inputUVShift.xy + inputUVShift.zw;
+
+	OUT.x = uv1.x * inputUVtraspose.x + uv1.y *-inputUVtraspose.y + 1.0f * inputUVtraspose.y;
+	OUT.y = uv1.y * inputUVtraspose.x + uv1.x * inputUVtraspose.y;
+
+	return OUT;
+}
+
+///////////////////////////////////////////////////////////////////////////////
+// ã‚¹ãƒ—ãƒ©ã‚¤ãƒˆ
+
+SpriteC_VPOutput PositionColor2D_VP(SpriteC_VPInput IN)
+{
+	SpriteC_VPOutput OUT;
+	//OUT.position = mul(IN.position, transpose(World));// TODO : Check
+	OUT.position = mul( transpose(World), IN.position);
+	OUT.position.x *= CameraAspectRatio;
+	OUT.color = IN.color;
+	return OUT;
+}
+
+float4 PositionColor2D_FP(SpriteC_VPOutput IN) : FRAG_OUTPUT_COLOR0
+{
+	return IN.color;
+}
+
+technique11 PositionColor2D	
+{
+	pass p0
+	{	
+		SetVertexShader( CompileShader( vs_4_0, PositionColor2D_VP() ) );
+		SetPixelShader( CompileShader( ps_4_0, PositionColor2D_FP() ) );
+	}
+}
+
+//-----------------------------------------------------------------------------
+// é ‚ç‚¹ã‚·ã‚§ãƒ¼ãƒ€ãƒ¼ï¼š2D, æ¨™æº–ã€ãƒžãƒ«ãƒãƒ†ã‚¯ã‚¹ãƒãƒ£
+//-----------------------------------------------------------------------------
+SpriteCTMT_VPOutput PositionTextureColor2DMT_VP(SpriteCT_VPInput IN)
+{
+	SpriteCTMT_VPOutput OUT;
+	//OUT.position = mul(IN.position, transpose(World)); // TODO : Check
+	OUT.position = mul(transpose(World), IN.position);
+	OUT.position.x *= CameraAspectRatio;
+	OUT.texCoord = IN.texCoord * inputUVShift.xy + inputUVShift.zw;
+	OUT.color    = IN.color    * inputColor;
+	OUT.texCoord2 = OUT.texCoord.xy * inputUVShiftMT.xy + inputUVShiftMT.zw;
+	return OUT;
+}
+
+//-----------------------------------------------------------------------------
+// ãƒ•ãƒ©ã‚°ãƒ¡ãƒ³ãƒˆã‚·ã‚§ãƒ¼ãƒ€ãƒ¼ï¼š2D, æ¨™æº–ã€ãƒžãƒ«ãƒãƒ†ã‚¯ã‚¹ãƒãƒ£
+//-----------------------------------------------------------------------------
+float4 PositionTextureColor2DMT_FP(SpriteCTMT_VPOutput IN) : FRAG_OUTPUT_COLOR0
+{
+	float4 _color = TextureSampler.Sample(LinearClampSampler, IN.texCoord);
+	float4 _color2 = Texture2Sampler.Sample(Texture2SamplerS, IN.texCoord2);
+	_color *= IN.color;
+	_color.r += inputSpecular.r * inputSpecular.a;
+	_color.g += inputSpecular.g * inputSpecular.a;
+	_color.b += inputSpecular.b * inputSpecular.a;
+	_color.a = min(1.0f, IN.color.a * _color2.r * 2);
+	return _color;
+}
+//-----------------------------------------------------------------------------
+// ãƒ†ã‚¯ãƒ‹ãƒƒã‚¯ï¼š2D, æ¨™æº–ã€ãƒžãƒ«ãƒãƒ†ã‚¯ã‚¹ãƒãƒ£
+//-----------------------------------------------------------------------------
+technique11 PositionTextureColor2DMT
+{
+	pass p0
+	{
+		SetVertexShader( CompileShader( vs_4_0, PositionTextureColor2DMT_VP() ) );
+		SetPixelShader( CompileShader( ps_4_0, PositionTextureColor2DMT_FP() ) );
+	}
+}
+
+//-----------------------------------------------------------------------------
+// é ‚ç‚¹ã‚·ã‚§ãƒ¼ãƒ€ãƒ¼ï¼š2D, æ¨™æº–
+//-----------------------------------------------------------------------------
+SpriteCT_VPOutput PositionTextureColor2D_VP(SpriteCT_VPInput IN)
+{
+	SpriteCT_VPOutput OUT;
+	//OUT.position = mul(IN.position, transpose(World)); // TODO : Check
+	OUT.position = mul(transpose(World), IN.position);
+	OUT.position.x *= CameraAspectRatio;
+	OUT.position.z = inputDepth;	//Zå€¤æ›¸ãè¾¼ã¿ãŸã„å ´åˆã«ä½¿ã†
+	OUT.texCoord = IN.texCoord * inputUVShift.xy + inputUVShift.zw;
+	OUT.color    = IN.color    * inputColor;
+	return OUT;
+}
+//-----------------------------------------------------------------------------
+// ãƒ•ãƒ©ã‚°ãƒ¡ãƒ³ãƒˆã‚·ã‚§ãƒ¼ãƒ€ãƒ¼ï¼š2D, æ¨™æº–
+//-----------------------------------------------------------------------------
+float4 PositionTextureColor2D_FP(SpriteCT_VPOutput IN) : FRAG_OUTPUT_COLOR0
+{
+	float4 _color = TextureSampler.Sample(LinearClampSampler, IN.texCoord);
+	_color *= IN.color;
+	_color.r += inputSpecular.r * inputSpecular.a;
+	_color.g += inputSpecular.g * inputSpecular.a;
+	_color.b += inputSpecular.b * inputSpecular.a;
+	return _color;
+}
+
+BlendState LinearBlend 
+{
+	BlendEnable[0] = TRUE;
+	SrcBlend[0] = SRC_ALPHA;
+	DestBlend[0] = INV_SRC_ALPHA;
+	BlendOp[0] = ADD;
+	SrcBlendAlpha[0] = ONE;
+	DestBlendAlpha[0] = ONE;
+	BlendOpAlpha[0] = ADD;
+};
+
+DepthStencilState NoDepth
+{
+	DepthEnable = FALSE;
+	StencilEnable = FALSE;
+};
+
+//-----------------------------------------------------------------------------
+// ãƒ†ã‚¯ãƒ‹ãƒƒã‚¯ï¼š2D, æ¨™æº–
+// FTECH_POSITIONTEXTURECOLOR2D
+//-----------------------------------------------------------------------------
+technique11 PositionTextureColor2D
+{
+	pass p0
+	{
+		//SetBlendState( LinearBlend, float4( 0.0f, 0.0f, 0.0f, 0.0f ), 0xFFFFFFFF );
+
+		SetVertexShader( CompileShader( vs_4_0, PositionTextureColor2D_VP() ) );
+		SetPixelShader( CompileShader( ps_4_0, PositionTextureColor2D_FP() ) );
+	}
+}
+
+
+
+
+
+//-----------------------------------------------------------------------------
+// é ‚ç‚¹ã‚·ã‚§ãƒ¼ãƒ€ãƒ¼ï¼šDepth -> Color
+//-----------------------------------------------------------------------------
+SpriteCT_VPOutput CopyPositionTextureColor2D_VP(SpriteCT_VPInput IN)
+{
+	SpriteCT_VPOutput OUT;
+	OUT.position = IN.position;
+	OUT.texCoord = IN.texCoord;
+	OUT.color    = IN.color;
+	return OUT;
+}
+
+//-----------------------------------------------------------------------------
+// ãƒ•ãƒ©ã‚°ãƒ¡ãƒ³ãƒˆã‚·ã‚§ãƒ¼ãƒ€ãƒ¼ï¼šDepth -> Color
+//-----------------------------------------------------------------------------
+float4 CopyPositionTextureColor2D_FP(SpriteCT_VPOutput IN) : FRAG_OUTPUT_COLOR0
+{
+	float currentDepth = 0;
+	float4 _color = float4(0.0f, 0.0f, 0.0f, 0.0f);
+
+	float3 zBuffer_fragment = saturate( TextureSampler.Sample(LinearClampSampler, IN.texCoord.xy ).xyz );
+	float3 depth_factor_precise = float3(65536.0f/16777215.0f, 256.0f/16777215.0f, 1.0f/16777215.0f);
+	zBuffer_fragment = round(zBuffer_fragment * 255.0f);
+	currentDepth = dot( zBuffer_fragment, depth_factor_precise);
+
+	_color.r = currentDepth;
+	_color.g = currentDepth;
+	_color.b = currentDepth;
+	_color.a = 1.f;
+	return _color;
+}
+
+//-----------------------------------------------------------------------------
+// ãƒ†ã‚¯ãƒ‹ãƒƒã‚¯ï¼š2D, æ¨™æº–
+// FTECH_POSITIONTEXTURECOLOR2D
+//-----------------------------------------------------------------------------
+technique11 CopyPositionTextureColor2D
+{
+	pass p0
+	{
+		SetVertexShader( CompileShader( vs_4_0, CopyPositionTextureColor2D_VP() ) );
+		SetPixelShader( CompileShader( ps_4_0, CopyPositionTextureColor2D_FP() ) );
+	}
+}
+
+
+///////////////////////////////////////////////////////////////////////////////
+// ãƒãƒªã‚´ãƒ³
+
+// ä½ç½®ã€è‰²
+SpriteC_VPOutput PositionColor3D_VP(SpriteC_VPInput IN)
+{
+	SpriteC_VPOutput OUT;
+	//OUT.position = mul(IN.position, transpose(WorldViewProjection)); // TODO : Check
+	OUT.position = mul(transpose(WorldViewProjection), IN.position);
+	OUT.color    = IN.color    * inputColor;
+	return OUT;
+}
+
+float4 PositionColor3D_FP(SpriteC_VPOutput IN) : FRAG_OUTPUT_COLOR0
+{
+	return IN.color;
+}
+
+technique11 PositionColor3D
+{
+	pass p0
+	{
+		SetVertexShader( CompileShader( vs_4_0, PositionColor3D_VP() ) );
+		SetPixelShader( CompileShader( ps_4_0, PositionColor3D_FP() ) );
+	}
+}
+
+//-----------------------------------------------------------------------------
+// é ‚ç‚¹ã‚·ã‚§ãƒ¼ãƒ€ãƒ¼ï¼š3D, æ¨™æº–
+//-----------------------------------------------------------------------------
+// ä½ç½®ã€ãƒ†ã‚¯ã‚¹ãƒãƒ£ã€è‰²		(FVF_POSITION|FVF_TEXCOORD0|FVF_COLOR0)
+SpriteCT_VPOutput PositionTextureColor3D_VP(SpriteCT_VPInput IN)
+{
+	SpriteCT_VPOutput OUT;
+	//OUT.position = mul(IN.position, transpose(WorldViewProjection)); // TODO : Check
+	OUT.position = mul( transpose(WorldViewProjection), IN.position);
+	OUT.texCoord = getUV( IN.texCoord );
+	OUT.color    = IN.color    * inputColor;
+	
+	//é™°å½±
+	//float4	worldPos	= mul(IN.position, transpose(World)); // TODO : Check
+	float4	worldPos	= mul(transpose(World), IN.position);
+	float	_dot		= getShadeFactor( worldPos.xyz );
+	OUT.color.a *= _dot;
+
+	return OUT;
+}
+
+//-----------------------------------------------------------------------------
+// ãƒ•ãƒ©ã‚°ãƒ¡ãƒ³ãƒˆã‚·ã‚§ãƒ¼ãƒ€ãƒ¼ï¼š3D, æ¨™æº–
+//-----------------------------------------------------------------------------
+float4 PositionTextureColor3D_FP(SpriteCT_VPOutput IN) : FRAG_OUTPUT_COLOR0
+{
+	float4 _color = TextureSampler.Sample(LinearClampSampler, IN.texCoord);
+	_color *= IN.color;
+	_color.r += inputSpecular.r * inputSpecular.a;
+	_color.g += inputSpecular.g * inputSpecular.a;
+	_color.b += inputSpecular.b * inputSpecular.a;
+
+	clip(_color.a - inputAlphaThreshold);	//Î±ãƒ†ã‚¹ãƒˆ(Vitaã§å¿…è¦)
+	return _color;
+}
+
+
+
+
+
+//-----------------------------------------------------------------------------
+// ãƒ†ã‚¯ãƒ‹ãƒƒã‚¯ï¼š3D, æ¨™æº–
+//-----------------------------------------------------------------------------
+technique11 PositionTextureColor3D
+{
+	pass p0
+	{
+		SetVertexShader( CompileShader( vs_4_0, PositionTextureColor3D_VP() ) );
+		SetPixelShader( CompileShader( ps_4_0, PositionTextureColor3D_FP() ) );
+	}
+}
+
+technique11 PositionTextureColor3D_NoDepth
+{
+	pass p0
+	{
+		SetDepthStencilState(NoDepth, 0xFFFFFFFF);
+		SetVertexShader( CompileShader( vs_4_0, PositionTextureColor3D_VP() ) );
+		SetPixelShader( CompileShader( ps_4_0, PositionTextureColor3D_FP() ) );
+	}
+}
+
+
+//------------------------------------------------------------------------------
+// å…¥åŠ›é ‚ç‚¹ FVF_3D3   FVF_POSITION|FVF_NORMAL|FVF_TEXCOORD0|FVF_COLOR0
+//------------------------------------------------------------------------------
+struct DefualtVPInput
+{
+	float4 position		: POSITION;
+	float4 normal		: NORMAL;
+	float2 texCoord		: TEXCOORD0;
+	float4 color		: COLOR0;
+};
+struct DefaultVPOutput
+{
+	float4 position		: SV_Position;
+	float4 color		: COLOR0;	
+	float2 texCoord		: TEXCOORD0;
+};
+
+
+
+//------------------------------------------------------------------------------
+// é ‚ç‚¹ã‚·ã‚§ãƒ¼ãƒ€ãƒ¼ï¼š3D,é€šå¸¸,æ³•ç·šã‚ã‚Š
+//------------------------------------------------------------------------------
+DefaultVPOutput PositionNormalTextureColor3D_VP( DefualtVPInput IN )
+{
+	DefaultVPOutput OUT;
+	
+	// UVè»¢ç½®
+	OUT.texCoord = getUV( IN.texCoord );	
+	//OUT.position = mul(IN.position, transpose(WorldViewProjection)); // TODO : Check
+	OUT.position = mul(transpose(WorldViewProjection), IN.position);
+	OUT.color    = IN.color    * inputColor;
+
+	//ã‚¹ã‚¯ãƒªãƒ¼ãƒ³åº§æ¨™ç³»ã§ã®ã‚ªãƒ•ã‚»ãƒƒãƒˆ(-1ï½ž1)
+	OUT.position.x += inputScreenOffset.x * OUT.position.w;
+	OUT.position.y += inputScreenOffset.y * OUT.position.w;	
+
+	return OUT;
+};
+
+
+
+//------------------------------------------------------------------------------
+// é ‚ç‚¹ã‚·ã‚§ãƒ¼ãƒ€ãƒ¼ï¼š3D,ã‚«ãƒ¡ãƒ©ã«å¯¾ã—ã¦é ‚ç‚¹å˜ä½ã§æ·µã‚’æ¶ˆã™ã‚·ã‚§ãƒ¼ãƒ€ãƒ¼
+//------------------------------------------------------------------------------
+DefaultVPOutput PositionNormalTextureColor3D_rimTransparency_VP( DefualtVPInput IN )
+{
+	DefaultVPOutput OUT;
+	//OUT.position = mul(IN.position, transpose(WorldViewProjection)); // TODO : Check
+	OUT.position = mul(transpose(WorldViewProjection), IN.position);
+
+	float3 worldNormal   = normalize( mul( float4(IN.normal.xyz,0.0f), World).xyz);
+	float3 worldPosition = mul(float4(IN.position.xyz,1.f), World).xyz;
+		
+	//è¦–ç·šã€æ³•ç·šã§è¨ˆç®—
+	float3 cameraVec = normalize( getEyePosition() - worldPosition );
+	float3 normalVec = worldNormal;	
+
+	float alpha = abs( dot(cameraVec, normalVec) );
+
+	alpha = pow(1.0f - alpha, (float)inputShaderParam[0] );
+	alpha *= (float)inputShaderParam[1];	
+	alpha = 1.0f - alpha;
+		
+	OUT.texCoord = getUV( IN.texCoord );	
+	OUT.color    = IN.color    * inputColor;
+	OUT.color.a *= alpha;
+
+	return OUT;
+};
+
+
+//------------------------------------------------------------------------------
+// ãƒ†ã‚¯ãƒ‹ãƒƒã‚¯ï¼š3D,æ³•ç·šã‚ã‚Š
+//------------------------------------------------------------------------------
+// Used for map, leaves
+technique11 PositionNormalTextureColor3D
+{
+	pass main
+	{
+		//SetBlendState( LinearBlend, float4( 0.0f, 0.0f, 0.0f, 0.0f ), 0xFFFFFFFF );
+		SetVertexShader( CompileShader( vs_4_0, PositionNormalTextureColor3D_VP() ) );
+		SetPixelShader( CompileShader( ps_4_0, PositionTextureColor3D_FP() ) );
+	}
+};
+
+//------------------------------------------------------------------------------
+// ãƒ†ã‚¯ãƒ‹ãƒƒã‚¯ï¼š3D,æ³•ç·šã‚ã‚Š æ·µæ¶ˆã—
+//------------------------------------------------------------------------------
+technique11 PositionNormalTextureColor3D_rimTrans
+{
+	pass main
+	{
+		SetVertexShader( CompileShader( vs_4_0, PositionNormalTextureColor3D_rimTransparency_VP() ) );
+		SetPixelShader( CompileShader( ps_4_0, PositionTextureColor3D_FP() ) );
+	}
+};
+
+
+
+
+//-----------------------------------------------------------------------------
+// é ‚ç‚¹ã‚·ã‚§ãƒ¼ãƒ€ãƒ¼ï¼š3D, ä»®ã‚¹ãƒ†ãƒ«ã‚¹ã‚·ã‚§ãƒ¼ãƒ€ãƒ¼
+//-----------------------------------------------------------------------------
+// ä½ç½®ã€ãƒ†ã‚¯ã‚¹ãƒãƒ£ã€è‰²		(FVF_POSITION|FVF_NORMAL|FVF_TEXCOORD0|FVF_COLOR0)
+DefaultVPOutput PositionNormalTextureColor3D_Stealth_VP( DefualtVPInput IN)
+{
+	//æ³•ç·šãŒç„¡ã„ã“ã‚ã«ä½¿ã£ãŸã®ã§ã€é ‚ç‚¹ã§ãšã‚‰ã—ã¦ã„ã‚‹ã€‚
+	DefaultVPOutput OUT;
+	//OUT.position = mul(IN.position, transpose(WorldViewProjection)); //TODO : Check
+	OUT.position = mul(transpose(WorldViewProjection), IN.position);
+	OUT.color    = IN.color    * inputColor;
+
+	// ã‚¹ã‚¯ãƒªãƒ¼ãƒ³åº§æ¨™ã‚’è¨ˆç®—
+	float2 tmp;
+    tmp.x = ((OUT.position.x / OUT.position.w)*0.5f+0.5f);
+    tmp.y = ((OUT.position.y / OUT.position.w)*0.5f+0.5f);
+	tmp.x += IN.texCoord.x;	//é ‚ç‚¹åŸ‹ã‚è¾¼ã¿uvã§ãšã‚‰ã™
+	tmp.y += IN.texCoord.y;
+	OUT.texCoord = tmp;
+	return OUT;
+}
+
+
+technique11 PositionNormalTextureColor3D_Stealth
+{
+	pass main
+	{
+		//SetBlendState( LinearBlend, float4( 0.0f, 0.0f, 0.0f, 0.0f ), 0xFFFFFFFF );
+		SetVertexShader( CompileShader( vs_4_0, PositionNormalTextureColor3D_Stealth_VP() ) );
+		SetPixelShader( CompileShader( ps_4_0, PositionTextureColor3D_FP() ) );
+	}
+}
+
+
+//æ·±åº¦æ¯”è¼ƒã§è–„ãã™ã‚‹ã‚„ã¤ç”¨
+// ä½ç½®ã€ãƒ†ã‚¯ã‚¹ãƒãƒ£ã€è‰²		(FVF_POSITION|FVF_NORMAL|FVF_TEXCOORD0|FVF_COLOR0)
+SpriteCT3D_VPOutput PositionNormalTextureColor3D_VP2(DefualtVPInput IN)
+{
+	SpriteCT3D_VPOutput OUT;
+	//OUT.position = mul(IN.position, transpose(WorldViewProjection)); // TODO : Check
+	OUT.position = mul(transpose(WorldViewProjection), IN.position);
+	OUT.texCoord = getUV( IN.texCoord );
+	OUT.color    = IN.color    * inputColor;
+	
+	
+	//é™°å½±
+	//float4	worldPos	= mul(IN.position, transpose(World)); // TODO : Check
+	float4	worldPos	= mul(transpose(World), IN.position);
+	float	_dot		= getShadeFactor( worldPos.xyz );
+	OUT.color.a *= _dot;
+
+	OUT.texCoord1 = mul(float4(IN.position.xyz,1.0f), WorldViewProjection);	
+	return OUT;
+}
+
+//æ·±åº¦æ¯”è¼ƒã§è–„ãã™ã‚‹ã‚„ã¤
+float4 PositionTextureColor3D_FP2(SpriteCT3D_VPOutput IN) : FRAG_OUTPUT_COLOR0
+{
+	float4 _color = TextureSampler.Sample(LinearClampSampler, IN.texCoord);
+	_color *= IN.color;
+	_color.r += inputSpecular.r * inputSpecular.a;
+	_color.g += inputSpecular.g * inputSpecular.a;
+	_color.b += inputSpecular.b * inputSpecular.a;
+
+	//clip(_color.a - inputAlphaThreshold);	//Î±ãƒ†ã‚¹ãƒˆ(Vitaã§å¿…è¦)
+
+
+	//æ·±åº¦ãƒãƒƒãƒ•ã‚¡ã®æ·±åº¦(ä½•ã‹1ãŒå¼·ã„
+	float2 screenPos = (IN.texCoord1.xy/IN.texCoord1.w);
+	screenPos.xy = screenPos.xy * 0.5f + float2(0.5f, 0.5f);
+	
+	float depthMapValue = ReadDepth(DepthBuffer, screenPos );
+	depthMapValue = ConvertDepth( depthMapValue );
+	depthMapValue = saturate(depthMapValue);
+
+//ã‚„ã‚‹ã¨ã¯ã€CDraw.cpp ã§ DepthBufferã‚’ï½Œã€‚
+	//ãƒ”ã‚¯ã‚»ãƒ«ã®æ·±åº¦è¨ˆç®—
+	float myDepthValue = (IN.texCoord1.z / IN.texCoord1.w);
+	float myDepth = saturate(myDepthValue);
+	
+	float delta = depthMapValue-myDepth;
+	delta = delta / 0.0001f;
+		
+	delta = saturate(delta);
+	
+	_color.a *= delta;
+	
+	return _color;
+}
+
+technique11 PositionNormalTextureColor3D_Test
+{
+	pass p0
+	{
+		//SetBlendState( LinearBlend, float4( 0.0f, 0.0f, 0.0f, 0.0f ), 0xFFFFFFFF );
+		SetVertexShader( CompileShader( vs_4_0, PositionNormalTextureColor3D_VP2() ) );
+		SetPixelShader( CompileShader( ps_4_0, PositionTextureColor3D_FP2() ) );
+	}
+}

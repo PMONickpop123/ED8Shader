@@ -1,0 +1,9 @@
+Nihon Falcom for creating the Trails / Kiseki series as well as making the original base shader.
+
+uyjulian for the dumped assets and making it possible to bring Cold Steel content to Unity/VRChat and many other platforms.
+
+Silent for many, many shader related things.
+
+Xiexe and Poiyomi for their shaders.
+
+Thryallo for making ThryEditor, a custom editor used by the shader.
