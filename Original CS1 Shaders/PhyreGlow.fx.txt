@@ -79,9 +79,9 @@ PhyreEngine(TM) Package 3.4.0.0
 	float3		scene_FogColor				: FOGCOLOR;
 	float4		scene_FogRangeParameters		: FogRangeParameters;
 
-	// â€»é«˜ã•ãƒ•ã‚©ã‚°å»ƒæ­¢å¾Œã€åˆ¥ç”¨é€”ã§ä½¿ç”¨
-	float3		scene_MiscParameters1			: HeightFogColor;				// xyzw = æœªä½¿ç”¨
-	float4		scene_MiscParameters2			: HeightFogRangeParameters;		// x = 1 / ã‚·ãƒ£ãƒ‰ã‚¦ãƒžãƒƒãƒ—ã®æ¸›è¡°è·é›¢ï¼ˆåž‚ç›´æ–¹å‘ï¼‰, y = ã‚·ãƒ£ãƒ‰ã‚¦ãƒžãƒƒãƒ—æ¸›è¡°ã®åŸºæº–é«˜ã•, zw = æœªä½¿ç”¨
+	// ※高さフォグ廃止後、別用途で使用
+	float3		scene_MiscParameters1			: HeightFogColor;				// xyzw = 未使用
+	float4		scene_MiscParameters2			: HeightFogRangeParameters;		// x = 1 / シャドウマップの減衰距離(垂直方向), y = シャドウマップ減衰の基準高さ, zw = 未使用
 
 	float		AdditionalShadowOffset	: AdditionalShadowOffset;
 
@@ -151,7 +151,7 @@ float4 PackNormalAndDepth(float3 normal, float depth)
 
 #line 10 "Z:/data/shaders/PhyreGlow.fx"
 
-#define FLIBMOD_NO_GAUSSIAN_BLUR_Y_COMPOSITE	// Èƒƒ‚ƒŠ‚Ì‚½‚ß
+#define FLIBMOD_NO_GAUSSIAN_BLUR_Y_COMPOSITE	// Èƒƒ'ƒŠ'Ì'½'ß
 
 float4 GaussianBlurBufferSize;
 float4 GaussianOutputScale;

@@ -1,5 +1,5 @@
 #line 1 "Z:/data/shaders/postfx.fx"
-// ã“ã®ãƒ•ã‚¡ã‚¤ãƒ«ã¯UTF-8ã‚³ãƒ¼ãƒ‰ã§ä¿å­˜ã—ã¦ãã ã•ã„ã€‚
+// このファイルはUTF-8コードで保存してください。
 
 
 #line 1 "Z:/data/shaders/PhyreShaderPlatform.h"
@@ -75,9 +75,9 @@ PhyreEngine(TM) Package 3.4.0.0
 	float3		scene_FogColor				: FOGCOLOR;
 	float4		scene_FogRangeParameters		: FogRangeParameters;
 
-	// â€»é«˜ã•ãƒ•ã‚©ã‚°å»ƒæ­¢å¾Œã€åˆ¥ç”¨é€”ã§ä½¿ç”¨
-	float3		scene_MiscParameters1			: HeightFogColor;				// xyzw = æœªä½¿ç”¨
-	float4		scene_MiscParameters2			: HeightFogRangeParameters;		// x = 1 / ã‚·ãƒ£ãƒ‰ã‚¦ãƒžãƒƒãƒ—ã®æ¸›è¡°è·é›¢ï¼ˆåž‚ç›´æ–¹å‘ï¼‰, y = ã‚·ãƒ£ãƒ‰ã‚¦ãƒžãƒƒãƒ—æ¸›è¡°ã®åŸºæº–é«˜ã•, zw = æœªä½¿ç”¨
+	// ※高さフォグ廃止後、別用途で使用
+	float3		scene_MiscParameters1			: HeightFogColor;				// xyzw = 未使用
+	float4		scene_MiscParameters2			: HeightFogRangeParameters;		// x = 1 / シャドウマップの減衰距離(垂直方向), y = シャドウマップ減衰の基準高さ, zw = 未使用
 
 	float		AdditionalShadowOffset	: AdditionalShadowOffset;
 
@@ -166,16 +166,16 @@ SamplerState LinearClampSampler
     AddressV = Clamp;
 };
 
-float4 FilterColor = { 1.0, 1.0, 1.0, 1.0 };	// åŠ ç®—ãƒ•ã‚£ãƒ«ã‚¿ RGB:è‰² A:å¼·ã•
-float4 FadingColor = { 1.0, 1.0, 1.0, 1.0 };	// ãƒ•ã‚§ãƒ¼ãƒ‰ãƒ•ã‚£ãƒ«ã‚¿ RGB:è‰² A:è£œé–“
-float4 MonotoneMul = { 1.0, 1.0, 1.0, 1.0 };	// ãƒ¢ãƒŽãƒˆãƒ¼ãƒ³ãƒ•ã‚£ãƒ«ã‚¿ RGB:è‰² A:è£œé–“
-float4 MonotoneAdd   = { 0.0, 0.0, 0.0, 0.0 };	// ãƒ¢ãƒŽãƒˆãƒ¼ãƒ³ãƒ•ã‚£ãƒ«ã‚¿ RGB:è‰² A:-
+float4 FilterColor = { 1.0, 1.0, 1.0, 1.0 };	// 加算フィルタ RGB:色 A:強さ
+float4 FadingColor = { 1.0, 1.0, 1.0, 1.0 };	// フェードフィルタ RGB:色 A:補間
+float4 MonotoneMul = { 1.0, 1.0, 1.0, 1.0 };	// モノトーンフィルタ RGB:色 A:補間
+float4 MonotoneAdd   = { 0.0, 0.0, 0.0, 0.0 };	// モノトーンフィルタ RGB:色 A:-
 float4 GlowIntensity = { 1.0, 1.0, 1.0, 1.0 };
 float4 ToneFactor = { 1.0, 1.0, 1.0, 1.0 };
-float4 UvScaleBias = { 1.0, 1.0, 0.0, 0.0 };	// XY:uvã®ã‚¹ã‚±ãƒ¼ãƒ«å€¤ã€ZW:uvã®ãƒã‚¤ã‚¢ã‚¹å€¤
-float4 GaussianBlurParams = { 0.0, 0.0, 0.0, 0.0 };		// XY:ã‚½ãƒ¼ã‚¹ç”»åƒã®ã‚µã‚¤ã‚º ZW:æœªä½¿ç”¨
-float4 DofParams = { 0.0, 0.0, 0.0, 0.0 };		// X:cameraFar/(cameraFar-cameraNear) Y:1/cameraFar Z:åˆç„¦è·é›¢ W:1/(è¢«å†™ç•Œæ·±åº¦ã®æœ€å¥¥è·é›¢ - åˆç„¦è·é›¢)
-float4 GammaParameters = { 2.20f/2.20f, 1.0, 1.0, 0 };	// DeGamma/Gamma, ç”»é¢ã®ã‚¹ã‚±ãƒ¼ãƒ«(X), ç”»é¢ã®ã‚¹ã‚±ãƒ¼ãƒ«(Y), -
+float4 UvScaleBias = { 1.0, 1.0, 0.0, 0.0 };	// XY:uvのスケール値、ZW:uvのバイアス値
+float4 GaussianBlurParams = { 0.0, 0.0, 0.0, 0.0 };		// XY:ソース画像のサイズ ZW:未使用
+float4 DofParams = { 0.0, 0.0, 0.0, 0.0 };		// X:cameraFar/(cameraFar-cameraNear) Y:1/cameraFar Z:合焦距離 W:1/(被写界深度の最奥距離 - 合焦距離)
+float4 GammaParameters = { 2.20f/2.20f, 1.0, 1.0, 0 };	// DeGamma/Gamma, 画面のスケール(X), 画面のスケール(Y), -
 float4 WhirlPinchParams = { 0.0, 0.0, 0.0, 0.0 };
 
 struct FullscreenVPInput
@@ -311,26 +311,26 @@ FullscreenGaussianBlurVPOutput FullscreenGaussianBlurYVP(FullscreenVPInput IN)
 	return OUT;
 }
 
-// ãƒ¬ãƒ³ãƒ€ãƒ¼ã‚¿ãƒ¼ã‚²ãƒƒãƒˆã®ã‚³ãƒ”ãƒ¼
+// レンダーターゲットのコピー
 float4 CopyBufferFP(FullscreenFPInput IN) : FRAG_OUTPUT_COLOR0
 {
 	return ColorBuffer.SampleLevel(LinearClampSampler, IN.ScreenUv.xy, 0);
 }
 
-// ãƒ¬ãƒ³ãƒ€ãƒ¼ã‚¿ãƒ¼ã‚²ãƒƒãƒˆã®ã‚³ãƒ”ãƒ¼(Aã‚’1.0ã«ã™ã‚‹)
+// レンダーターゲットのコピー(Aを1.0にする)
 float4 CopyBufferFP_FillAlpha1(FullscreenFPInput IN) : FRAG_OUTPUT_COLOR0
 {
 	return float4(ColorBuffer.SampleLevel(LinearClampSampler, IN.ScreenUv.xy, 0).rgb, 1.0f);
 }
 
-// ãƒ¬ãƒ³ãƒ€ãƒ¼ã‚¿ãƒ¼ã‚²ãƒƒãƒˆã®ã‚³ãƒ”ãƒ¼(RGBã‚’Aã«ã™ã‚‹)
+// レンダーターゲットのコピー(RGBをAにする)
 float4 CopyBufferFP_ShowAlpha(FullscreenFPInput IN) : FRAG_OUTPUT_COLOR0
 {
 	float4 col = ColorBuffer.SampleLevel(LinearClampSampler, IN.ScreenUv.xy, 0);
 	return float4(float3(col.a, col.a, col.a), 1.0f);
 }
 
-// ãƒ¬ãƒ³ãƒ€ãƒ¼ã‚¿ãƒ¼ã‚²ãƒƒãƒˆã®ã‚³ãƒ”ãƒ¼(é«˜è¼åº¦æˆåˆ†ã ã‘æŠ½å‡º)
+// レンダーターゲットのコピー(高輝度成分だけ抽出)
 float4 CopyBufferFP_ExtractHightPass(FullscreenFPInput IN) : FRAG_OUTPUT_COLOR0
 {
 	float4 col = ColorBuffer.SampleLevel(LinearClampSampler, IN.ScreenUv.xy, 0);
@@ -342,7 +342,7 @@ float4 CopyBufferFP_ExtractHightPass(FullscreenFPInput IN) : FRAG_OUTPUT_COLOR0
 #define BLUR_WEIGHT2		1.0
 #define BLUR_WEIGHT_SUM		(float)(1.0 / (BLUR_WEIGHT0 + BLUR_WEIGHT1 + BLUR_WEIGHT1 + BLUR_WEIGHT2 + BLUR_WEIGHT2))
 
-// ãƒ¬ãƒ³ãƒ€ãƒ¼ã‚¿ãƒ¼ã‚²ãƒƒãƒˆã®ã‚³ãƒ”ãƒ¼ï¼ˆã‚¬ã‚¦ã‚¹ã¼ã‹ã—ä»˜ãï¼‰
+// レンダーターゲットのコピー(ガウスぼかし付き)
 float4 CopyBufferFP_GaussianBlur(FullscreenGaussianBlurFPInput IN) : FRAG_OUTPUT_COLOR0
 {
 	float4 sampleCentre = ColorBuffer.Sample(LinearClampSampler, IN.ScreenUv.xy);
@@ -380,16 +380,16 @@ float getDepth(FullscreenCompositFPInput IN)
 {
 	float depthSample = DepthBuffer.Sample(LinearClampSampler, IN.ScreenUv.xy).x;
 
-	// æ·±åº¦ã‚’ç·šå½¢æ·±åº¦ã¸å¤‰æ›
+	// 深度を線形深度へ変換
 	float linearDepth = DofParams.y / (DofParams.x - depthSample);
 	return saturate(linearDepth);
 }
 
 float getDofValue(float depth)
 {
-	// åˆç„¦è·é›¢ã‹ã‚‰ä¸€å®šè·é›¢ã¾ã§ã®é–“ã§ã¼ã‹ã™
+	// 合焦距離から一定距離までの間でぼかす
 	depth = saturate(abs(depth - DofParams.z) * DofParams.w);
-	depth *= depth;		// é æ™¯ã€è¿‘æ™¯ã«ãƒ¡ãƒªãƒãƒªã‚’ä»˜ã‘ã‚‹ãŸã‚
+	depth *= depth;		// 遠景、近景にメリハリを付けるため
 	return depth;
 }
 
@@ -1574,8 +1574,8 @@ float4 ComposeSceneFP_SGC_Mc(FullscreenCompositFPInput IN) : FRAG_OUTPUT_COLOR0
 
 
 // WhirlPinch
-// ãƒ©ã‚¹ãƒœã‚¹éƒ¨å±‹ç”¨ã€‚ã‚½ãƒ¼ã‚¹ã«ã‚¯ãƒ­ã‚¹ãƒ•ã‚§ãƒ¼ãƒ‰ç”»é¢ã‚’ç”¨ã„ã‚‹ã€‚
-// ãƒ¢ãƒŽãƒˆãƒ¼ãƒ³ãªã—
+// ラスボス部屋用。ソースにクロスフェード画面を用いる。
+// モノトーンなし
 float4 ComposeSceneFP_WhirlPinch(FullscreenCompositFPInput IN) : FRAG_OUTPUT_COLOR0
 {
 //	float whirl = WhirlPinchParams.x;
@@ -1629,11 +1629,11 @@ float4 ComposeSceneFP_WhirlPinch(FullscreenCompositFPInput IN) : FRAG_OUTPUT_COL
 
 /*
 
-// ãƒ†ã‚¹ãƒˆ
-// å¤©å€™ - é›¨
+// テスト
+// 天候 - 雨
 
 
-// è¼åº¦å¼·èª¿
+// 輝度強調
 float4 ComposeSceneFP_Brightness(FullscreenCompositFPInput IN) : FRAG_OUTPUT_COLOR0
 {
 	float3 color = ColorBuffer.SampleLevel(LinearClampSampler, IN.ScreenUv.xy, 0).rgb;
@@ -1693,7 +1693,7 @@ float3 curves(float3 v)
 
 float4 GammaCorrectionFP(FullscreenFPInput IN) : FRAG_OUTPUT_COLOR0
 {
-// ã“ã‚Œã¤ã‹ã„ã‚‚ã®ã«ãªã‚‹ã®ã‹?
+// これつかいものになるのか?
 	float4 color = ColorBuffer.SampleLevel(LinearClampSampler, IN.ScreenUv.xy, 0);
 	float3 v = degamma_gamma(color.rgb);
 	//v = curves(v);
@@ -1734,7 +1734,7 @@ RasterizerState DefaultRasterState
 	ScissorEnable = false;
 };
 
-// ã‚¬ãƒ³ãƒžè£œæ­£
+// ガンマ補正
 technique11 GammaCorrection
 {
 	pass p0
@@ -1756,7 +1756,7 @@ technique11 GammaCorrection
 
 
 
-// ãƒ¬ãƒ³ãƒ€ãƒ¼ã‚¿ãƒ¼ã‚²ãƒƒãƒˆã®ã‚³ãƒ”ãƒ¼
+// レンダーターゲットのコピー
 technique11 CopyBuffer
 {
 	pass p0
@@ -1776,7 +1776,7 @@ technique11 CopyBuffer
 	}
 }
 
-// ãƒ¬ãƒ³ãƒ€ãƒ¼ã‚¿ãƒ¼ã‚²ãƒƒãƒˆã®ã‚³ãƒ”ãƒ¼(Aã‚’1.0ã«ã™ã‚‹)
+// レンダーターゲットのコピー(Aを1.0にする)
 technique11 CopyBufferFillAlpha1
 {
 	pass p0
@@ -1796,7 +1796,7 @@ technique11 CopyBufferFillAlpha1
 	}
 }
 
-// ãƒ¬ãƒ³ãƒ€ãƒ¼ã‚¿ãƒ¼ã‚²ãƒƒãƒˆã®ã‚³ãƒ”ãƒ¼(RGBã‚’Aã«ã™ã‚‹)
+// レンダーターゲットのコピー(RGBをAにする)
 technique11 CopyBufferShowAlpha
 {
 	pass p0
@@ -1816,7 +1816,7 @@ technique11 CopyBufferShowAlpha
 	}
 }
 
-// ãƒ¬ãƒ³ãƒ€ãƒ¼ã‚¿ãƒ¼ã‚²ãƒƒãƒˆã®ã‚³ãƒ”ãƒ¼(é«˜è¼åº¦æˆåˆ†ã ã‘æŠ½å‡º)
+// レンダーターゲットのコピー(高輝度成分だけ抽出)
 technique11 CopyBufferExtractHightPass
 {
 	pass p0
@@ -1836,7 +1836,7 @@ technique11 CopyBufferExtractHightPass
 	}
 }
 
-// ãƒ¬ãƒ³ãƒ€ãƒ¼ã‚¿ãƒ¼ã‚²ãƒƒãƒˆã®ã‚³ãƒ”ãƒ¼ï¼ˆæ¨ªæ–¹å‘ã‚¬ã‚¦ã‚¹ã¼ã‹ã—ä»˜ãï¼‰
+// レンダーターゲットのコピー(横方向ガウスぼかし付き)
 technique11 CopyBufferGaussianBlurX
 {
 	pass p0
@@ -1856,7 +1856,7 @@ technique11 CopyBufferGaussianBlurX
 	}
 }
 
-// ãƒ¬ãƒ³ãƒ€ãƒ¼ã‚¿ãƒ¼ã‚²ãƒƒãƒˆã®ã‚³ãƒ”ãƒ¼ï¼ˆç¸¦æ–¹å‘ã‚¬ã‚¦ã‚¹ã¼ã‹ã—ä»˜ãï¼‰
+// レンダーターゲットのコピー(縦方向ガウスぼかし付き)
 technique11 CopyBufferGaussianBlurY
 {
 	pass p0

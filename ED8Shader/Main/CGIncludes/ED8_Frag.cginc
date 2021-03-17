@@ -179,11 +179,11 @@ fixed4 DefaultFPShader (DefaultVPOutput IN) : SV_Target {
                 #endif // defined(MULTI_UV_FACE_ENANLED)
 
 		        #if defined(MULTI_UV_ADDITIVE_BLENDING_ENANLED)
-	                // åŠ ç®—
+	                // 加算
 	                float3 muvtex_add = diffuse2Amt.rgb * multi_uv_alpha;
 	                diffuseAmt.rgb += muvtex_add;
 		        #elif defined(MULTI_UV_MULTIPLICATIVE_BLENDING_ENANLED)
-                    // ä¹—ç®—
+                    // 乗算
                     // v = lerp(x, x*y, t)
                     // v = x + (x*y - x) * t;
                     // v = x + (y - 1) * x * t;
@@ -191,9 +191,9 @@ fixed4 DefaultFPShader (DefaultVPOutput IN) : SV_Target {
                     float3 muvtex_add = (diffuse2Amt.rgb - float3(1.0f, 1.0f, 1.0f)) * diffuseAmt.rgb * multi_uv_alpha;
                     diffuseAmt.rgb += muvtex_add;
 		        #elif defined(MULTI_UV_SHADOW_ENANLED)
-	                // å½±é ˜åŸŸã¨ã—ã¦æ‰±ã†
+	                // 影領域として扱う
 		        #else
-	                // ã‚¢ãƒ«ãƒ•ã‚¡
+	                // アルファ
 	                diffuseAmt.rgb = lerp(diffuseAmt.rgb, diffuse2Amt.rgb, multi_uv_alpha);
 		        #endif //
 	        #else // !defined(MULTI_UV_NO_DIFFUSE_MAPPING_ENANLED)
@@ -211,11 +211,11 @@ fixed4 DefaultFPShader (DefaultVPOutput IN) : SV_Target {
 			        #endif // defined(MULTI_UV_FACE_ENANLED)
 
 			        #if defined(MULTI_UV2_ADDITIVE_BLENDING_ENANLED)
-                        // åŠ ç®—
+                        // 加算
                         float3 muvtex_add2 = diffuse3Amt.rgb * multi_uv2_alpha;
                         diffuseAmt.rgb += muvtex_add2;
 			        #elif defined(MULTI_UV2_MULTIPLICATIVE_BLENDING_ENANLED)
-                        // ä¹—ç®—
+                        // 乗算
                         // v = lerp(x, x*y, t)
                         // v = x + (x*y - x) * t;
                         // v = x + (y - 1) * x * t;
@@ -223,9 +223,9 @@ fixed4 DefaultFPShader (DefaultVPOutput IN) : SV_Target {
                         float3 muvtex_add2 = (diffuse3Amt.rgb - float3(1.0f, 1.0f, 1.0f)) * diffuseAmt.rgb * multi_uv2_alpha;
                         diffuseAmt.rgb += muvtex_add2;
                     #elif defined(MULTI_UV_SHADOW_ENANLED)
-	                    // å½±é ˜åŸŸã¨ã—ã¦æ‰±ã†
+	                    // 影領域として扱う
 			        #else
-                        // ã‚¢ãƒ«ãƒ•ã‚¡
+                        // アルファ
                         diffuseAmt.rgb = lerp(diffuseAmt.rgb, diffuse3Amt.rgb, multi_uv2_alpha);
                     #endif //
                 #endif // !defined(MULTI_UV2_NO_DIFFUSE_MAPPING_ENANLED)
@@ -251,12 +251,12 @@ fixed4 DefaultFPShader (DefaultVPOutput IN) : SV_Target {
 
         #if defined(MULTI_UV_ENANLED)
             #if defined(MULTI_UV_SHADOW_ENANLED)
-                // å½±é ˜åŸŸã¨ã—ã¦æ‰±ã†
+                // 影領域として扱う
                 shadowValue = min(shadowValue, 1.0f - (diffuse2Amt.r * multi_uv_alpha));
             #endif //
 
             #if defined(MULTI_UV2_SHADOW_ENANLED)
-                // å½±é ˜åŸŸã¨ã—ã¦æ‰±ã†
+                // 影領域として扱う
                 shadowValue = min(shadowValue, 1.0f - (diffuse3Amt.r * multi_uv2_alpha));
             #endif //
         #endif // MULTI_UV_ENANLED
@@ -389,7 +389,7 @@ fixed4 DefaultFPShader (DefaultVPOutput IN) : SV_Target {
             float3 worldSpaceEyeDirection = normalize(getEyePosition() - IN.WorldPositionDepth.xyz);
             #define FP_WS_EYEDIR_EXIST
 
-	        // ãƒªãƒ ãƒ©ã‚¤ãƒˆã‚„ç’°å¢ƒãƒžãƒƒãƒ—ã®æº–å‚™
+	        // リムライトや環境マップの準備
 	        #if defined(USE_LIGHTING)
                 #if defined(RIM_LIGHTING_ENABLED)
                     #define FP_NDOTE_1
@@ -416,7 +416,7 @@ fixed4 DefaultFPShader (DefaultVPOutput IN) : SV_Target {
                 }
 	        #endif // defined(FP_NDOTE_1) && defined(FP_NDOTE_2)
 
-            // ãƒªãƒ ãƒ©ã‚¤ãƒˆ
+            // リムライト
             #if defined(USE_LIGHTING)
                 #if defined(RIM_LIGHTING_ENABLED)
                     #if defined(RIM_TRANSPARENCY_ENABLED)
@@ -428,9 +428,9 @@ fixed4 DefaultFPShader (DefaultVPOutput IN) : SV_Target {
                 #endif // RIM_LIGHTING_ENABLED
             #endif // defined(USE_LIGHTING)
 
-	        // ç’°å¢ƒãƒžãƒƒãƒ—
+	        // 環境マップ
 	        #if !(defined(FORCE_PER_VERTEX_ENVIRON_MAP) || !defined(USE_TANGENTS))
-		        // ã‚­ãƒ¥ãƒ¼ãƒ–ãƒžãƒƒãƒ—/ã‚¹ãƒ•ã‚£ã‚¢ãƒžãƒƒãƒ—-PerPixel
+		        // キューブマップ/スフィアマップ-PerPixel
 		        #if defined(CUBE_MAPPING_ENABLED)
 	                float3 cubeMapParams = reflect(-worldSpaceEyeDirection, worldSpaceNormal);
 	                float cubeMapIntensity = 1.0f - max(0.0f, ndote) * (float)_CubeFresnelPower;
@@ -469,7 +469,7 @@ fixed4 DefaultFPShader (DefaultVPOutput IN) : SV_Target {
 
 	        float3 ambient = float3(0.0f, 0.0f, 0.0f);;
 
-            // ãƒªãƒ ãƒ©ã‚¤ãƒˆ
+            // リムライト
             #if defined(USE_LIGHTING)
 	            float3 worldSpaceNormal = normalize(IN.Normal);
 
@@ -609,7 +609,7 @@ fixed4 DefaultFPShader (DefaultVPOutput IN) : SV_Target {
 	    #endif // FP_HAS_HILIGHT
 
         #if defined(SHADOW_COLOR_SHIFT_ENABLED)
-	        // [Not Toon] è¡¨é¢ä¸‹æ•£ä¹±ã®ã‚ˆã†ãªä½¿ã„æ–¹
+	        // [Not Toon] 表面下散乱のような使い方
 	        float3 subLightColor2 = max(float3(1.0f, 1.0f, 1.0f), subLightColor * 2.0f);
 	        shadingAmt.rgb += (float3(1.0f, 1.0f, 1.0f) - min(float3(1.0f, 1.0f, 1.0f), shadingAmt.rgb)) * _ShadowColorShift * subLightColor2;
         #endif // SHADOW_COLOR_SHIFT_ENABLED
@@ -621,7 +621,7 @@ fixed4 DefaultFPShader (DefaultVPOutput IN) : SV_Target {
 	    #endif // CUBE_MAPPING_ENABLED || SPHERE_MAPPING_ENABLED
 
         #if defined(EMVMAP_AS_IBL_ENABLED)
-	        // ã‚­ãƒ¥ãƒ¼ãƒ–ãƒžãƒƒãƒ—/ã‚¹ãƒ•ã‚£ã‚¢ãƒžãƒƒãƒ—-é©ç”¨ (IBL)
+	        // キューブマップ/スフィアマップ-適用 (IBL)
 	        #if defined(CUBE_MAPPING_ENABLED)
 	            shadingAmt.rgb += cubeMapColor.rgb * cubeMapIntensity * envMapColor * glossValue;
 	        #elif defined(SPHERE_MAPPING_ENABLED)

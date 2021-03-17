@@ -73,9 +73,9 @@ PhyreEngine(TM) Package 3.4.0.0
 	float3		scene_FogColor				: FOGCOLOR;
 	float4		scene_FogRangeParameters		: FogRangeParameters;
 
-	// â€»é«˜ã•ãƒ•ã‚©ã‚°å»ƒæ­¢å¾Œã€åˆ¥ç”¨é€”ã§ä½¿ç”¨
-	float3		scene_MiscParameters1			: HeightFogColor;				// xyzw = æœªä½¿ç”¨
-	float4		scene_MiscParameters2			: HeightFogRangeParameters;		// x = 1 / ã‚·ãƒ£ãƒ‰ã‚¦ãƒžãƒƒãƒ—ã®æ¸›è¡°è·é›¢ï¼ˆåž‚ç›´æ–¹å‘ï¼‰, y = ã‚·ãƒ£ãƒ‰ã‚¦ãƒžãƒƒãƒ—æ¸›è¡°ã®åŸºæº–é«˜ã•, zw = æœªä½¿ç”¨
+	// ※高さフォグ廃止後、別用途で使用
+	float3		scene_MiscParameters1			: HeightFogColor;				// xyzw = 未使用
+	float4		scene_MiscParameters2			: HeightFogRangeParameters;		// x = 1 / シャドウマップの減衰距離(垂直方向), y = シャドウマップ減衰の基準高さ, zw = 未使用
 
 	float		AdditionalShadowOffset	: AdditionalShadowOffset;
 
@@ -146,7 +146,7 @@ float4 PackNormalAndDepth(float3 normal, float depth)
 #line 4 "Z:/data/shaders/generic.fx"
 
 //------------------------------------------------------------------------------
-// PhyreEngingå…±é€š
+// PhyreEnging共通
 //------------------------------------------------------------------------------
 float4x4 World					: World;
 float4x4 View					: View;
@@ -157,7 +157,7 @@ float4x4 WorldViewProjection	: WorldViewProjection;
 float4x4 WorldViewInverse		: WorldViewInverse;	
 
 //------------------------------------------------------------------------------
-//ãƒ—ãƒ­ã‚°ãƒ©ãƒ å…¥åŠ›å¤‰æ•°
+//プログラム入力変数
 //------------------------------------------------------------------------------
 Texture2D<float4>	DepthBuffer;
 Texture2D<float4>	TextureSampler;
@@ -185,20 +185,20 @@ SamplerState Texture2SamplerS
 };
 
 float 		CameraAspectRatio;
-float4 		inputColor = { 1.0f, 1.0f, 1.0f, 1.f };					//è‰²
-float4 		inputSpecular = { 0.0f, 0.0f, 0.0f, 0.f };				//ã‚¹ãƒšã‚­ãƒ¥ãƒ©
-float4		inputUVShift = {1,1,0,0};								//UVãšã‚‰ã—å€¤
-float		inputAlphaThreshold = 0.0;								//Î±ãƒ†ã‚¹ãƒˆã®ã—ãã„å€¤(Vitaã§ã¯Î±ãƒ†ã‚¹ãƒˆã‚’ã‚·ã‚§ãƒ¼ãƒ€ãƒ¼ã§ã‚„ã‚‹å¿…è¦ã‚ã‚‹ï¼‰
+float4 		inputColor = { 1.0f, 1.0f, 1.0f, 1.f };					//色
+float4 		inputSpecular = { 0.0f, 0.0f, 0.0f, 0.f };				//スペキュラ
+float4		inputUVShift = {1,1,0,0};								//UVずらし値
+float		inputAlphaThreshold = 0.0;								//αテストのしきい値(Vitaではαテストをシェーダーでやる必要ある)
 float4		inputCenter  = {0.0f, 0.0f, 0.0f, 0.f};
-//float3	inputCameraVector = {0.0f, 0.0f, -1.0f};				//ã‚«ãƒ¡ãƒ©ãƒ™ã‚¯ãƒˆãƒ« eye-lookat
-float2		inputUVtraspose = {1.0f, 0.0f};							//UVè»¢ç½®ç”¨
+//float3	inputCameraVector = {0.0f, 0.0f, -1.0f};				//カメラベクトル eye-lookat
+float2		inputUVtraspose = {1.0f, 0.0f};							//UV転置用
 //float3	inputLightVector = {0.0f, 0.0f, 0.0f};
 float4		inputShaderParam = {0.0f,0.0f,0.0f,0.0f};
-float2		inputScreenOffset= {0.0f,0.0f};							//3Dæç”»ã§ã®ã‚¹ã‚¯ãƒªãƒ¼ãƒ³åº§æ¨™ã‚ªãƒ•ã‚»ãƒƒãƒˆ
+float2		inputScreenOffset= {0.0f,0.0f};							//3D描画でのスクリーン座標オフセット
 float		inputDepth = 0.f;
-float4		inputUVShiftMT = {1,1,0,0};								//UVãšã‚‰ã—å€¤MT
+float4		inputUVShiftMT = {1,1,0,0};								//UVずらし値MT
 
-// fxãƒ•ã‚¡ã‚¤ãƒ«ã¨ã®äº’æ›æ€§ã‚’é«˜ã‚ã‚‹ãŸã‚æ§‹é€ ä½“åž‹ã®å…¥å‡ºåŠ›ã«ã—ã¾ã—ãŸ
+// fxファイルとの互換性を高めるため構造体型の入出力にしました
 struct SpriteC_VPInput
 {
 	float4 position		: POSITION;
@@ -210,7 +210,7 @@ struct SpriteC_VPOutput
 	float4 color		: COLOR0;
 };
 #define SpriteC_FPInput SpriteC_VPOutput
-//SpriteC_VPOutputã‚’ä½¿ã†
+//SpriteC_VPOutputを使う
 //struct SpriteC_FPInput
 //{
 //	float4 color		: COLOR0;
@@ -231,7 +231,7 @@ struct SpriteCT_VPOutput
 	float2 texCoord		: TEXCOORD0;
 };
 #define SpriteCT_FPInput SpriteCT_VPOutput
-//SpriteCT_VPOutputã‚’ä½¿ã†
+//SpriteCT_VPOutputを使う
 //struct SpriteCT_FPInput
 //{
 //	float4 color		: COLOR0;
@@ -246,7 +246,7 @@ struct SpriteCTMT_VPOutput
 	float2 texCoord2	: TEXCOORD1;
 };
 #define SpriteCTMT_FPInput SpriteCTMT_VPOutput
-//SpriteCTMT_VPOutputã‚’ä½¿ã†
+//SpriteCTMT_VPOutputを使う
 //struct SpriteCTMT_FPInput
 //{
 //	float4 color		: COLOR0;
@@ -262,7 +262,7 @@ struct SpriteCT3D_VPOutput
 	float4 texCoord1	: TEXCOORD1;
 };
 #define SpriteCT3D_FPInput SpriteCT3D_VPOutput
-//SpriteCT3D_VPOutputã‚’ä½¿ã†
+//SpriteCT3D_VPOutputを使う
 //struct SpriteCT3D_FPInput
 //{
 //	float4 color		: COLOR0;
@@ -271,7 +271,7 @@ struct SpriteCT3D_VPOutput
 //};
 
 //-----------------------------------------------------------------------------
-// è¦–ç‚¹ã®ä½ç½®
+// 視点の位置
 //-----------------------------------------------------------------------------
 float3 getEyePosition()
 {
@@ -279,14 +279,14 @@ float3 getEyePosition()
 }
 
 //------------------------------------------------------------------------------
-// ä»®æƒ³é™°å½±å€¤ã‚’è¨ˆç®—
-// pos:é ‚ç‚¹ãƒ¯ãƒ¼ãƒ«ãƒ‰åº§æ¨™
+// 仮想陰影値を計算
+// pos:頂点ワールド座標
 //------------------------------------------------------------------------------
 float getShadeFactor(float3 worldPos )
 {
 	float dh		= worldPos.y - inputCenter.y;
 	
-	dh += inputCenter.w;			//w==0ã§åˆæœŸå€¤ãŒå‹•ãã‚ˆã†ã«
+	dh += inputCenter.w;			//w==0で初期値が動くように
 
 	dh = clamp(dh, 0.f, 1.f);
 	return dh;
@@ -294,7 +294,7 @@ float getShadeFactor(float3 worldPos )
 
 
 //-----------------------------------------------------------------------------
-// Depthãƒãƒƒãƒ•ã‚¡ã‹ã‚‰Depthå€¤ã‚’
+// DepthバッファからDepth値を
 //-----------------------------------------------------------------------------
 float ReadDepth( Texture2D <float4> depthMap, float2 uv )
 {
@@ -329,12 +329,12 @@ float ConvertDepth(float depth)
 
 
 //------------------------------------------------------------------------------
-// è»¢ç½®UVã‚’è¿”ã™
-// inputUVtraspose = {1,0} ã§é€šå¸¸UV {0,1}ã§è»¢ç½®
+// 転置UVを返す
+// inputUVtraspose = {1,0} で通常UV {0,1}で転置
 //------------------------------------------------------------------------------
 float2 getUV( float2 IN )
 {
-	// UVè»¢ç½®
+	// UV転置
 	float2 OUT = float2(0.0f, 0.0f);
 	float2 uv1 = IN * inputUVShift.xy + inputUVShift.zw;
 
@@ -345,7 +345,7 @@ float2 getUV( float2 IN )
 }
 
 ///////////////////////////////////////////////////////////////////////////////
-// ã‚¹ãƒ—ãƒ©ã‚¤ãƒˆ
+// スプライト
 
 SpriteC_VPOutput PositionColor2D_VP(SpriteC_VPInput IN)
 {
@@ -372,7 +372,7 @@ technique11 PositionColor2D
 }
 
 //-----------------------------------------------------------------------------
-// é ‚ç‚¹ã‚·ã‚§ãƒ¼ãƒ€ãƒ¼ï¼š2D, æ¨™æº–ã€ãƒžãƒ«ãƒãƒ†ã‚¯ã‚¹ãƒãƒ£
+// 頂点シェーダー:2D, 標準、マルチテクスチャ
 //-----------------------------------------------------------------------------
 SpriteCTMT_VPOutput PositionTextureColor2DMT_VP(SpriteCT_VPInput IN)
 {
@@ -387,7 +387,7 @@ SpriteCTMT_VPOutput PositionTextureColor2DMT_VP(SpriteCT_VPInput IN)
 }
 
 //-----------------------------------------------------------------------------
-// ãƒ•ãƒ©ã‚°ãƒ¡ãƒ³ãƒˆã‚·ã‚§ãƒ¼ãƒ€ãƒ¼ï¼š2D, æ¨™æº–ã€ãƒžãƒ«ãƒãƒ†ã‚¯ã‚¹ãƒãƒ£
+// フラグメントシェーダー:2D, 標準、マルチテクスチャ
 //-----------------------------------------------------------------------------
 float4 PositionTextureColor2DMT_FP(SpriteCTMT_VPOutput IN) : FRAG_OUTPUT_COLOR0
 {
@@ -401,7 +401,7 @@ float4 PositionTextureColor2DMT_FP(SpriteCTMT_VPOutput IN) : FRAG_OUTPUT_COLOR0
 	return _color;
 }
 //-----------------------------------------------------------------------------
-// ãƒ†ã‚¯ãƒ‹ãƒƒã‚¯ï¼š2D, æ¨™æº–ã€ãƒžãƒ«ãƒãƒ†ã‚¯ã‚¹ãƒãƒ£
+// テクニック:2D, 標準、マルチテクスチャ
 //-----------------------------------------------------------------------------
 technique11 PositionTextureColor2DMT
 {
@@ -413,7 +413,7 @@ technique11 PositionTextureColor2DMT
 }
 
 //-----------------------------------------------------------------------------
-// é ‚ç‚¹ã‚·ã‚§ãƒ¼ãƒ€ãƒ¼ï¼š2D, æ¨™æº–
+// 頂点シェーダー:2D, 標準
 //-----------------------------------------------------------------------------
 SpriteCT_VPOutput PositionTextureColor2D_VP(SpriteCT_VPInput IN)
 {
@@ -421,13 +421,13 @@ SpriteCT_VPOutput PositionTextureColor2D_VP(SpriteCT_VPInput IN)
 	//OUT.position = mul(IN.position, transpose(World)); // TODO : Check
 	OUT.position = mul(transpose(World), IN.position);
 	OUT.position.x *= CameraAspectRatio;
-	OUT.position.z = inputDepth;	//Zå€¤æ›¸ãè¾¼ã¿ãŸã„å ´åˆã«ä½¿ã†
+	OUT.position.z = inputDepth;	//Z値書き込みたい場合に使う
 	OUT.texCoord = IN.texCoord * inputUVShift.xy + inputUVShift.zw;
 	OUT.color    = IN.color    * inputColor;
 	return OUT;
 }
 //-----------------------------------------------------------------------------
-// ãƒ•ãƒ©ã‚°ãƒ¡ãƒ³ãƒˆã‚·ã‚§ãƒ¼ãƒ€ãƒ¼ï¼š2D, æ¨™æº–
+// フラグメントシェーダー:2D, 標準
 //-----------------------------------------------------------------------------
 float4 PositionTextureColor2D_FP(SpriteCT_VPOutput IN) : FRAG_OUTPUT_COLOR0
 {
@@ -457,7 +457,7 @@ DepthStencilState NoDepth
 };
 
 //-----------------------------------------------------------------------------
-// ãƒ†ã‚¯ãƒ‹ãƒƒã‚¯ï¼š2D, æ¨™æº–
+// テクニック:2D, 標準
 // FTECH_POSITIONTEXTURECOLOR2D
 //-----------------------------------------------------------------------------
 technique11 PositionTextureColor2D
@@ -476,7 +476,7 @@ technique11 PositionTextureColor2D
 
 
 //-----------------------------------------------------------------------------
-// é ‚ç‚¹ã‚·ã‚§ãƒ¼ãƒ€ãƒ¼ï¼šDepth -> Color
+// 頂点シェーダー:Depth -> Color
 //-----------------------------------------------------------------------------
 SpriteCT_VPOutput CopyPositionTextureColor2D_VP(SpriteCT_VPInput IN)
 {
@@ -488,7 +488,7 @@ SpriteCT_VPOutput CopyPositionTextureColor2D_VP(SpriteCT_VPInput IN)
 }
 
 //-----------------------------------------------------------------------------
-// ãƒ•ãƒ©ã‚°ãƒ¡ãƒ³ãƒˆã‚·ã‚§ãƒ¼ãƒ€ãƒ¼ï¼šDepth -> Color
+// フラグメントシェーダー:Depth -> Color
 //-----------------------------------------------------------------------------
 float4 CopyPositionTextureColor2D_FP(SpriteCT_VPOutput IN) : FRAG_OUTPUT_COLOR0
 {
@@ -508,7 +508,7 @@ float4 CopyPositionTextureColor2D_FP(SpriteCT_VPOutput IN) : FRAG_OUTPUT_COLOR0
 }
 
 //-----------------------------------------------------------------------------
-// ãƒ†ã‚¯ãƒ‹ãƒƒã‚¯ï¼š2D, æ¨™æº–
+// テクニック:2D, 標準
 // FTECH_POSITIONTEXTURECOLOR2D
 //-----------------------------------------------------------------------------
 technique11 CopyPositionTextureColor2D
@@ -522,9 +522,9 @@ technique11 CopyPositionTextureColor2D
 
 
 ///////////////////////////////////////////////////////////////////////////////
-// ãƒãƒªã‚´ãƒ³
+// ポリゴン
 
-// ä½ç½®ã€è‰²
+// 位置、色
 SpriteC_VPOutput PositionColor3D_VP(SpriteC_VPInput IN)
 {
 	SpriteC_VPOutput OUT;
@@ -549,9 +549,9 @@ technique11 PositionColor3D
 }
 
 //-----------------------------------------------------------------------------
-// é ‚ç‚¹ã‚·ã‚§ãƒ¼ãƒ€ãƒ¼ï¼š3D, æ¨™æº–
+// 頂点シェーダー:3D, 標準
 //-----------------------------------------------------------------------------
-// ä½ç½®ã€ãƒ†ã‚¯ã‚¹ãƒãƒ£ã€è‰²		(FVF_POSITION|FVF_TEXCOORD0|FVF_COLOR0)
+// 位置、テクスチャ、色		(FVF_POSITION|FVF_TEXCOORD0|FVF_COLOR0)
 SpriteCT_VPOutput PositionTextureColor3D_VP(SpriteCT_VPInput IN)
 {
 	SpriteCT_VPOutput OUT;
@@ -560,7 +560,7 @@ SpriteCT_VPOutput PositionTextureColor3D_VP(SpriteCT_VPInput IN)
 	OUT.texCoord = getUV( IN.texCoord );
 	OUT.color    = IN.color    * inputColor;
 	
-	//é™°å½±
+	//陰影
 	//float4	worldPos	= mul(IN.position, transpose(World)); // TODO : Check
 	float4	worldPos	= mul(transpose(World), IN.position);
 	float	_dot		= getShadeFactor( worldPos.xyz );
@@ -570,7 +570,7 @@ SpriteCT_VPOutput PositionTextureColor3D_VP(SpriteCT_VPInput IN)
 }
 
 //-----------------------------------------------------------------------------
-// ãƒ•ãƒ©ã‚°ãƒ¡ãƒ³ãƒˆã‚·ã‚§ãƒ¼ãƒ€ãƒ¼ï¼š3D, æ¨™æº–
+// フラグメントシェーダー:3D, 標準
 //-----------------------------------------------------------------------------
 float4 PositionTextureColor3D_FP(SpriteCT_VPOutput IN) : FRAG_OUTPUT_COLOR0
 {
@@ -580,7 +580,7 @@ float4 PositionTextureColor3D_FP(SpriteCT_VPOutput IN) : FRAG_OUTPUT_COLOR0
 	_color.g += inputSpecular.g * inputSpecular.a;
 	_color.b += inputSpecular.b * inputSpecular.a;
 
-	clip(_color.a - inputAlphaThreshold);	//Î±ãƒ†ã‚¹ãƒˆ(Vitaã§å¿…è¦)
+	clip(_color.a - inputAlphaThreshold);	//αテスト(Vitaで必要)
 	return _color;
 }
 
@@ -589,7 +589,7 @@ float4 PositionTextureColor3D_FP(SpriteCT_VPOutput IN) : FRAG_OUTPUT_COLOR0
 
 
 //-----------------------------------------------------------------------------
-// ãƒ†ã‚¯ãƒ‹ãƒƒã‚¯ï¼š3D, æ¨™æº–
+// テクニック:3D, 標準
 //-----------------------------------------------------------------------------
 technique11 PositionTextureColor3D
 {
@@ -612,7 +612,7 @@ technique11 PositionTextureColor3D_NoDepth
 
 
 //------------------------------------------------------------------------------
-// å…¥åŠ›é ‚ç‚¹ FVF_3D3   FVF_POSITION|FVF_NORMAL|FVF_TEXCOORD0|FVF_COLOR0
+// 入力頂点 FVF_3D3   FVF_POSITION|FVF_NORMAL|FVF_TEXCOORD0|FVF_COLOR0
 //------------------------------------------------------------------------------
 struct DefualtVPInput
 {
@@ -631,19 +631,19 @@ struct DefaultVPOutput
 
 
 //------------------------------------------------------------------------------
-// é ‚ç‚¹ã‚·ã‚§ãƒ¼ãƒ€ãƒ¼ï¼š3D,é€šå¸¸,æ³•ç·šã‚ã‚Š
+// 頂点シェーダー:3D,通常,法線あり
 //------------------------------------------------------------------------------
 DefaultVPOutput PositionNormalTextureColor3D_VP( DefualtVPInput IN )
 {
 	DefaultVPOutput OUT;
 	
-	// UVè»¢ç½®
+	// UV転置
 	OUT.texCoord = getUV( IN.texCoord );	
 	//OUT.position = mul(IN.position, transpose(WorldViewProjection)); // TODO : Check
 	OUT.position = mul(transpose(WorldViewProjection), IN.position);
 	OUT.color    = IN.color    * inputColor;
 
-	//ã‚¹ã‚¯ãƒªãƒ¼ãƒ³åº§æ¨™ç³»ã§ã®ã‚ªãƒ•ã‚»ãƒƒãƒˆ(-1ï½ž1)
+	//スクリーン座標系でのオフセット(-1~1)
 	OUT.position.x += inputScreenOffset.x * OUT.position.w;
 	OUT.position.y += inputScreenOffset.y * OUT.position.w;	
 
@@ -653,7 +653,7 @@ DefaultVPOutput PositionNormalTextureColor3D_VP( DefualtVPInput IN )
 
 
 //------------------------------------------------------------------------------
-// é ‚ç‚¹ã‚·ã‚§ãƒ¼ãƒ€ãƒ¼ï¼š3D,ã‚«ãƒ¡ãƒ©ã«å¯¾ã—ã¦é ‚ç‚¹å˜ä½ã§æ·µã‚’æ¶ˆã™ã‚·ã‚§ãƒ¼ãƒ€ãƒ¼
+// 頂点シェーダー:3D,カメラに対して頂点単位で淵を消すシェーダー
 //------------------------------------------------------------------------------
 DefaultVPOutput PositionNormalTextureColor3D_rimTransparency_VP( DefualtVPInput IN )
 {
@@ -664,7 +664,7 @@ DefaultVPOutput PositionNormalTextureColor3D_rimTransparency_VP( DefualtVPInput 
 	float3 worldNormal   = normalize( mul( float4(IN.normal.xyz,0.0f), World).xyz);
 	float3 worldPosition = mul(float4(IN.position.xyz,1.f), World).xyz;
 		
-	//è¦–ç·šã€æ³•ç·šã§è¨ˆç®—
+	//視線、法線で計算
 	float3 cameraVec = normalize( getEyePosition() - worldPosition );
 	float3 normalVec = worldNormal;	
 
@@ -683,7 +683,7 @@ DefaultVPOutput PositionNormalTextureColor3D_rimTransparency_VP( DefualtVPInput 
 
 
 //------------------------------------------------------------------------------
-// ãƒ†ã‚¯ãƒ‹ãƒƒã‚¯ï¼š3D,æ³•ç·šã‚ã‚Š
+// テクニック:3D,法線あり
 //------------------------------------------------------------------------------
 // Used for map, leaves
 technique11 PositionNormalTextureColor3D
@@ -697,7 +697,7 @@ technique11 PositionNormalTextureColor3D
 };
 
 //------------------------------------------------------------------------------
-// ãƒ†ã‚¯ãƒ‹ãƒƒã‚¯ï¼š3D,æ³•ç·šã‚ã‚Š æ·µæ¶ˆã—
+// テクニック:3D,法線あり 淵消し
 //------------------------------------------------------------------------------
 technique11 PositionNormalTextureColor3D_rimTrans
 {
@@ -712,22 +712,22 @@ technique11 PositionNormalTextureColor3D_rimTrans
 
 
 //-----------------------------------------------------------------------------
-// é ‚ç‚¹ã‚·ã‚§ãƒ¼ãƒ€ãƒ¼ï¼š3D, ä»®ã‚¹ãƒ†ãƒ«ã‚¹ã‚·ã‚§ãƒ¼ãƒ€ãƒ¼
+// 頂点シェーダー:3D, 仮ステルスシェーダー
 //-----------------------------------------------------------------------------
-// ä½ç½®ã€ãƒ†ã‚¯ã‚¹ãƒãƒ£ã€è‰²		(FVF_POSITION|FVF_NORMAL|FVF_TEXCOORD0|FVF_COLOR0)
+// 位置、テクスチャ、色		(FVF_POSITION|FVF_NORMAL|FVF_TEXCOORD0|FVF_COLOR0)
 DefaultVPOutput PositionNormalTextureColor3D_Stealth_VP( DefualtVPInput IN)
 {
-	//æ³•ç·šãŒç„¡ã„ã“ã‚ã«ä½¿ã£ãŸã®ã§ã€é ‚ç‚¹ã§ãšã‚‰ã—ã¦ã„ã‚‹ã€‚
+	//法線が無いころに使ったので、頂点でずらしている。
 	DefaultVPOutput OUT;
 	//OUT.position = mul(IN.position, transpose(WorldViewProjection)); //TODO : Check
 	OUT.position = mul(transpose(WorldViewProjection), IN.position);
 	OUT.color    = IN.color    * inputColor;
 
-	// ã‚¹ã‚¯ãƒªãƒ¼ãƒ³åº§æ¨™ã‚’è¨ˆç®—
+	// スクリーン座標を計算
 	float2 tmp;
     tmp.x = ((OUT.position.x / OUT.position.w)*0.5f+0.5f);
     tmp.y = ((OUT.position.y / OUT.position.w)*0.5f+0.5f);
-	tmp.x += IN.texCoord.x;	//é ‚ç‚¹åŸ‹ã‚è¾¼ã¿uvã§ãšã‚‰ã™
+	tmp.x += IN.texCoord.x;	//頂点埋め込みuvでずらす
 	tmp.y += IN.texCoord.y;
 	OUT.texCoord = tmp;
 	return OUT;
@@ -745,8 +745,8 @@ technique11 PositionNormalTextureColor3D_Stealth
 }
 
 
-//æ·±åº¦æ¯”è¼ƒã§è–„ãã™ã‚‹ã‚„ã¤ç”¨
-// ä½ç½®ã€ãƒ†ã‚¯ã‚¹ãƒãƒ£ã€è‰²		(FVF_POSITION|FVF_NORMAL|FVF_TEXCOORD0|FVF_COLOR0)
+//深度比較で薄くするやつ用
+// 位置、テクスチャ、色		(FVF_POSITION|FVF_NORMAL|FVF_TEXCOORD0|FVF_COLOR0)
 SpriteCT3D_VPOutput PositionNormalTextureColor3D_VP2(DefualtVPInput IN)
 {
 	SpriteCT3D_VPOutput OUT;
@@ -756,7 +756,7 @@ SpriteCT3D_VPOutput PositionNormalTextureColor3D_VP2(DefualtVPInput IN)
 	OUT.color    = IN.color    * inputColor;
 	
 	
-	//é™°å½±
+	//陰影
 	//float4	worldPos	= mul(IN.position, transpose(World)); // TODO : Check
 	float4	worldPos	= mul(transpose(World), IN.position);
 	float	_dot		= getShadeFactor( worldPos.xyz );
@@ -766,7 +766,7 @@ SpriteCT3D_VPOutput PositionNormalTextureColor3D_VP2(DefualtVPInput IN)
 	return OUT;
 }
 
-//æ·±åº¦æ¯”è¼ƒã§è–„ãã™ã‚‹ã‚„ã¤
+//深度比較で薄くするやつ
 float4 PositionTextureColor3D_FP2(SpriteCT3D_VPOutput IN) : FRAG_OUTPUT_COLOR0
 {
 	float4 _color = TextureSampler.Sample(LinearClampSampler, IN.texCoord);
@@ -775,10 +775,10 @@ float4 PositionTextureColor3D_FP2(SpriteCT3D_VPOutput IN) : FRAG_OUTPUT_COLOR0
 	_color.g += inputSpecular.g * inputSpecular.a;
 	_color.b += inputSpecular.b * inputSpecular.a;
 
-	//clip(_color.a - inputAlphaThreshold);	//Î±ãƒ†ã‚¹ãƒˆ(Vitaã§å¿…è¦)
+	//clip(_color.a - inputAlphaThreshold);	//αテスト(Vitaで必要)
 
 
-	//æ·±åº¦ãƒãƒƒãƒ•ã‚¡ã®æ·±åº¦(ä½•ã‹1ãŒå¼·ã„
+	//深度バッファの深度(何か1が強い
 	float2 screenPos = (IN.texCoord1.xy/IN.texCoord1.w);
 	screenPos.xy = screenPos.xy * 0.5f + float2(0.5f, 0.5f);
 	
@@ -786,8 +786,8 @@ float4 PositionTextureColor3D_FP2(SpriteCT3D_VPOutput IN) : FRAG_OUTPUT_COLOR0
 	depthMapValue = ConvertDepth( depthMapValue );
 	depthMapValue = saturate(depthMapValue);
 
-//ã‚„ã‚‹ã¨ã¯ã€CDraw.cpp ã§ DepthBufferã‚’ï½Œã€‚
-	//ãƒ”ã‚¯ã‚»ãƒ«ã®æ·±åº¦è¨ˆç®—
+//やるとは、CDraw.cpp で DepthBufferをl。
+	//ピクセルの深度計算
 	float myDepthValue = (IN.texCoord1.z / IN.texCoord1.w);
 	float myDepth = saturate(myDepthValue);
 	

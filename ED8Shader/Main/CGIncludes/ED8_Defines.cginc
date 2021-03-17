@@ -114,18 +114,18 @@
 #define TOON_FIRST_LIGHT_ONLY_ENABLED
 #define USE_EDGE_ADDUNSAT
 
-// é ‚ç‚¹ã‚¿ãƒ³ã‚¸ã‚§ãƒ³ãƒˆ
+// 頂点タンジェント
 #if (defined(NORMAL_MAPPING_ENABLED) || defined(NORMAL_MAPPING2_ENABLED)) && !defined(USE_PER_VERTEX_LIGHTING)
 	#define USE_TANGENTS
 #endif // (defined(NORMAL_MAPPING_ENABLED) || defined(NORMAL_MAPPING2_ENABLED)) && !defined(USE_PER_VERTEX_LIGHTING)
 
 
-// ã‚­ãƒ¥ãƒ¼ãƒ–ãƒžãƒƒãƒ—ã¾ãŸã¯ã‚¹ãƒ•ã‚£ã‚¢ãƒžãƒƒãƒ—ã¨ãƒˆã‚¥ãƒ¼ãƒ³
+// キューブマップまたはスフィアマップとトゥーン
 #if (defined(CUBE_MAPPING_ENABLED) || defined(SPHERE_MAPPING_ENABLED)) && defined(CARTOON_SHADING_ENABLED)
 	#undef USE_PER_VERTEX_LIGHTING
 #endif
 
-// ã‚¢ãƒ«ãƒ•ã‚¡ãƒ–ãƒ¬ãƒ³ãƒ‰
+// アルファブレンド
 #if !defined(ALPHA_BLENDING_ENABLED)
 	#undef ADDITIVE_BLENDING_ENABLED
 	#undef SUBTRACT_BLENDING_ENABLED
@@ -136,12 +136,12 @@
 	#define USE_EXTRA_BLENDING
 #endif
 
-// 2ãƒ‘ã‚¹ã‚¢ãƒ«ãƒ•ã‚¡
+// 2パスアルファ
 #if !defined(ALPHA_BLENDING_ENABLED) || defined(USE_EXTRA_BLENDING) || defined(DCC_TOOL)
 	#undef TWOPASS_ALPHA_BLENDING_ENABLED
 #endif //
 
-// ãƒˆã‚¥ãƒ¼ãƒ³ã®å ´åˆã§ã€åŠçƒç’°å¢ƒå…‰ãŒãªã‘ã‚Œã°ã¤ã‘ã‚‹ã€‚ãŸã ã€æ˜Žç¤ºçš„ã«3å€¤ã§ãªã‘ã‚Œã°
+// トゥーンの場合で、半球環境光がなければつける。ただ、明示的に3値でなければ
 #if defined(CARTOON_SHADING_ENABLED) || !defined(NO_MAIN_LIGHT_SHADING_ENABLED)
 	#if !defined(HEMISPHERE_AMBIENT_ENABLED) && !defined(MULTIPLEX_HEMISPHERE_AMBIENT_ENABLED)
 		#define HEMISPHERE_AMBIENT_ENABLED
@@ -149,19 +149,19 @@
 	#endif
 #endif
 
-// èƒŒæ™¯ã®æ›¸å‰²ã¨ã‹ã€ã©ã†è€ƒãˆã¦ã‚‚é ‚ç‚¹å˜ä½ã®ãƒ©ã‚¤ãƒˆã§ååˆ†ãªå ´æ‰€ã‚’æ˜Žç¤ºçš„ã«æŒ‡å®šã™ã‚‹ã“ã¨ã«ã™ã‚‹
+// 背景の書割とか、どう考えても頂点単位のライトで十分な場所を明示的に指定することにする
 
-// ãƒ•ã‚§ã‚¤ã‚¯ã§ãªã„ã‚¹ãƒšã‚­ãƒ¥ãƒ©æŒã¡ã‹ã€ãƒªãƒ ãƒ©ã‚¤ãƒˆæŒã¡
+// フェイクでないスペキュラ持ちか、リムライト持ち
 #if (defined(SPECULAR_ENABLED) && !defined(FAKE_CONSTANT_SPECULAR_ENABLED)) || defined(RIM_LIGHTING_ENABLED)
     #undef USE_PER_VERTEX_LIGHTING
 #endif //
 
-// ãƒªãƒ é€æ˜Žåº¦ãŒã‚ã‚‹å ´åˆã¯vitaã§ã‚‚ãƒ”ã‚¯ã‚»ãƒ«å˜ä½
+// リム透明度がある場合はvitaでもピクセル単位
 #if defined(RIM_LIGHTING_ENABLED) && defined(RIM_TRANSPARENCY_ENABLED) 
 	#undef USE_PER_VERTEX_LIGHTING
 #endif
 
-// ãƒˆã‚¥ãƒ¼ãƒ³
+// トゥーン
 #if defined(CARTOON_SHADING_ENABLED)
 	#undef WINDY_GRASS_ENABLED
 	#undef USE_PER_VERTEX_LIGHTING
@@ -174,7 +174,7 @@
 	//#endif
 #endif // defined(CARTOON_SHADING_ENABLED)
 
-// ãƒžãƒ«ãƒUV
+// マルチUV
 #if !defined(MULTI_UV_ENANLED)
 	#undef MULTI_UV_ADDITIVE_BLENDING_ENANLED
 	#undef MULTI_UV_MULTIPLICATIVE_BLENDING_ENANLED
@@ -207,7 +207,7 @@
 	#undef MULTI_UV2_SHADOW_ENANLED
 #endif
 
-// ãƒžãƒ«ãƒUV2
+// マルチUV2
 #if defined(MULTI_UV2_ENANLED)
 	#undef CUBE_MAPPING_ENABLED
 	#undef SPHERE_MAPPING_ENABLED

@@ -1,6 +1,6 @@
 #line 1 "Z:/data/shaders/ed8_minimap.fx"
 //------------------------------------------------------------------------------
-// ãƒŸãƒ‹ãƒžãƒƒãƒ—ç”¨ã‚·ã‚§ãƒ¼ãƒ€ãƒ¼
+// ミニマップ用シェーダー
 //------------------------------------------------------------------------------
 
 
@@ -102,15 +102,15 @@ PhyreEngine(TM) Package 3.4.0.0
 
 #define MAX_SKINNING_BONES	3
 
-// ã‚«ã‚¹ã‚±ãƒ¼ãƒ‰ãƒ»ã‚·ãƒ£ãƒ‰ã‚¦ãƒžãƒƒãƒ—åˆ†å‰²æ•°ã€‚ãƒ¡ã‚¤ãƒ³å´ã®åˆ†å‰²æ•°ã¨ã‚ã‚ã›ã‚‹å¿…è¦ãŒã‚ã‚‹ã€‚ColladaDefaultShaderã‚„PhyreDefaultLitShaderãŒæ··ã˜ã£ã¦ã„ã‚‹ãªã‚‰PhyreShaderDefs.hã¨ã‚‚åˆã‚ã›ã‚‹ã€‚
+// カスケード・シャドウマップ分割数。メイン側の分割数とあわせる必要がある。ColladaDefaultShaderやPhyreDefaultLitShaderが混じっているならPhyreShaderDefs.hとも合わせる。
 	#define MAX_SPLIT_CASCADED_SHADOWMAP	2
 //#define MAX_SPLIT_CASCADED_SHADOWMAP	3
 //#define MAX_SPLIT_CASCADED_SHADOWMAP	4
 
-// PCFã«ã‚ˆã‚‹ã‚½ãƒ•ãƒˆã‚·ãƒ£ãƒ‰ã‚¦ã‚’æœ‰åŠ¹ã«ã™ã‚‹ã€‚PhyreShaderDefs.hã¨ã‚‚åˆã‚ã›ã‚‹ã€‚
+// PCFによるソフトシャドウを有効にする。PhyreShaderDefs.hとも合わせる。
 //#define PCF_ENABLED
 
-// è·é›¢ã«ã‚ˆã‚‹ã‚·ãƒ£ãƒ‰ã‚¦ã®æ¸›è¡°ã‚’æœ‰åŠ¹ã«ã™ã‚‹
+// 距離によるシャドウの減衰を有効にする
 #define SHADOW_ATTENUATION_ENABLED
 #define SHADOW_ATTENUATION_VERTICAL_ENABLED
 #define SHADOW_ATTENUATION_POWER			3
@@ -411,7 +411,7 @@ float SampleOrthographicShadowMap(float3 shadowPosition, Texture2D<float> shadow
 }
 
 
-// ã‚¹ãƒãƒƒãƒˆãƒ©ã‚¤ãƒˆã®ãƒ•ã‚©ãƒ¼ãƒ«ã‚ªãƒ•
+// スポットライトのフォールオフ
 // EvaluateSpotFalloff
 // Evaluate the directional attenuation for a spot light.
 float EvaluateSpotFalloff(float dp, float cosInnerAngle, float cosOuterAngle)
@@ -455,7 +455,7 @@ float3 EvaluateNormalMapNormal(float3 inNormal, float2 inUv, float3 inTangent, u
 
 	float3 biTangent = cross(inNormal, inTangent);
 
-	// xã¯Uãƒ•ãƒªãƒƒãƒ—ã¨ã—ã¦è² ã®å€¤ã«ã—ã¦ã„ã‚‹ã“ã¨ãŒã‚ã‚‹ã€‚
+	// xはUフリップとして負の値にしていることがある。
 	normalMapNormal.x *= (inUv.x < 0.0f) ? -1.0f : 1.0f;
 
 	float3 n =  normalize( (normalMapNormal.x * inTangent) +
@@ -467,13 +467,13 @@ float3 EvaluateNormalMapNormal(float3 inNormal, float2 inUv, float3 inTangent, u
 }
 
 
-// æ™®é€šã«æ³•ç·šã‚’æ±‚ã‚ã‚‹
+// 普通に法線を求める
 float3 EvaluateStandardNormal(float3 inNormal)
 {
 	return normalize(inNormal).xyz;
 }
 
-// æ‹¡æ•£å…‰ã‚’è¨ˆç®—ã™ã‚‹
+// 拡散光を計算する
 float calcDiffuseLightAmt(float3 lightDir, float3 normal)
 {
 	// Diffuse calcs.
@@ -489,7 +489,7 @@ float calcDiffuseLightAmt(float3 lightDir, float3 normal)
 	return diffuseLightAmt;
 }
 
-// æ‹¡æ•£å…‰ã‚’è¨ˆç®—ã™ã‚‹ dot(L,N)è¨ˆç®—æ¸ˆã¿
+// 拡散光を計算する dot(L,N)計算済み
 float calcDiffuseLightAmtLdotN(float ldotn)
 {
 	float diffuseValue;
@@ -502,7 +502,7 @@ float calcDiffuseLightAmtLdotN(float ldotn)
 	return diffuseValue;
 }
 
-// é¡é¢åå°„ã‚’è¨ˆç®—ã™ã‚‹
+// 鏡面反射を計算する
 float calcSpecularLightAmt(float3 normal, float3 lightDir, float3 eyeDirection, float shininess, float specularPower) //, half fresnelPower)
 {
 	// Specular calcs
@@ -514,7 +514,7 @@ float calcSpecularLightAmt(float3 normal, float3 lightDir, float3 eyeDirection, 
 	return specularLightAmount;
 }
 
-// ãƒ©ã‚¤ãƒˆã®æ¸›è¡°ã‚’è¨ˆç®—ã™ã‚‹
+// ライトの減衰を計算する
 float calculateAttenuation(float distanceToLight, float4 attenuationProperties)
 {
 	// attenuationProperties contains:
@@ -523,7 +523,7 @@ float calculateAttenuation(float distanceToLight, float4 attenuationProperties)
 	return 1.0 - (float)attenValue;
 }
 
-// ãƒ©ã‚¤ãƒˆã®æ¸›è¡°ã‚’è¨ˆç®—ã™ã‚‹ã€‚è·é›¢ã®2ä¹—ç‰ˆ
+// ライトの減衰を計算する。距離の2乗版
 float calculateAttenuationQuadratic(float distanceToLightSqr, float4 attenuationProperties)
 {
 	// attenuationProperties contains:
@@ -664,15 +664,15 @@ float4x4 WorldViewProjection	: WorldViewProjection;
 float4x4 World					: World;
 
 #ifndef DCC_TOOL
-	float3	lookPosition = {0,0,0};	//ãƒŸãƒ‹ãƒžãƒƒãƒ—ã®æ³¨ç›®ç‚¹ï¼ˆã‚¨ãƒªã‚¢ãƒžãƒƒãƒ—è¡¨ç¤ºæ™‚ã«ãƒ¦ãƒ¼ã‚¶ãƒ¼ãŒå¤‰æ›´å¯èƒ½ï¼‰
+	float3	lookPosition = {0,0,0};	//ミニマップの注目点(エリアマップ表示時にユーザーが変更可能)
 	float4	inputSpecular= {0,0,0,0};
-	float2  inputShift   = {0,0};	//ç¸å–ã‚Šç”¨ã‚¹ãƒ©ã‚¤ãƒ‰å¹…
-	float2  inputHeight  = {3,8};	//åŠé€æ˜ŽåŒ–ã™ã‚‹é«˜ã•(3ï½ž8)ã§é€æ˜Žã«ãªã‚Š0ã¨ãªã‚‹
-	float	inputColorShiftHeight = 50.f;	//ãƒžãƒƒãƒ—ã®é«˜ä½Žå·®ã§è‰²ã‚’å¤‰ãˆã‚‹
+	float2  inputShift   = {0,0};	//縁取り用スライド幅
+	float2  inputHeight  = {3,8};	//半透明化する高さ(3~8)で透明になり0となる
+	float	inputColorShiftHeight = 50.f;	//マップの高低差で色を変える
 #endif
 
 //------------------------------------------------------------------------------
-// ãƒ‡ã‚£ãƒ•ãƒ¥ãƒ¼ã‚ºãƒ†ã‚¯ã‚¹ãƒãƒ£ 
+// ディフューズテクスチャ 
 //------------------------------------------------------------------------------
 Texture2D<float4> MinimapTextureSampler
 <
@@ -681,7 +681,7 @@ Texture2D<float4> MinimapTextureSampler
 
 
 //------------------------------------------------------------------------------
-// å…¥åŠ›é ‚ç‚¹
+// 入力頂点
 //------------------------------------------------------------------------------
 struct MinimapVPInput
 {
@@ -692,25 +692,25 @@ struct MinimapVPInput
 };
 
 //------------------------------------------------------------------------------
-// å‡ºåŠ›é ‚ç‚¹
+// 出力頂点
 //------------------------------------------------------------------------------
 struct MinimapVPOutput
 {
-	float4 Position			: SV_Position ;		// xyzw:[Proj]å°„å½±åº§æ¨™
+	float4 Position			: SV_Position ;		// xyzw:[Proj]射影座標
 	float4 Color0			: COLOR0;		// xyzw:
-	float2 TexCoord			: TEXCOORD0;	// xy: ãƒ†ã‚¯ã‚¹ãƒãƒ£åº§æ¨™
+	float2 TexCoord			: TEXCOORD0;	// xy: テクスチャ座標
 };
 
 #ifdef USE_MINIMAP_EDGE
 // ä»®Edge
 struct MinimapEdgeVPOutput
 {
-	float4 Position			: SV_Position ;		// xyzw:[Proj]å°„å½±åº§æ¨™
+	float4 Position			: SV_Position ;		// xyzw:[Proj]射影座標
 };
 #endif // USE_MINIMAP_EDGE
 
 //------------------------------------------------------------------------------
-// é ‚ç‚¹ã‚·ã‚§ãƒ¼ãƒ€ãƒ¼
+// 頂点シェーダー
 //------------------------------------------------------------------------------
 MinimapVPOutput MinimapVPShader(MinimapVPInput IN)
 {
@@ -725,38 +725,38 @@ MinimapVPOutput MinimapVPShader(MinimapVPInput IN)
 
 	float4 color = IN.viColor;
 
-#ifndef DCC_TOOL	//é«˜ã•ã§é€æ˜Žåº¦ã‚’å¤‰æ›´
+#ifndef DCC_TOOL	//高さで透明度を変更
 
 	float dy    = worldSpacePosition.y - lookPosition.y;
-	float dh    = clamp(inputHeight.y-inputHeight.x, 0.0001f, 100.f);	//0é™¤ç®—ã—ãªã„ã‚ˆã†ã«æœ€ä½Žå€¤ã‚’å…¥ã‚Œã¦ãŠã
+	float dh    = clamp(inputHeight.y-inputHeight.x, 0.0001f, 100.f);	//0除算しないように最低値を入れておく
 
-	dy          = abs(dy);	//é«˜ã•ã®å·®
+	dy          = abs(dy);	//高さの差
 
 	#ifndef USE_VECTOR_PROCESS
 
-		//é«˜ã•ã«ã‚ˆã£ã¦è‰²ã‚’å¤‰ãˆã‚‹(ç«‹ä½“äº¤å·®ã‚„é‡ãªã‚Šã‚’åˆ†ã‹ã‚Šã‚„ã™ãã™ã‚‹ï¼‰
+		//高さによって色を変える(立体交差や重なりを分かりやすくする)
 		float dyc   = 1.f - (dy / inputColorShiftHeight);
 		float dark1  = clamp( dyc, 0.5f, 1.f );
 	    color.xyz  *= dark1;
 	
-		//é«˜ã•ã«ã‚ˆã£ã¦é€æ˜Žåº¦ã‚’å¤‰ãˆã‚‹
-	//	dy          = 1.f - ((dy-3.f) / 7.f);		//æ¶ˆãˆã‚‹é«˜ã•ã¯ 3+7
-		dy          = 1.f - ((dy-inputHeight.x) / dh);		//æ¶ˆãˆã‚‹é«˜ã•ã¯ 3+7
+		//高さによって透明度を変える
+	//	dy          = 1.f - ((dy-3.f) / 7.f);		//消える高さは 3+7
+		dy          = 1.f - ((dy-inputHeight.x) / dh);		//消える高さは 3+7
 		float  dark  = clamp( dy, 0.0f, 1.f );
 		color.w    *= dark;
 	//	color.xyz  *= dark;
 	
 
-		//å‚ã‚’åˆ†ã‹ã‚Šã‚„ã™ãã™ã‚‹
-		float dd    = clamp( IN.viNormal.y, 0.5f, 1.f);	//åž‚ç›´ãªå‚ï¼ˆãƒã‚·ã‚´ï¼‰ã§é»’ããªã‚‰ãªã„ã‚ˆã†ã«ã€‚
+		//坂を分かりやすくする
+		float dd    = clamp( IN.viNormal.y, 0.5f, 1.f);	//垂直な坂(ハシゴ)で黒くならないように。
 		color.xyz  *= dd;
 
 	#else // USE_VECTOR_PROCESS
 
-		// â†‘ã‚’ãƒ™ã‚¯ãƒˆãƒ«å‡¦ç†
+		// ↑をベクトル処理
 		float2 tmp = clamp(float2(1.0f, 1.0f) - float2(dy, dy-inputHeight.x) / float2(inputColorShiftHeight, dh), float2(0.5f, 0.0f), float2(1.0f, 1.0f));
 		color *= (float4)tmp.xxxy;
-		color.xyz *= (float3)clamp( IN.viNormal.y, 0.5f, 1.f );//åž‚ç›´ãªå‚ï¼ˆãƒã‚·ã‚´ï¼‰ã§é»’ããªã‚‰ãªã„ã‚ˆã†ã«ã€‚
+		color.xyz *= (float3)clamp( IN.viNormal.y, 0.5f, 1.f );//垂直な坂(ハシゴ)で黒くならないように。
 
 	#endif // USE_VECTOR_PROCESS
 
@@ -790,14 +790,14 @@ MinimapEdgeVPOutput MinimapEdgeVPShader(MinimapVPInput IN)
 #endif // USE_MINIMAP_EDGE
 
 //------------------------------------------------------------------------------
-// å…¥åŠ›ãƒ”ã‚¯ã‚»ãƒ«
+// 入力ピクセル
 //------------------------------------------------------------------------------
 #define MinimapFPInput MinimapVPOutput
 /*
 struct MinimapFPInput
 {
 	float4 Color0			: COLOR0;
-	float2 TexCoord			: TEXCOORD0;	// xy: ãƒ†ã‚¯ã‚¹ãƒãƒ£åº§æ¨™
+	float2 TexCoord			: TEXCOORD0;	// xy: テクスチャ座標
 };
 */
 #ifdef USE_MINIMAP_EDGE
@@ -809,14 +809,14 @@ struct MinimapEdgeFPInput
 #endif // USE_MINIMAP_EDGE
 
 //------------------------------------------------------------------------------
-// ãƒ•ãƒ©ã‚°ãƒ¡ãƒ³ãƒˆã‚·ã‚§ãƒ¼ãƒ€ãƒ¼
+// フラグメントシェーダー
 //------------------------------------------------------------------------------
 float4 MinimapFPShader(MinimapFPInput IN) : FRAG_OUTPUT_COLOR0
 {	
 	float4 color = MinimapTextureSampler.SampleLevel(MinimapTextureSamplerS, IN.TexCoord.xy, 0);
 	color *= IN.Color0;
 
-#ifndef DCC_TOOL	//ã‚¹ãƒšã‚­ãƒ¥ãƒ©ãƒ¼ï¼ˆãªã‚“ã¡ã‚ƒã£ã¦ã‚¨ãƒƒã‚¸æç”»ç”¨)
+#ifndef DCC_TOOL	//スペキュラー(なんちゃってエッジ描画用)
 	color.xyz += inputSpecular.xyz;
 #endif
 	return color;
@@ -866,11 +866,11 @@ RasterizerState DefaultRasterState
 };
 
 //------------------------------------------------------------------------------
-// ãƒŸãƒ‹ãƒžãƒƒãƒ—æç”»ç”¨ãƒ†ã‚¯ãƒ‹ãƒƒã‚¯
+// ミニマップ描画用テクニック
 //------------------------------------------------------------------------------
 technique11 Minimap
 <
-	string PhyreRenderPass = "Transparent";			//åŠé€æ˜Ž                   PhyreEngineå´ã§ç”¨æ„ã•ã‚ŒãŸã‚‚ã®ã—ã‹ä½¿ãˆãªã„
+	string PhyreRenderPass = "Transparent";			//半透明                   PhyreEngine側で用意されたものしか使えない
 >
 {
 	pass pass0

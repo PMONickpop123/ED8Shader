@@ -1,6 +1,6 @@
 #line 1 "Z:/data/shaders/ed8.fx"
-// ã“ã®ãƒ•ã‚¡ã‚¤ãƒ«ã¯UTF-8ã‚³ãƒ¼ãƒ‰ã§ä¿å­˜ã—ã¦ãã ã•ã„ã€‚
-// ed8_MaterialSwitches_jp.hã¨ed8_UIName_jp.hã¯ShiftJISã‚³ãƒ¼ãƒ‰ã§ä¿å­˜ã—ã¦ãã ã•ã„ã€‚
+// このファイルはUTF-8コードで保存してください。
+// ed8_MaterialSwitches_jp.hとed8_UIName_jp.hはShiftJISコードで保存してください。
 
 /*
 #define WATER_SURFACE_ENABLED
@@ -176,15 +176,15 @@ PhyreEngine(TM) Package 3.4.0.0
 
 #define MAX_SKINNING_BONES	3
 
-// ã‚«ã‚¹ã‚±ãƒ¼ãƒ‰ãƒ»ã‚·ãƒ£ãƒ‰ã‚¦ãƒžãƒƒãƒ—åˆ†å‰²æ•°ã€‚ãƒ¡ã‚¤ãƒ³å´ã®åˆ†å‰²æ•°ã¨ã‚ã‚ã›ã‚‹å¿…è¦ãŒã‚ã‚‹ã€‚ColladaDefaultShaderã‚„PhyreDefaultLitShaderãŒæ··ã˜ã£ã¦ã„ã‚‹ãªã‚‰PhyreShaderDefs.hã¨ã‚‚åˆã‚ã›ã‚‹ã€‚
+// カスケード・シャドウマップ分割数。メイン側の分割数とあわせる必要がある。ColladaDefaultShaderやPhyreDefaultLitShaderが混じっているならPhyreShaderDefs.hとも合わせる。
 	#define MAX_SPLIT_CASCADED_SHADOWMAP	2
 //#define MAX_SPLIT_CASCADED_SHADOWMAP	3
 //#define MAX_SPLIT_CASCADED_SHADOWMAP	4
 
-// PCFã«ã‚ˆã‚‹ã‚½ãƒ•ãƒˆã‚·ãƒ£ãƒ‰ã‚¦ã‚’æœ‰åŠ¹ã«ã™ã‚‹ã€‚PhyreShaderDefs.hã¨ã‚‚åˆã‚ã›ã‚‹ã€‚
+// PCFによるソフトシャドウを有効にする。PhyreShaderDefs.hとも合わせる。
 //#define PCF_ENABLED
 
-// è·é›¢ã«ã‚ˆã‚‹ã‚·ãƒ£ãƒ‰ã‚¦ã®æ¸›è¡°ã‚’æœ‰åŠ¹ã«ã™ã‚‹
+// 距離によるシャドウの減衰を有効にする
 #define SHADOW_ATTENUATION_ENABLED
 #define SHADOW_ATTENUATION_VERTICAL_ENABLED
 #define SHADOW_ATTENUATION_POWER			3
@@ -485,7 +485,7 @@ float SampleOrthographicShadowMap(float3 shadowPosition, Texture2D<float> shadow
 }
 
 
-// ã‚¹ãƒãƒƒãƒˆãƒ©ã‚¤ãƒˆã®ãƒ•ã‚©ãƒ¼ãƒ«ã‚ªãƒ•
+// スポットライトのフォールオフ
 // EvaluateSpotFalloff
 // Evaluate the directional attenuation for a spot light.
 float EvaluateSpotFalloff(float dp, float cosInnerAngle, float cosOuterAngle)
@@ -529,7 +529,7 @@ float3 EvaluateNormalMapNormal(float3 inNormal, float2 inUv, float3 inTangent, u
 
 	float3 biTangent = cross(inNormal, inTangent);
 
-	// xã¯Uãƒ•ãƒªãƒƒãƒ—ã¨ã—ã¦è² ã®å€¤ã«ã—ã¦ã„ã‚‹ã“ã¨ãŒã‚ã‚‹ã€‚
+	// xはUフリップとして負の値にしていることがある。
 	normalMapNormal.x *= (inUv.x < 0.0f) ? -1.0f : 1.0f;
 
 	float3 n =  normalize( (normalMapNormal.x * inTangent) +
@@ -541,13 +541,13 @@ float3 EvaluateNormalMapNormal(float3 inNormal, float2 inUv, float3 inTangent, u
 }
 
 
-// æ™®é€šã«æ³•ç·šã‚’æ±‚ã‚ã‚‹
+// 普通に法線を求める
 float3 EvaluateStandardNormal(float3 inNormal)
 {
 	return normalize(inNormal).xyz;
 }
 
-// æ‹¡æ•£å…‰ã‚’è¨ˆç®—ã™ã‚‹
+// 拡散光を計算する
 float calcDiffuseLightAmt(float3 lightDir, float3 normal)
 {
 	// Diffuse calcs.
@@ -563,7 +563,7 @@ float calcDiffuseLightAmt(float3 lightDir, float3 normal)
 	return diffuseLightAmt;
 }
 
-// æ‹¡æ•£å…‰ã‚’è¨ˆç®—ã™ã‚‹ dot(L,N)è¨ˆç®—æ¸ˆã¿
+// 拡散光を計算する dot(L,N)計算済み
 float calcDiffuseLightAmtLdotN(float ldotn)
 {
 	float diffuseValue;
@@ -576,7 +576,7 @@ float calcDiffuseLightAmtLdotN(float ldotn)
 	return diffuseValue;
 }
 
-// é¡é¢åå°„ã‚’è¨ˆç®—ã™ã‚‹
+// 鏡面反射を計算する
 float calcSpecularLightAmt(float3 normal, float3 lightDir, float3 eyeDirection, float shininess, float specularPower) //, half fresnelPower)
 {
 	// Specular calcs
@@ -588,7 +588,7 @@ float calcSpecularLightAmt(float3 normal, float3 lightDir, float3 eyeDirection, 
 	return specularLightAmount;
 }
 
-// ãƒ©ã‚¤ãƒˆã®æ¸›è¡°ã‚’è¨ˆç®—ã™ã‚‹
+// ライトの減衰を計算する
 float calculateAttenuation(float distanceToLight, float4 attenuationProperties)
 {
 	// attenuationProperties contains:
@@ -597,7 +597,7 @@ float calculateAttenuation(float distanceToLight, float4 attenuationProperties)
 	return 1.0 - (float)attenValue;
 }
 
-// ãƒ©ã‚¤ãƒˆã®æ¸›è¡°ã‚’è¨ˆç®—ã™ã‚‹ã€‚è·é›¢ã®2ä¹—ç‰ˆ
+// ライトの減衰を計算する。距離の2乗版
 float calculateAttenuationQuadratic(float distanceToLightSqr, float4 attenuationProperties)
 {
 	// attenuationProperties contains:
@@ -731,11 +731,11 @@ float EvaluateShadow(DirectionalLight light, CombinedCascadedShadowMap shadow, T
 
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-// UIåã®å®šç¾© 
+// UI名の定義 
 
-#define LANGUAGE_MATERIAL_SWITCHES_JP		// ãƒžãƒ†ãƒªã‚¢ãƒ«ã‚¹ã‚¤ãƒƒãƒæ—¥æœ¬èªžåŒ–
+#define LANGUAGE_MATERIAL_SWITCHES_JP		// マテリアルスイッチ日本語化
 
-// UIå 
+// UI名 
 #define UINAME_AlphaThreshold				"Alpha Threshold"
 
 #define UINAME_FogRangeParameters			"[x]Fog Range"
@@ -851,26 +851,26 @@ float EvaluateShadow(DirectionalLight light, CombinedCascadedShadowMap shadow, T
 
 
 #line 1 "Z:/data/shaders/ed8_UIName_jp.h"
-// ‚±‚Ìƒtƒ@ƒCƒ‹‚ÍShiftJISƒR[ƒh‚Å•Û‘¶‚µ‚Ä‚­‚¾‚³‚¢B
+// '±'Ìƒtƒ@ƒCƒ‹'ÍShiftJISƒR[ƒh'Å•Û'¶'µ'Ä'­'¾'³'¢B
 
 #undef UINAME_AlphaThreshold
-#define UINAME_AlphaThreshold				"ƒAƒ‹ƒtƒ@è‡’l"
+#define UINAME_AlphaThreshold				"ƒAƒ‹ƒtƒ@è‡'l"
 
 #undef UINAME_FogRangeParameters
 #undef UINAME_FogColor
 #undef UINAME_FogRatio
-#define UINAME_FogRangeParameters			"[x]ƒtƒHƒO ”ÍˆÍ"
+#define UINAME_FogRangeParameters			"[x]ƒtƒHƒO "ÍˆÍ"
 #define UINAME_FogColor						"[x]ƒtƒHƒO ƒJƒ‰["
-#define UINAME_FogRatio						"ƒtƒHƒO “K—p“x"
+#define UINAME_FogRatio						"ƒtƒHƒO "K—p"x"
 
 #undef UINAME_GameMaterialID
 #undef UINAME_GameMaterialDiffuse
 #undef UINAME_GameMaterialEmission
 #undef UINAME_GameMaterialTexcoord
-#define UINAME_GameMaterialID				"ƒQ[ƒ€ƒ}ƒeƒŠƒAƒ‹‚h‚c"
+#define UINAME_GameMaterialID				"ƒQ[ƒ€ƒ}ƒeƒŠƒAƒ‹'h'c"
 #define UINAME_GameMaterialDiffuse			"[x]ƒQ[ƒ€ŠgŽUƒJƒ‰["
-#define UINAME_GameMaterialEmission			"[x]ƒQ[ƒ€”’”MŒõ"
-#define UINAME_GameMaterialTexcoord	"[x]ƒQ[ƒ€UVƒ|ƒWƒVƒ‡ƒ“"
+#define UINAME_GameMaterialEmission			"[x]ƒQ[ƒ€"'"MŒõ"
+#define UINAME_GameMaterialTexcoord	"[x]ƒQ[ƒ€UVƒ|ƒWƒVƒ‡ƒ""
 
 #undef UINAME_EdgeParameters
 #define UINAME_EdgeParameters				"[x]ƒQ[ƒ€ƒGƒbƒWƒpƒ‰ƒ[ƒ^"
@@ -879,18 +879,18 @@ float EvaluateShadow(DirectionalLight light, CombinedCascadedShadowMap shadow, T
 #undef UINAME_LocalMaterialEmission
 #undef UINAME_LocalMaterialTexcoordOffset
 #define UINAME_LocalMaterialDiffuse			"ƒ[ƒJƒ‹ŠgŽUƒJƒ‰["
-#define UINAME_LocalMaterialEmission		"ƒ[ƒJƒ‹”’”MŒõ"
-#define UINAME_LocalMaterialTexcoordOffset	"ƒ[ƒJƒ‹UVƒ|ƒWƒVƒ‡ƒ“"
+#define UINAME_LocalMaterialEmission		"ƒ[ƒJƒ‹"'"MŒõ"
+#define UINAME_LocalMaterialTexcoordOffset	"ƒ[ƒJƒ‹UVƒ|ƒWƒVƒ‡ƒ""
 
 #undef UINAME_GlobalAmbientColor
 #undef UINAME_HemiSphereAmbientSkyColor
 #undef UINAME_HemiSphereAmbientGndColor
 #undef UINAME_HemiSphereAmbientAxis
 #undef UINAME_ShadowColorShift
-#define UINAME_GlobalAmbientColor			"[x]ƒAƒ“ƒrƒGƒ“ƒg"
-#define UINAME_HemiSphereAmbientSkyColor	"[x]”¼‹…ƒAƒ“ƒrƒGƒ“ƒg “V‹…ƒJƒ‰["
-#define UINAME_HemiSphereAmbientGndColor	"[x]”¼‹…ƒAƒ“ƒrƒGƒ“ƒg ’n‹…ƒJƒ‰["
-#define UINAME_HemiSphereAmbientAxis		"[x]”¼‹…ƒAƒ“ƒrƒGƒ“ƒg Ž²"
+#define UINAME_GlobalAmbientColor			"[x]ƒAƒ"ƒrƒGƒ"ƒg"
+#define UINAME_HemiSphereAmbientSkyColor	"[x]"¼‹…ƒAƒ"ƒrƒGƒ"ƒg "V‹…ƒJƒ‰["
+#define UINAME_HemiSphereAmbientGndColor	"[x]"¼‹…ƒAƒ"ƒrƒGƒ"ƒg 'n‹…ƒJƒ‰["
+#define UINAME_HemiSphereAmbientAxis		"[x]"¼‹…ƒAƒ"ƒrƒGƒ"ƒg Ž²"
 #define UINAME_ShadowColorShift				"‰A‰eƒJƒ‰[ƒVƒtƒg"
 
 #undef UINAME_CustomDiffuse_Hilight
@@ -899,43 +899,43 @@ float EvaluateShadow(DirectionalLight light, CombinedCascadedShadowMap shadow, T
 #undef UINAME_CustomDiffuse_Shadow
 #define UINAME_CustomDiffuse_Hilight		"ƒJƒXƒ^ƒ€F_ƒnƒCƒ‰ƒCƒg(Test)"
 #define UINAME_CustomDiffuse_Base			"ƒJƒXƒ^ƒ€F_Šî–{F(Test)"
-#define UINAME_CustomDiffuse_Middle			"ƒJƒXƒ^ƒ€F_’†ŠÔF(Test)"
+#define UINAME_CustomDiffuse_Middle			"ƒJƒXƒ^ƒ€F_'†ŠÔF(Test)"
 #define UINAME_CustomDiffuse_Shadow			"ƒJƒXƒ^ƒ€F_‰eF(Test)"
 
 
 #undef UINAME_PerMaterialMainLightClampFactor
 #undef UINAME_GlobalMainLightClampFactor
-#define UINAME_PerMaterialMainLightClampFactor		"ƒ}ƒeƒŠƒAƒ‹ ƒ‰ƒCƒg‹­“xãŒÀ"
-#define UINAME_GlobalMainLightClampFactor			"[x]ƒOƒ[ƒoƒ‹ ƒ‰ƒCƒg‹­“xãŒÀ"
+#define UINAME_PerMaterialMainLightClampFactor		"ƒ}ƒeƒŠƒAƒ‹ ƒ‰ƒCƒg‹­"xãŒÀ"
+#define UINAME_GlobalMainLightClampFactor			"[x]ƒOƒ[ƒoƒ‹ ƒ‰ƒCƒg‹­"xãŒÀ"
 
 
 
 #undef UINAME_Shininess
 #undef UINAME_SpecularPower
-#define UINAME_Shininess					"ƒXƒyƒLƒ…ƒ‰ ‹P“x"
+#define UINAME_Shininess					"ƒXƒyƒLƒ…ƒ‰ ‹P"x"
 #define UINAME_SpecularPower				"ƒXƒyƒLƒ…ƒ‰ •ÎS"
 
 #undef UINAME_RimLightColor
 #undef UINAME_RimLightIntensity
 #undef UINAME_RimLightPower
 #define UINAME_RimLightColor				"ƒŠƒ€ƒ‰ƒCƒg ƒJƒ‰["
-#define UINAME_RimLightIntensity			"ƒŠƒ€ƒ‰ƒCƒg ‹­“x"
+#define UINAME_RimLightIntensity			"ƒŠƒ€ƒ‰ƒCƒg ‹­"x"
 #define UINAME_RimLightPower				"ƒŠƒ€ƒ‰ƒCƒg —£S"
 
 #undef UINAME_HighlightColor
 #undef UINAME_HighlightIntensity
 #define UINAME_HighlightColor				"ƒnƒCƒ‰ƒCƒg ƒJƒ‰["
-#define UINAME_HighlightIntensity			"ƒnƒCƒ‰ƒCƒg ‹­“x"
+#define UINAME_HighlightIntensity			"ƒnƒCƒ‰ƒCƒg ‹­"x"
 
 #undef UINAME_TexCoordOffset
 #undef UINAME_DiffuseMapSampler
 #undef UINAME_SpecularMapSampler
 #undef UINAME_OcculusionMapSampler
 #undef UINAME_NormalMapSampler
-#define UINAME_TexCoordOffset				"ƒeƒNƒXƒ`ƒƒ ƒXƒNƒ[ƒ‹‘¬“x"
+#define UINAME_TexCoordOffset				"ƒeƒNƒXƒ`ƒƒ ƒXƒNƒ[ƒ‹'¬"x"
 #define UINAME_DiffuseMapSampler			"ƒfƒBƒtƒ…[ƒYƒ}ƒbƒv"
 #define UINAME_SpecularMapSampler			"ƒXƒyƒLƒ…ƒ‰ƒ}ƒbƒv"
-#define UINAME_OcculusionMapSampler			"ƒIƒNƒ‹[ƒWƒ‡ƒ“ƒ}ƒbƒv"
+#define UINAME_OcculusionMapSampler			"ƒIƒNƒ‹[ƒWƒ‡ƒ"ƒ}ƒbƒv"
 #define UINAME_NormalMapSampler				"ƒm[ƒ}ƒ‹ƒ}ƒbƒv"
 
 #undef UINAME_TexCoordOffset2
@@ -943,32 +943,32 @@ float EvaluateShadow(DirectionalLight light, CombinedCascadedShadowMap shadow, T
 #undef UINAME_SpecularMap2Sampler
 #undef UINAME_OcculusionMap2Sampler
 #undef UINAME_NormalMap2Sampler
-#define UINAME_TexCoordOffset2				"ƒ}ƒ‹ƒ`UV ƒXƒNƒ[ƒ‹‘¬“x"
+#define UINAME_TexCoordOffset2				"ƒ}ƒ‹ƒ`UV ƒXƒNƒ[ƒ‹'¬"x"
 #define UINAME_DiffuseMap2Sampler			"ƒ}ƒ‹ƒ`UV ƒfƒBƒtƒ…[ƒYƒ}ƒbƒv"
 #define UINAME_SpecularMap2Sampler			"ƒ}ƒ‹ƒ`UV ƒXƒyƒLƒ…ƒ‰ƒ}ƒbƒv"
-#define UINAME_OcculusionMap2Sampler		"ƒ}ƒ‹ƒ`UV ƒIƒNƒ‹[ƒWƒ‡ƒ“ƒ}ƒbƒv"
+#define UINAME_OcculusionMap2Sampler		"ƒ}ƒ‹ƒ`UV ƒIƒNƒ‹[ƒWƒ‡ƒ"ƒ}ƒbƒv"
 #define UINAME_NormalMap2Sampler			"ƒ}ƒ‹ƒ`UV ƒm[ƒ}ƒ‹ƒ}ƒbƒv"
 
 #undef UINAME_TexCoordOffset3
 #undef UINAME_DiffuseMap3Sampler
 #undef UINAME_SpecularMap3Sampler
 #undef UINAME_OcculusionMap3Sampler
-#define UINAME_TexCoordOffset3				"ƒ}ƒ‹ƒ`UV2 ƒXƒNƒ[ƒ‹‘¬“x"
+#define UINAME_TexCoordOffset3				"ƒ}ƒ‹ƒ`UV2 ƒXƒNƒ[ƒ‹'¬"x"
 #define UINAME_DiffuseMap3Sampler			"ƒ}ƒ‹ƒ`UV2 ƒfƒBƒtƒ…[ƒYƒ}ƒbƒv"
 #define UINAME_SpecularMap3Sampler			"ƒ}ƒ‹ƒ`UV2 ƒXƒyƒLƒ…ƒ‰ƒ}ƒbƒv"
-#define UINAME_OcculusionMap3Sampler		"ƒ}ƒ‹ƒ`UV2 ƒIƒNƒ‹[ƒWƒ‡ƒ“ƒ}ƒbƒv"
+#define UINAME_OcculusionMap3Sampler		"ƒ}ƒ‹ƒ`UV2 ƒIƒNƒ‹[ƒWƒ‡ƒ"ƒ}ƒbƒv"
 
 #undef UINAME_CartoonMapSampler
 #undef UINAME_HighlightMapSampler
 #undef UINAME_ShadowReceiveOffset
-#define UINAME_CartoonMapSampler			"ƒJ[ƒgƒD[ƒ“ƒ}ƒbƒv"
+#define UINAME_CartoonMapSampler			"ƒJ[ƒgƒD[ƒ"ƒ}ƒbƒv"
 #define UINAME_HighlightMapSampler			"ƒnƒCƒ‰ƒCƒgƒ}ƒbƒv"
-#define UINAME_ShadowReceiveOffset			"ƒgƒD[ƒ“‰eŽó‚¯ˆÊ’u‚¸‚ç‚µ"
+#define UINAME_ShadowReceiveOffset			"ƒgƒD[ƒ"‰eŽó'¯ˆÊ'u'¸'ç'µ"
 
 #undef UINAME_SphereMapSampler
 #undef UINAME_SphereMapIntensity
 #define UINAME_SphereMapSampler				"ƒXƒtƒBƒAƒ}ƒbƒv"
-#define UINAME_SphereMapIntensity			"ƒXƒtƒBƒAƒ}ƒbƒv ‹­“x"
+#define UINAME_SphereMapIntensity			"ƒXƒtƒBƒAƒ}ƒbƒv ‹­"x"
 
 #undef UINAME_CubeMapSampler
 #undef UINAME_CubeMapFresnelPower
@@ -980,55 +980,55 @@ float EvaluateShadow(DirectionalLight light, CombinedCascadedShadowMap shadow, T
 #undef UINAME_ProjectionScroll
 #define UINAME_ProjectionMapSampler			"ŽË‰eƒ}ƒbƒv"
 #define UINAME_ProjectionScale				"ŽË‰eƒ}ƒbƒv ƒXƒP[ƒ‹"
-#define UINAME_ProjectionScroll				"ŽË‰eƒ}ƒbƒv ƒXƒNƒ[ƒ‹‘¬“x"
+#define UINAME_ProjectionScroll				"ŽË‰eƒ}ƒbƒv ƒXƒNƒ[ƒ‹'¬"x"
 
 #undef UINAME_DuDvMapSampler
 #undef UINAME_DuDvMapImageSize
 #undef UINAME_DuDvMapScale
 #undef UINAME_DuDvMapScroll
 #define UINAME_DuDvMapSampler				"DU/DVƒ}ƒbƒv"
-#define UINAME_DuDvMapImageSize				"DU/DVƒ}ƒbƒv ‰æ‘œƒTƒCƒY"
+#define UINAME_DuDvMapImageSize				"DU/DVƒ}ƒbƒv ‰æ'œƒTƒCƒY"
 #define UINAME_DuDvMapScale					"DU/DVƒ}ƒbƒv ƒXƒP[ƒ‹"
-#define UINAME_DuDvMapScroll				"DU/DVƒ}ƒbƒv ƒXƒNƒ[ƒ‹‘¬“x"
+#define UINAME_DuDvMapScroll				"DU/DVƒ}ƒbƒv ƒXƒNƒ[ƒ‹'¬"x"
 
 #undef UINAME_WindyGrassDirection
 #undef UINAME_WindyGrassSpeed
 #undef UINAME_WindyGrassHomogenity	
 #undef UINAME_WindyGrassScale
-#define UINAME_WindyGrassDirection			"‘‚ä‚ê Œü‚«‚Æ‘å‚«‚³"
-#define UINAME_WindyGrassSpeed				"‘‚ä‚ê ‘¬“x"
-#define UINAME_WindyGrassHomogenity			"‘‚ä‚ê ‹Ïˆê«"
-#define UINAME_WindyGrassScale				"‘‚ä‚ê ƒXƒP[ƒ‹"
+#define UINAME_WindyGrassDirection			"''ä'ê Œü'«'Æ'å'«'³"
+#define UINAME_WindyGrassSpeed				"''ä'ê '¬"x"
+#define UINAME_WindyGrassHomogenity			"''ä'ê ‹Ïˆê«"
+#define UINAME_WindyGrassScale				"''ä'ê ƒXƒP[ƒ‹"
 
 #undef UINAME_EdgeThickness
 #undef UINAME_EdgeColor
-#define UINAME_EdgeThickness				"ƒGƒbƒW ‘¾‚³"
+#define UINAME_EdgeThickness				"ƒGƒbƒW '¾'³"
 #define UINAME_EdgeColor					"ƒGƒbƒW ƒJƒ‰["
 
 #undef UINAME_GlowThreshold
 #undef UINAME_GlowMapSampler
 #undef UINAME_GlowIntensity
-#define UINAME_GlowThreshold				"ƒOƒ[ è‡’l"
+#define UINAME_GlowThreshold				"ƒOƒ[ è‡'l"
 #define UINAME_GlowMapSampler				"ƒOƒ[ƒ}ƒbƒv"
-#define UINAME_GlowIntensity				"ƒOƒ[ ‹­‚³"
+#define UINAME_GlowIntensity				"ƒOƒ[ ‹­'³"
 
 #undef UINAME_ReflectionIntensity
-#define UINAME_ReflectionIntensity			"‰f‚èž‚Ý ‹­‚³"
+#define UINAME_ReflectionIntensity			"‰f'èž'Ý ‹­'³"
 
 #undef UINAME_UserClipPlane
 #define UINAME_UserClipPlane				"[x]ƒNƒŠƒbƒv•½–Ê(‹¾–Ê)"
 
 #undef UINAME_PointLightInnerRange
 #undef UINAME_PointLightOuterRange
-#define UINAME_PointLightInnerRange			"[x]ƒ|ƒCƒ“ƒgƒ‰ƒCƒg“à‰"
-#define UINAME_PointLightOuterRange			"[x]ƒ|ƒCƒ“ƒgƒ‰ƒCƒgŠO‰"
+#define UINAME_PointLightInnerRange			"[x]ƒ|ƒCƒ"ƒgƒ‰ƒCƒg"à‰"
+#define UINAME_PointLightOuterRange			"[x]ƒ|ƒCƒ"ƒgƒ‰ƒCƒgŠO‰"
 
 #undef UINAME_DiffuseMapTrans1Sampler
 #undef UINAME_DiffuseMapTrans2Sampler
 #undef UINAME_DiffuseMapTransRatio
-#define UINAME_DiffuseMapTrans1Sampler		"ƒfƒBƒtƒ…[ƒYƒ}ƒbƒv‘JˆÚ1"
-#define UINAME_DiffuseMapTrans2Sampler		"ƒfƒBƒtƒ…[ƒYƒ}ƒbƒv‘JˆÚ2"
-#define UINAME_DiffuseMapTransRatio			"ƒfƒBƒtƒ…[ƒYƒ}ƒbƒv‘JˆÚ—¦"
+#define UINAME_DiffuseMapTrans1Sampler		"ƒfƒBƒtƒ…[ƒYƒ}ƒbƒv'JˆÚ1"
+#define UINAME_DiffuseMapTrans2Sampler		"ƒfƒBƒtƒ…[ƒYƒ}ƒbƒv'JˆÚ2"
+#define UINAME_DiffuseMapTransRatio			"ƒfƒBƒtƒ…[ƒYƒ}ƒbƒv'JˆÚ—¦"
 
 #undef UINAME_PortraitLightColor
 #undef UINAME_PortraitAmbientColor
@@ -1040,7 +1040,7 @@ float EvaluateShadow(DirectionalLight light, CombinedCascadedShadowMap shadow, T
 #endif // defined(DCC_TOOL) && defined(LANGUAGE_MATERIAL_SWITCHES_JP)
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-//#define POINT_LIGHT_TEST					// ãƒã‚¤ãƒ³ãƒˆãƒ©ã‚¤ãƒˆã®ãƒ†ã‚¹ãƒˆã€‚mayaä¸Šã®ãƒã‚¤ãƒ³ãƒˆãƒ©ã‚¤ãƒˆã§ç¯„å›²æŒ‡å®šãŒãªã„ãŸã‚
+//#define POINT_LIGHT_TEST					// ポイントライトのテスト。maya上のポイントライトで範囲指定がないため
 #ifndef DCC_TOOL
 	#define OWN_POINTLIGHT_ENABLED
 #endif // DCC_TOOL
@@ -1091,9 +1091,9 @@ PhyreEngine(TM) Package 3.4.0.0
 	float3		scene_FogColor				: FOGCOLOR;
 	float4		scene_FogRangeParameters		: FogRangeParameters;
 
-	// â€»é«˜ã•ãƒ•ã‚©ã‚°å»ƒæ­¢å¾Œã€åˆ¥ç”¨é€”ã§ä½¿ç”¨
-	float3		scene_MiscParameters1			: HeightFogColor;				// xyzw = æœªä½¿ç”¨
-	float4		scene_MiscParameters2			: HeightFogRangeParameters;		// x = 1 / ã‚·ãƒ£ãƒ‰ã‚¦ãƒžãƒƒãƒ—ã®æ¸›è¡°è·é›¢ï¼ˆåž‚ç›´æ–¹å‘ï¼‰, y = ã‚·ãƒ£ãƒ‰ã‚¦ãƒžãƒƒãƒ—æ¸›è¡°ã®åŸºæº–é«˜ã•, zw = æœªä½¿ç”¨
+	// ※高さフォグ廃止後、別用途で使用
+	float3		scene_MiscParameters1			: HeightFogColor;				// xyzw = 未使用
+	float4		scene_MiscParameters2			: HeightFogRangeParameters;		// x = 1 / シャドウマップの減衰距離(垂直方向), y = シャドウマップ減衰の基準高さ, zw = 未使用
 
 	float		AdditionalShadowOffset	: AdditionalShadowOffset;
 
@@ -1165,9 +1165,9 @@ float4 PackNormalAndDepth(float3 normal, float depth)
 
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-// ã‚³ãƒ³ãƒ†ã‚­ã‚¹ãƒˆã‚¹ã‚¤ãƒƒãƒã®å®šç¾©
+// コンテキストスイッチの定義
 
-// ã‚µãƒãƒ¼ãƒˆã™ã‚‹ãƒ©ã‚¤ãƒˆã®ç·æ•°ã€‚(ãƒžãƒƒãƒ—æ‹…å½“è€…ãŒä½œæ¥­ç”¨ã®ãƒ©ã‚¤ãƒˆã‚’å¤šæ•°ãŠã„ã¦ã„ã‚‹ã®ã§ã€Mayaä¸Šã§ã¯1ã«ã™ã‚‹)
+// サポートするライトの総数。(マップ担当者が作業用のライトを多数おいているので、Maya上では1にする)
 #ifdef DCC_TOOL
 	#ifdef POINT_LIGHT_TEST
 		#define MAX_NUM_LIGHTS 3
@@ -1412,63 +1412,63 @@ string MaterialSwitchUiNames[] =
 
 
 #line 1 "Z:/data/shaders/ed8_MaterialSwitches_jp.h"
-// ‚±‚Ìƒtƒ@ƒCƒ‹‚ÍShiftJISƒR[ƒh‚Å•Û‘¶‚µ‚Ä‚­‚¾‚³‚¢B
+// '±'Ìƒtƒ@ƒCƒ‹'ÍShiftJISƒR[ƒh'Å•Û'¶'µ'Ä'­'¾'³'¢B
 
-	"‰½‚à‚È‚µ",						//"Nothing",
-	"‰eê—pƒ‚ƒfƒ‹",					//"Casts Shadows Only",
-//	"—p“r-ƒLƒƒƒ‰",					//"Usage Character",
-//	"—p“r-’nŒ`",					//"Usage Terrain",
+	"‰½'à'È'µ",						//"Nothing",
+	"‰eê—pƒ'ƒfƒ‹",					//"Casts Shadows Only",
+//	"—p"r-ƒLƒƒƒ‰",					//"Usage Character",
+//	"—p"r-'nŒ`",					//"Usage Terrain",
 
-	"‰e‚ð—Ž‚Æ‚·",					//"Casts Shadows",
-	"‰e‚ðŽó‚¯‚é",					//"Receive Shadows",
-	"‹¾–Ê‚É‰f‚èž‚Þ",				//"Generate Reflection",
-	"[x]…–Ê‰º‚ ‚è",				//"Under Water"
+	"‰e'ð—Ž'Æ'·",					//"Casts Shadows",
+	"‰e'ðŽó'¯'é",					//"Receive Shadows",
+	"‹¾–Ê'É‰f'èž'Þ",				//"Generate Reflection",
+	"[x]…–Ê‰º' 'è",				//"Under Water"
 //	"—ÖŠsü", 						//"Edge", 
 
 	"ƒAƒ‹ƒtƒ@ƒeƒXƒg", 				//"Alpha Testing", 
-	"ƒAƒ‹ƒtƒ@ƒuƒŒƒ“ƒh", 			//"Alpha Blending", 
-	"‰ÁŽZƒuƒŒƒ“ƒh", 				//"Additive Blending", 
-	"Œ¸ŽZƒuƒŒƒ“ƒh", 				//"Subtract Blending", 
-	"æŽZƒuƒŒƒ“ƒh",					//"Multiplicative Blending",
-	"2ƒpƒXƒAƒ‹ƒtƒ@ƒuƒŒƒ“ƒh",		//"2Pass Alpha Blending",
+	"ƒAƒ‹ƒtƒ@ƒuƒŒƒ"ƒh", 			//"Alpha Blending", 
+	"‰ÁŽZƒuƒŒƒ"ƒh", 				//"Additive Blending", 
+	"Œ¸ŽZƒuƒŒƒ"ƒh", 				//"Subtract Blending", 
+	"æŽZƒuƒŒƒ"ƒh",					//"Multiplicative Blending",
+	"2ƒpƒXƒAƒ‹ƒtƒ@ƒuƒŒƒ"ƒh",		//"2Pass Alpha Blending",
 
 	"—¼–Ê", 						//"Double Sided", 
-	"—¼–Ê(‰e¶¬Žž‚Ì‚Ý)",	 		//"Double Sided-Casts Shadows", 
+	"—¼–Ê(‰e¶¬Žž'Ì'Ý)",	 		//"Double Sided-Casts Shadows", 
 	"ƒtƒHƒO",						//"Fog",
-	"ƒtƒHƒO“K—p“x",					//"FogFactor",
-	"’¸“_ƒJƒ‰[", 					//"Vertex Color", 
+	"ƒtƒHƒO"K—p"x",					//"FogFactor",
+	"'¸"_ƒJƒ‰[", 					//"Vertex Color", 
 	"ƒeƒNƒXƒ`ƒƒƒXƒNƒ[ƒ‹",			//"TexCoord Offset", 
-//	"‰ÁŽZ‚‚³ƒtƒHƒO(€”õ’†)",		//"Additive Height Fog",
+//	"‰ÁŽZ''³ƒtƒHƒO(€"õ'†)",		//"Additive Height Fog",
 	"‹­§ƒLƒƒƒ‰ƒ‰ƒCƒg•ûŒü",			//"Force Char Light Direction"
-//	"ƒ‰ƒCƒeƒBƒ“ƒO",					//"Lighting",
+//	"ƒ‰ƒCƒeƒBƒ"ƒO",					//"Lighting",
 
-	"”¼‹…ŠÂ‹«Œõ",					//"HS Ambient",
-	"”¼‹…ŠÂ‹«Œõ(’†‰›’l‚ ‚è)",		//"MHS Ambient",
+	""¼‹…ŠÂ‹«Œõ",					//"HS Ambient",
+	""¼‹…ŠÂ‹«Œõ('†‰›'l' 'è)",		//"MHS Ambient",
 	"‰A‰eƒJƒ‰[ƒVƒtƒg",				//"Shadow Color Shift",
 
-	"‘SÆ–¾‚È‚µ",					//"No All Lighting Shading",
-	"ŽåŒõŒ¹‚Ì‰A‰e‚È‚µ",				//"No MainLight Shading",
-	"ƒn[ƒtƒ‰ƒ“ƒo[ƒg", 			//"Half Lambert Lighting", 
-	"ƒgƒD[ƒ“ƒVƒF[ƒfƒBƒ“ƒO", 		//"Cartoon Shading", 
-	"ƒgƒD[ƒ“ƒnƒCƒ‰ƒCƒg", 			//"Cartoon Hilight Mapping", 
+	"'SÆ–¾'È'µ",					//"No All Lighting Shading",
+	"ŽåŒõŒ¹'Ì‰A‰e'È'µ",				//"No MainLight Shading",
+	"ƒn[ƒtƒ‰ƒ"ƒo[ƒg", 			//"Half Lambert Lighting", 
+	"ƒgƒD[ƒ"ƒVƒF[ƒfƒBƒ"ƒO", 		//"Cartoon Shading", 
+	"ƒgƒD[ƒ"ƒnƒCƒ‰ƒCƒg", 			//"Cartoon Hilight Mapping", 
 //	"ƒJƒXƒ^ƒ€ƒfƒtƒ…[ƒY", 			//"Custom Diffuse", 
 	"ƒm[ƒ}ƒ‹ƒ}ƒbƒv", 				//"Normal Mapping", 
-	"ƒIƒNƒ‹[ƒWƒ‡ƒ“ƒ}ƒbƒv",			//"Occulusion Mapping", 
-	"ŽË‰eƒ}ƒbƒv(‰_‚Ì‰e)",			//"Projection Mapping",
-	"Ž©ŒÈ”­Œõ“xƒ}ƒbƒv", 			//"Emission Mapping", 
+	"ƒIƒNƒ‹[ƒWƒ‡ƒ"ƒ}ƒbƒv",			//"Occulusion Mapping", 
+	"ŽË‰eƒ}ƒbƒv(‰_'Ì‰e)",			//"Projection Mapping",
+	"Ž©ŒÈ"­Œõ"xƒ}ƒbƒv", 			//"Emission Mapping", 
 
 	"ƒXƒyƒLƒ…ƒ‰", 					//"Specular", 
-//	"ƒsƒNƒZƒ‹¸“xƒXƒyƒLƒ…ƒ‰",		//"Per Pixel Specular"
+//	"ƒsƒNƒZƒ‹¸"xƒXƒyƒLƒ…ƒ‰",		//"Per Pixel Specular"
 	"ƒXƒyƒLƒ…ƒ‰ƒ}ƒbƒv", 			//"Specular Mapping", 
 	"ƒtƒFƒCƒNíÝƒXƒyƒLƒ…ƒ‰",		//"Fake Everexisting Specular",
-	"ƒ}ƒeƒŠƒAƒ‹’PˆÊƒ‰ƒCƒgãŒÀ",		//"Per Material Main Light Clamp".
+	"ƒ}ƒeƒŠƒAƒ‹'PˆÊƒ‰ƒCƒgãŒÀ",		//"Per Material Main Light Clamp".
 
 	"ƒŠƒ€ƒ‰ƒCƒg", 					//"Rim Lightng", 
-	"ƒŠƒ€“§–¾“x", 					//"Rim Transparency", 
+	"ƒŠƒ€"§–¾"x", 					//"Rim Transparency", 
 
 	"ƒXƒtƒBƒAƒ}ƒbƒv", 				//"Sphere Mapping", 
 	"ƒLƒ…[ƒuƒ}ƒbƒv", 				//"Cube Mapping", 
-	"ŠÂ‹«ƒ}ƒbƒv‚ðIBL‚Æ‚µ‚ÄŽg—p",	//"EnvMap as IBL",
+	"ŠÂ‹«ƒ}ƒbƒv'ðIBL'Æ'µ'ÄŽg—p",	//"EnvMap as IBL",
 
 	"DUDVƒ}ƒbƒv(‹üÜ)",				//"DUDV Mapping(Refrection)",
 	"…–Ê",							//"Water Surface",
@@ -1476,43 +1476,43 @@ string MaterialSwitchUiNames[] =
 	"ƒm[ƒ}ƒ‹ƒ}ƒbƒvDXT5_NM", 		//"Normal Mapping DXT5_NM", 
 	"ƒm[ƒ}ƒ‹ƒ}ƒbƒvDXT5_LP",		//"Normal Mapping DXT5_LP", 
 
-	"•—‚É‚È‚Ñ‚­‘", 				//"Windy Grass", 
-	"•—‚É‚È‚Ñ‚­‘ - TexVd‚Ý•t‚¯",	//"Windy Grass - TexV Weight", 
+	"•—'É'È'Ñ'­'", 				//"Windy Grass", 
+	"•—'É'È'Ñ'­' - TexVd'Ý•t'¯",	//"Windy Grass - TexV Weight", 
 //	"ƒrƒ‹ƒ{[ƒh", 					//"Billboard", 
-//	"“§Ž‹}–@ƒrƒ‹ƒ{[ƒh",			//"Perspective Billboard", 
-//	"‰~’Œƒrƒ‹ƒ{[ƒh(YŽ²)",			//"Cylindrical Billboard(Y-Axis)", 
+//	""§Ž‹}–@ƒrƒ‹ƒ{[ƒh",			//"Perspective Billboard", 
+//	"‰~'Œƒrƒ‹ƒ{[ƒh(YŽ²)",			//"Cylindrical Billboard(Y-Axis)", 
 //	"‹…–Êƒrƒ‹ƒ{[ƒh", 				//"Spherical Billboard", 
 
 	"ƒOƒ[(ƒnƒCƒpƒX)",				//"Glow(High-Pass)", 
-	"ƒOƒ[(ƒAƒ‹ƒtƒ@”­Œõ)",			//"Glow(Alpha Emission)", 
+	"ƒOƒ[(ƒAƒ‹ƒtƒ@"­Œõ)",			//"Glow(Alpha Emission)", 
 	"ƒOƒ[ƒ}ƒbƒv",					//"Glow Map", 
 //	"ƒOƒ[(ƒI[ƒo[ƒtƒ[)",		//"Glow(Overflow)", 
 
 	"ƒ}ƒ‹ƒ`UV",							//"Multi UV",
-	"‰ÁŽZƒuƒŒƒ“ƒh]ƒ}ƒ‹ƒ`UV",			//"Multi UV Additive Blending",
-	"æŽZƒuƒŒƒ“ƒh]ƒ}ƒ‹ƒ`UV",			//"Multi UV Multiplicative Blending",
+	"‰ÁŽZƒuƒŒƒ"ƒh]ƒ}ƒ‹ƒ`UV",			//"Multi UV Additive Blending",
+	"æŽZƒuƒŒƒ"ƒh]ƒ}ƒ‹ƒ`UV",			//"Multi UV Multiplicative Blending",
 	"‰e]ƒ}ƒ‹ƒ`UV",						//"Multi UV Shadow",
 	"ƒtƒFƒCƒX]ƒ}ƒ‹ƒ`UV",				//"Multi UV Face",
 	"ƒXƒNƒ[ƒ‹]ƒ}ƒ‹ƒ`UV", 			//"Multi UV TexCoord Offset",
 	"ƒm[ƒ}ƒ‹ƒ}ƒbƒv]ƒ}ƒ‹ƒ`UV", 		//"Multi UV Normal Mapping", 
-	"ƒIƒNƒ‹[ƒWƒ‡ƒ“ƒ}ƒbƒv]ƒ}ƒ‹ƒ`UV",	//"Multi UV Occulusion Mapping", 
+	"ƒIƒNƒ‹[ƒWƒ‡ƒ"ƒ}ƒbƒv]ƒ}ƒ‹ƒ`UV",	//"Multi UV Occulusion Mapping", 
 	"ƒXƒyƒLƒ…ƒ‰ƒ}ƒbƒv-ƒ}ƒ‹ƒ`UV", 		//"Multi UV Specular Mapping", 
 	"ƒfƒtƒ…[ƒY•s—v-ƒ}ƒ‹ƒ`UV", 			//"Multi UV No Diffuse Mapping", 
 
 	"ƒ}ƒ‹ƒ`UV2",						//"Multi UV2",
-	"‰ÁŽZƒuƒŒƒ“ƒh]ƒ}ƒ‹ƒ`UV2",			//"Multi UV2 Additive Blending",
-	"æŽZƒuƒŒƒ“ƒh]ƒ}ƒ‹ƒ`UV2",			//"Multi UV2 Multiplicative Blending",
+	"‰ÁŽZƒuƒŒƒ"ƒh]ƒ}ƒ‹ƒ`UV2",			//"Multi UV2 Additive Blending",
+	"æŽZƒuƒŒƒ"ƒh]ƒ}ƒ‹ƒ`UV2",			//"Multi UV2 Multiplicative Blending",
 	"‰e]ƒ}ƒ‹ƒ`UV2",					//"Multi UV2 Shadow",
 	"ƒtƒFƒCƒX]ƒ}ƒ‹ƒ`UV2",				//"Multi UV2 Face",
 	"ƒXƒNƒ[ƒ‹]ƒ}ƒ‹ƒ`UV2", 			//"Multi UV2 TexCoord Offset",
-	"ƒIƒNƒ‹[ƒWƒ‡ƒ“ƒ}ƒbƒv]ƒ}ƒ‹ƒ`UV2",	//"Multi UV2 Occulusion Mapping", 
+	"ƒIƒNƒ‹[ƒWƒ‡ƒ"ƒ}ƒbƒv]ƒ}ƒ‹ƒ`UV2",	//"Multi UV2 Occulusion Mapping", 
 	"ƒXƒyƒLƒ…ƒ‰ƒ}ƒbƒv-ƒ}ƒ‹ƒ`UV2", 		//"Multi UV2 Specular Mapping", 
 	"ƒfƒtƒ…[ƒY•s—v-ƒ}ƒ‹ƒ`UV2", 		//"Multi UV2 No Diffuse Mapping", 
 
-	"ƒfƒBƒtƒ…[ƒYƒ}ƒbƒv‘JˆÚ",	 		//"DiffuseMapChanging", 
+	"ƒfƒBƒtƒ…[ƒYƒ}ƒbƒv'JˆÚ",	 		//"DiffuseMapChanging", 
 	"ƒGƒtƒFƒNƒg—p",						//"No DepthMask for effect"
 	"UVaƒXƒNƒŠƒvƒg",					// UVA Script"
-//	"ƒVƒƒƒCƒjƒ“ƒO",						// Shining Mode"
+//	"ƒVƒƒƒCƒjƒ"ƒO",						// Shining Mode"
 
 #line 482 "Z:/data/shaders/ed8.fx"
 
@@ -1678,7 +1678,7 @@ string MaterialSwitchDefaultValues[] =
 #endif // NUM_LIGHTS
 
 
-// ãƒ“ãƒ«ãƒœãƒ¼ãƒ‰å»ƒæ­¢
+// ビルボード廃止
 #undef BILLBOARD_ENABLED
 #undef PERSPECTIVE_BILLBOARD_ENABLED
 #undef CYLINDRICAL_BILLBOARD_ENABLED
@@ -1693,14 +1693,14 @@ string MaterialSwitchDefaultValues[] =
 #endif
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-// æŽ¡ç”¨è¨­å®š
-//#define USE_POSITION_HALF					// ãƒ¯ãƒ¼ãƒ«ãƒ‰ç©ºé–“é ‚ç‚¹ä½ç½®
-//#define USE_TEXCOORD_SCROLLABLE_HALF		// ã‚¹ã‚¯ãƒ­ãƒ¼ãƒ«ã™ã‚‹å¯èƒ½æ€§ã®ã‚ã‚‹ãƒ†ã‚¯ã‚¹ãƒãƒ£åº§æ¨™ã€‚halfã§ã¯ç²¾åº¦ãŒè¶³ã‚Šãªã„ã€‚
-#define TOON_FIRST_LIGHT_ONLY_ENABLED		// ãƒˆã‚¥ãƒ¼ãƒ³ãƒ•ã‚£ãƒ«ã‚¿ã‚’æŽ›ã‘ã‚‹ã®ã¯æœ€åˆã®ãƒ©ã‚¤ãƒˆã®ã¿
-//#define USE_FORCE_VERTEX_RIM_LIGHTING		// ãƒªãƒ ãƒ©ã‚¤ãƒˆã‚’å¼·åˆ¶çš„ã«é ‚ç‚¹å˜ä½ã§è¨ˆç®—
-//#define FORCE_PER_VERTEX_ENVIRON_MAP		// ã‚­ãƒ¥ãƒ¼ãƒ–ãƒžãƒƒãƒ—ãƒ»ã‚¹ãƒ•ã‚£ã‚¢ãƒžãƒƒãƒ—ãƒ»ãƒˆã‚¥ãƒ¼ãƒ³ãƒã‚¤ãƒ©ã‚¤ãƒˆã¯æ³•ç·šãƒžãƒƒãƒ—ãŒã‚ã‚ã†ã¨ã‚‚é ‚ç‚¹å˜ä½ã«æ±‚ã‚ã‚‹ã€‚[Vitaå‘ã‘]
+// 採用設定
+//#define USE_POSITION_HALF					// ワールド空間頂点位置
+//#define USE_TEXCOORD_SCROLLABLE_HALF		// スクロールする可能性のあるテクスチャ座標。halfでは精度が足りない。
+#define TOON_FIRST_LIGHT_ONLY_ENABLED		// トゥーンフィルタを掛けるのは最初のライトのみ
+//#define USE_FORCE_VERTEX_RIM_LIGHTING		// リムライトを強制的に頂点単位で計算
+//#define FORCE_PER_VERTEX_ENVIRON_MAP		// キューブマップ・スフィアマップ・トゥーンハイライトは法線マップがあろうとも頂点単位に求める。[Vita向け]
 
-#define VERTEX_COLOR_AS_AMBIENT_OCCULUSION	// é ‚ç‚¹ã‚«ãƒ©ãƒ¼ã®å½¹å‰²ã€‚ï¼ˆonã®ã¨ãã¯ç’°å¢ƒå…‰é®è”½ã¨ã—ã¦ãƒ©ã‚¤ãƒ†ã‚£ãƒ³ã‚°ã®æœ€å¾Œã«ã‹ã‘ã‚‹ã€‚offã®ã¨ãã¯ã‚¢ãƒ³ãƒ“ã‚¨ãƒ³ãƒˆ+ãƒ¡ã‚¤ãƒ³ãƒ©ã‚¤ãƒˆã®ç›´å¾Œ)
+#define VERTEX_COLOR_AS_AMBIENT_OCCULUSION	// 頂点カラーの役割。(onのときは環境光遮蔽としてライティングの最後にかける。offのときはアンビエント+メインライトの直後)
 
 #define GAME_MATERIAL_ENABLED
 
@@ -1708,18 +1708,18 @@ string MaterialSwitchDefaultValues[] =
 
 //#undef CARTOON_HILIGHT_ENABLED
 
-// é ‚ç‚¹ã‚¿ãƒ³ã‚¸ã‚§ãƒ³ãƒˆ
+// 頂点タンジェント
 #if (defined(NORMAL_MAPPING_ENABLED) || defined(NORMAL_MAPPING2_ENABLED)) && !defined(USE_PER_VERTEX_LIGHTING)
 	#define USE_TANGENTS
 #endif // (defined(NORMAL_MAPPING_ENABLED) || defined(NORMAL_MAPPING2_ENABLED)) && !defined(USE_PER_VERTEX_LIGHTING)
 
 
-// ã‚­ãƒ¥ãƒ¼ãƒ–ãƒžãƒƒãƒ—ã¾ãŸã¯ã‚¹ãƒ•ã‚£ã‚¢ãƒžãƒƒãƒ—ã¨ãƒˆã‚¥ãƒ¼ãƒ³
+// キューブマップまたはスフィアマップとトゥーン
 #if (defined(CUBE_MAPPING_ENABLED) || defined(SPHERE_MAPPING_ENABLED)) && defined(CARTOON_SHADING_ENABLED)
 	#undef USE_PER_VERTEX_LIGHTING
 #endif
 
-// ã‚¢ãƒ«ãƒ•ã‚¡ãƒ–ãƒ¬ãƒ³ãƒ‰
+// アルファブレンド
 #if !defined(ALPHA_BLENDING_ENABLED)
 	#undef ADDITIVE_BLENDING_ENABLED
 	#undef SUBTRACT_BLENDING_ENABLED
@@ -1730,12 +1730,12 @@ string MaterialSwitchDefaultValues[] =
 	#define USE_EXTRA_BLENDING
 #endif
 
-// 2ãƒ‘ã‚¹ã‚¢ãƒ«ãƒ•ã‚¡
+// 2パスアルファ
 #if !defined(ALPHA_BLENDING_ENABLED) || defined(USE_EXTRA_BLENDING) || defined(DCC_TOOL)
 	#undef TWOPASS_ALPHA_BLENDING_ENABLED
 #endif //
 
-// ãƒˆã‚¥ãƒ¼ãƒ³ã®å ´åˆã§ã€åŠçƒç’°å¢ƒå…‰ãŒãªã‘ã‚Œã°ã¤ã‘ã‚‹ã€‚ãŸã ã€æ˜Žç¤ºçš„ã«3å€¤ã§ãªã‘ã‚Œã°
+// トゥーンの場合で、半球環境光がなければつける。ただ、明示的に3値でなければ
 #if defined(CARTOON_SHADING_ENABLED) || !defined(NO_MAIN_LIGHT_SHADING_ENABLED)
 	#if !defined(HEMISPHERE_AMBIENT_ENABLED) && !defined(MULTIPLEX_HEMISPHERE_AMBIENT_ENABLED)
 		#define HEMISPHERE_AMBIENT_ENABLED
@@ -1743,20 +1743,20 @@ string MaterialSwitchDefaultValues[] =
 	#endif
 #endif
 
-// èƒŒæ™¯ã®æ›¸å‰²ã¨ã‹ã€ã©ã†è€ƒãˆã¦ã‚‚é ‚ç‚¹å˜ä½ã®ãƒ©ã‚¤ãƒˆã§ååˆ†ãªå ´æ‰€ã‚’æ˜Žç¤ºçš„ã«æŒ‡å®šã™ã‚‹ã“ã¨ã«ã™ã‚‹
+// 背景の書割とか、どう考えても頂点単位のライトで十分な場所を明示的に指定することにする
 
-// ãƒ•ã‚§ã‚¤ã‚¯ã§ãªã„ã‚¹ãƒšã‚­ãƒ¥ãƒ©æŒã¡ã‹ã€ãƒªãƒ ãƒ©ã‚¤ãƒˆæŒã¡
+// フェイクでないスペキュラ持ちか、リムライト持ち
 #if !defined(__psp2__)
 	#if (defined(SPECULAR_ENABLED) && !defined(FAKE_CONSTANT_SPECULAR_ENABLED)) || defined(RIM_LIGHTING_ENABLED)
 		#undef USE_PER_VERTEX_LIGHTING
 	#endif //
 #endif // !defined(__psp2__)
-// ãƒªãƒ é€æ˜Žåº¦ãŒã‚ã‚‹å ´åˆã¯vitaã§ã‚‚ãƒ”ã‚¯ã‚»ãƒ«å˜ä½
+// リム透明度がある場合はvitaでもピクセル単位
 #if defined(RIM_LIGHTING_ENABLED) && defined(RIM_TRANSPARENCY_ENABLED) 
 	#undef USE_PER_VERTEX_LIGHTING
 #endif
 
-// ãƒˆã‚¥ãƒ¼ãƒ³
+// トゥーン
 #if defined(CARTOON_SHADING_ENABLED)
 	#undef WINDY_GRASS_ENABLED
 	#undef USE_PER_VERTEX_LIGHTING
@@ -1771,7 +1771,7 @@ string MaterialSwitchDefaultValues[] =
 //	#endif
 #endif // defined(CARTOON_SHADING_ENABLED)
 
-// åœ°å½¢
+// 地形
 #if defined(LIGHTING_ENABLED)
 	#ifndef GLARE_OVERFLOW_ENABLED
 //		#define GLARE_OVERFLOW_ENABLED
@@ -1779,7 +1779,7 @@ string MaterialSwitchDefaultValues[] =
 #endif // defined(CARTOON_SHADING_ENABLED)
 
 /*
-// æ´¾ç”Ÿãƒ“ãƒ«ãƒœãƒ¼ãƒ‰
+// 派生ビルボード
 #ifdef CYLINDRICAL_BILLBOARD_ENABLED
 	#undef PERSPECTIVE_BILLBOARD_ENABLED
 #endif // CYLINDRICAL_BILLBOARD_ENABLED
@@ -1789,7 +1789,7 @@ string MaterialSwitchDefaultValues[] =
 */
 
 
-// ãƒžãƒ«ãƒUV
+// マルチUV
 #if !defined(MULTI_UV_ENANLED)
 	#undef MULTI_UV_ADDITIVE_BLENDING_ENANLED
 	#undef MULTI_UV_MULTIPLICATIVE_BLENDING_ENANLED
@@ -1821,7 +1821,7 @@ string MaterialSwitchDefaultValues[] =
 	#undef MULTI_UV2_SHADOW_ENANLED
 #endif
 
-// ãƒžãƒ«ãƒUV2
+// マルチUV2
 #if defined(MULTI_UV2_ENANLED)
 	#undef CUBE_MAPPING_ENABLED
 	#undef SPHERE_MAPPING_ENABLED
@@ -1829,7 +1829,7 @@ string MaterialSwitchDefaultValues[] =
 	
 #else
 
-// æ°´é¢
+// 水面
 	#if defined(WATER_SURFACE_ENABLED)
 		#if !defined(DCC_TOOL)
 			#undef ALPHA_BLENDING_ENABLED
@@ -1850,14 +1850,14 @@ string MaterialSwitchDefaultValues[] =
 
 #endif // MULTI_UV2_ENANLED
 
-// Vitaç”¨ã®é«˜é€ŸåŒ–æŽªç½®
+// Vita用の高速化措置
 #if defined(__psp2__)
 	#if defined(RECEIVE_SHADOWS)
 		#if !defined(DUDV_MAPPING_ENABLED)
 			#if NUM_LIGHTS > 0
 				#ifdef SHADOWTYPE_0
 					#if MAX_SPLIT_CASCADED_SHADOWMAP == 1
-						#define PRECALC_SHADOWMAP_POSITION		// ã‚·ãƒ£ãƒ‰ã‚¦ãƒžãƒƒãƒ—åº§æ¨™ã®è¨ˆç®—ã‚’VPå´ã§è¡Œã†
+						#define PRECALC_SHADOWMAP_POSITION		// シャドウマップ座標の計算をVP側で行う
 					#endif
 				#endif
 			#endif
@@ -1866,21 +1866,21 @@ string MaterialSwitchDefaultValues[] =
 #endif // defined(__psp2__)
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-// ã‚¹ã‚¤ãƒƒãƒã®ãƒ—ãƒªãƒ—ãƒ­ã‚»ã‚¹
+// スイッチのプリプロセス
 
-// ã‚­ãƒ¥ãƒ¼ãƒ–ãƒžãƒƒãƒ—ãƒ»ã‚¹ãƒ•ã‚£ã‚¢ãƒžãƒƒãƒ—ãƒ»ã‚°ãƒ©ãƒ‡ã‚£ã‚¨ãƒ³ãƒˆãƒžãƒƒãƒ—ã¯æŽ’ä»–
+// キューブマップ・スフィアマップ・グラディエントマップは排他
 #ifdef CUBE_MAPPING_ENABLED
 	#undef SPHERE_MAPPING_ENABLED
 #endif // CUBE_MAPPING_ENABLED
 
-// DuDvã¯ãƒžãƒ«ãƒãƒ†ã‚¯ã‚¹ãƒãƒ£ç„¡åŠ¹
+// DuDvはマルチテクスチャ無効
 #ifdef DUDV_MAPPING_ENABLED
 	#undef MULTI_UV_ENANLED
 	#undef MULTI_UV2_ENANLED
 #endif // DUDV_MAPPING_ENABLED
 
 
-#define MAINLIGHT_CLAMP_FACTOR_ENABLED		// Global or Materalãƒ©ã‚¤ãƒˆã‚¯ãƒ©ãƒ³ãƒ—
+#define MAINLIGHT_CLAMP_FACTOR_ENABLED		// Global or Materalライトクランプ
 
 #ifndef DCC_TOOL
 	#if defined(CARTOON_SHADING_ENABLED) || defined(FORCE_CHAR_LIGHT_DIRECTION_ENABLED) || defined(CHAR_EQUIP_ENABLED)
@@ -1890,7 +1890,7 @@ string MaterialSwitchDefaultValues[] =
 #endif // DCC_TOOL
 
 ///////////////////////////////////////////////////////////////////////////////
-// ã‚°ãƒ­ãƒ¼ãƒãƒ«ã‚·ã‚§ãƒ¼ãƒ€ãƒ‘ãƒ©ãƒ¡ãƒ¼ã‚¿
+// グローバルシェーダパラメータ
 
 #define GlowThreshold	1.0
 
@@ -1908,7 +1908,7 @@ float4x4 BoneTransforms[MATERIAL_SKINNING_MAX_GPU_BONE_COUNT] : BONETRANSFORMS;
 float3 LightDirForChar			: LightDirForChar;
 #endif // LIGHT_DIRECTION_FOR_CHARACTER_ENABLED
 
-// ãƒžãƒ†ãƒªã‚¢ãƒ«åˆ¥ãƒ©ã‚¤ãƒˆä¸Šé™ - ãƒžãƒ†ãƒªã‚¢ãƒ«æ¯ŽUniform - ifdefã§å›²ã¾ãªã„ã“ã¨ã€‚
+// マテリアル別ライト上限 - マテリアル毎Uniform - ifdefで囲まないこと。
 float PerMaterialMainLightClampFactor
 <
     string UIName = UINAME_PerMaterialMainLightClampFactor;
@@ -1975,7 +1975,7 @@ float4 UserClipPlane			: UserClipPlane = {0.0, 1.0, 0.0, 0.0 };	// xyzw (nx,ny,n
 	#endif // DCC_TOOL
 #endif // defined(GENERATE_RELFECTION_ENABLED) || defined(WATER_SURFACE_ENABLED)
 
-// åå°„å¼·ã• - ãƒžãƒ†ãƒªã‚¢ãƒ«æ¯ŽUniform - ifdefã§å›²ã¾ãªã„ã“ã¨ã€‚
+// 反射強さ - マテリアル毎Uniform - ifdefで囲まないこと。
 float ReflectionIntensity
 <
     string UIName = UINAME_ReflectionIntensity;
@@ -2024,7 +2024,7 @@ float3 ShiningLightColor
 #endif // defined(SHINING_MODE_ENABLED)
 
 //-----------------------------------------------------------------------------
-// ã‚«ã‚¹ã‚¿ãƒ ãƒ‡ã‚£ãƒ•ãƒ¥ãƒ¼ã‚º
+// カスタムディフューズ
 #ifdef CUSTOM_DIFFUSE_SUPPORT
 
 //	#ifdef DCC_TOOL
@@ -2074,8 +2074,8 @@ float4 CustomDiffuse_Shadow  : NodeCustomDiffuse3;
 #endif // CUSTOM_DIFFUSE_SUPPORT
 
 //-----------------------------------------------------------------------------
-// ãƒ©ã‚¤ãƒ†ã‚£ãƒ³ã‚°
-// Light0ã¯ãƒ‡ã‚£ãƒ¬ã‚¯ã‚·ãƒ§ãƒŠãƒ«ãƒ©ã‚¤ãƒˆå›ºå®š
+// ライティング
+// Light0はディレクショナルライト固定
 
 struct LightValue
 {
@@ -2132,7 +2132,7 @@ Texture2D <float> LightShadowMap3 : LIGHTSHADOWMAP3;
 #endif // defined(USE_LIGHTING)
 
 //-----------------------------------------------------------------------------
-// ã‚²ãƒ¼ãƒ ãƒžãƒ†ãƒªã‚¢ãƒ«é–¢é€£ - ãƒžãƒ†ãƒªã‚¢ãƒ«æ¯ŽUniform - ifdefã§å›²ã¾ãªã„ã“ã¨ã€‚
+// ゲームマテリアル関連 - マテリアル毎Uniform - ifdefで囲まないこと。
 float GameMaterialID
 <
 	string UIName = UINAME_GameMaterialID;
@@ -2204,7 +2204,7 @@ float AlphaTestDirection : AlphaTestDirection;
 #endif // DCC_TOOL
 
 //-----------------------------------------------------------------------------
-// ã‚¢ãƒ«ãƒ•ã‚¡é–¾å€¤ - ãƒžãƒ†ãƒªã‚¢ãƒ«æ¯ŽUniform - ifdefã§å›²ã¾ãªã„ã“ã¨ã€‚
+// アルファ閾値 - マテリアル毎Uniform - ifdefで囲まないこと。
 float AlphaThreshold : ALPHATHRESHOLD
 <
     string UIName = UINAME_AlphaThreshold;
@@ -2215,7 +2215,7 @@ float AlphaThreshold : ALPHATHRESHOLD
 > = 0.500;
 
 //-----------------------------------------------------------------------------
-// ãƒ•ã‚©ã‚°é–¢é€£
+// フォグ関連
 //
 #if defined(FOG_ENABLED)
 
@@ -2235,7 +2235,7 @@ float2 FogRangeParameters : FogRangeParameters
 	#endif // DCC_TOOL
 #endif // FOG_ENABLED
 
-// ãƒ•ã‚©ã‚°é©ç”¨çŽ‡ - ãƒžãƒ†ãƒªã‚¢ãƒ«æ¯ŽUniform - ifdefã§å›²ã¾ãªã„ã“ã¨ã€‚
+// フォグ適用率 - マテリアル毎Uniform - ifdefで囲まないこと。
 float FogRatio
 <
     string UIName = UINAME_FogRatio;
@@ -2246,9 +2246,9 @@ float FogRatio
 > = 0.5;
 
 //-----------------------------------------------------------------------------
-// ç’°å¢ƒå…‰é–¢é€£
+// 環境光関連
 
-// å½±ã‚«ãƒ©ãƒ¼ã‚·ãƒ•ãƒˆ - ãƒžãƒ†ãƒªã‚¢ãƒ«æ¯ŽUniform - ifdefã§å›²ã¾ãªã„ã“ã¨ã€‚
+// 影カラーシフト - マテリアル毎Uniform - ifdefで囲まないこと。
 float3 ShadowColorShift
 <
     string UIName = UINAME_ShadowColorShift;
@@ -2277,9 +2277,9 @@ float3 HemiSphereAmbientAxis : HemiSphereAxis
 #endif // HEMISPHERE_AMBIENT_ENABLED
 
 //-----------------------------------------------------------------------------
-// ã‚¹ãƒšã‚­ãƒ¥ãƒ©é–¢é€£ - ãƒžãƒ†ãƒªã‚¢ãƒ«æ¯ŽUniform - ifdefã§å›²ã¾ãªã„ã“ã¨ã€‚
+// スペキュラ関連 - マテリアル毎Uniform - ifdefで囲まないこと。
 
-// ã‚¹ãƒšã‚­ãƒ¥ãƒ©åå¿ƒ
+// スペキュラ偏心
 float Shininess
 <
     string UIName = UINAME_Shininess;
@@ -2288,7 +2288,7 @@ float Shininess
 	float UIMax = 10.0;
 > = 0.50;
 
-// ã‚¹ãƒšã‚­ãƒ¥ãƒ©å¼·ã•
+// スペキュラ強さ
 float SpecularPower
 <
     string UIName = UINAME_SpecularPower;
@@ -2298,7 +2298,7 @@ float SpecularPower
 > = 50.0;
 
 //-----------------------------------------------------------------------------
-// ãƒªãƒ ãƒ©ã‚¤ãƒˆé–¢é€£ - ãƒžãƒ†ãƒªã‚¢ãƒ«æ¯ŽUniform - ifdefã§å›²ã¾ãªã„ã“ã¨ã€‚
+// リムライト関連 - マテリアル毎Uniform - ifdefで囲まないこと。
 float3 RimLitColor
 <
     string UIName = UINAME_RimLightColor;
@@ -2341,9 +2341,9 @@ float2 TexCoordOffset3
 > = {0.0, 0.0};
 
 //-----------------------------------------------------------------------------
-// ãƒ†ã‚¯ã‚¹ãƒãƒ£é–¢é€£
+// テクスチャ関連
 
-// ãƒ‡ã‚£ãƒ•ãƒ¥ãƒ¼ã‚ºãƒ†ã‚¯ã‚¹ãƒãƒ£ 
+// ディフューズテクスチャ 
 #if defined(DCC_TOOL) || !defined(NOTHING_ENABLED)
 Texture2D<float4> DiffuseMapSampler
 <
@@ -2352,7 +2352,7 @@ Texture2D<float4> DiffuseMapSampler
 #endif // defined(DCC_TOOL) || !defined(NOTHING_ENABLED)
 
 #if defined(NORMAL_MAPPING_ENABLED)
-// ãƒŽãƒ¼ãƒžãƒ«ãƒžãƒƒãƒ—ãƒ»ã‚¹ãƒšã‚­ãƒ¥ãƒ©ãƒžãƒƒãƒ—ãƒ»ã‚¢ãƒ³ãƒ“ã‚¨ãƒ³ãƒˆã‚ªã‚¯ãƒ«ãƒ¼ã‚¸ãƒ§ãƒ³ãƒžãƒƒãƒ—
+// ノーマルマップ・スペキュラマップ・アンビエントオクルージョンマップ
 Texture2D<float4> NormalMapSampler
 <
 	string UIName = UINAME_NormalMapSampler;
@@ -2390,7 +2390,7 @@ Texture2D<float4> DiffuseMapTrans2Sampler
 	string UIName = UINAME_DiffuseMapTrans2Sampler;
 >;
 	#ifdef DCC_TOOL
-// ã‚¹ãƒšã‚­ãƒ¥ãƒ©å¼·ã•
+// スペキュラ強さ
 float DiffuseMapTransRatio
 <
     string UIName = UINAME_DiffuseMapTransRatio;
@@ -2403,7 +2403,7 @@ float DiffuseMapTransRatio
 #endif // DIFFUSEMAP_CHANGING_ENABLED
 
 //-----------------------------------------------------------------------------
-// ãƒžãƒ«ãƒUV ãƒ†ã‚¯ã‚¹ãƒãƒ£é–¢é€£
+// マルチUV テクスチャ関連
 #ifdef MULTI_UV_ENANLED
 
 	#if !defined(MULTI_UV_NO_DIFFUSE_MAPPING_ENANLED)
@@ -2413,7 +2413,7 @@ Texture2D<float4> DiffuseMap2Sampler
 >;
 	#endif // !defined(MULTI_UV_NO_DIFFUSE_MAPPING_ENANLED)
 
-	// ã‚¹ãƒšã‚­ãƒ¥ãƒ©ãƒžãƒƒãƒ—ãƒ»ã‚¢ãƒ³ãƒ“ã‚¨ãƒ³ãƒˆã‚ªã‚¯ãƒ«ãƒ¼ã‚¸ãƒ§ãƒ³ãƒžãƒƒãƒ—
+	// スペキュラマップ・アンビエントオクルージョンマップ
 	#if defined(MULTI_UV_SPECULAR_MAPPING_ENABLED)
 Texture2D<float4> SpecularMap2Sampler
 <
@@ -2438,7 +2438,7 @@ Texture2D<float4> NormalMap2Sampler
 #endif // MULTI_UV_ENANLED
 
 //-----------------------------------------------------------------------------
-// ãƒžãƒ«ãƒUV ãƒ†ã‚¯ã‚¹ãƒãƒ£é–¢é€£
+// マルチUV テクスチャ関連
 #ifdef MULTI_UV2_ENANLED 
 
 	#if !defined(MULTI_UV2_NO_DIFFUSE_MAPPING_ENANLED)
@@ -2448,7 +2448,7 @@ Texture2D<float4> DiffuseMap3Sampler
 >;
 	#endif // !defined(MULTI_UV2_NO_DIFFUSE_MAPPING_ENANLED)
 
-	// ã‚¹ãƒšã‚­ãƒ¥ãƒ©ãƒžãƒƒãƒ—ãƒ»ã‚¢ãƒ³ãƒ“ã‚¨ãƒ³ãƒˆã‚ªã‚¯ãƒ«ãƒ¼ã‚¸ãƒ§ãƒ³ãƒžãƒƒãƒ—
+	// スペキュラマップ・アンビエントオクルージョンマップ
 	#if defined(MULTI_UV2_SPECULAR_MAPPING_ENABLED)
 Texture2D<float4> SpecularMap3Sampler
 <
@@ -2466,7 +2466,7 @@ Texture2D<float4> OcculusionMap3Sampler
 #endif // MULTI_UV2_ENANLED
 
 //-----------------------------------------------------------------------------
-// ãƒˆã‚¥ãƒ¼ãƒ³ã‚·ã‚§ãƒ¼ãƒ‡ã‚£ãƒ³ã‚°ç”¨ãƒ†ã‚¯ã‚¹ãƒãƒ£é–¢é€£
+// トゥーンシェーディング用テクスチャ関連
 #if defined(CARTOON_SHADING_ENABLED)
 
 Texture2D<float4> CartoonMapSampler
@@ -2507,7 +2507,7 @@ float ShadowReceiveOffset
 #endif // CARTOON_SHADING_ENABLED
 
 //-----------------------------------------------------------------------------
-// ã‚¹ãƒ•ã‚£ã‚¢ãƒžãƒƒãƒ—é–¢é€£
+// スフィアマップ関連
 #if defined(SPHERE_MAPPING_ENABLED)
 Texture2D<float4> SphereMapSampler
 <
@@ -2515,7 +2515,7 @@ Texture2D<float4> SphereMapSampler
 >;
 #endif // SPHERE_MAPPING_ENABLED
 
-// ã‚¹ãƒ•ã‚£ã‚¢ãƒžãƒƒãƒ—å¼·ã• - ãƒžãƒ†ãƒªã‚¢ãƒ«æ¯ŽUniform - ifdefã§å›²ã¾ãªã„ã“ã¨ã€‚
+// スフィアマップ強さ - マテリアル毎Uniform - ifdefで囲まないこと。
 float SphereMapIntensity
 <
     string UIName = UINAME_SphereMapIntensity;
@@ -2526,7 +2526,7 @@ float SphereMapIntensity
 
 
 //-----------------------------------------------------------------------------
-// ã‚­ãƒ¥ãƒ¼ãƒ–ãƒžãƒƒãƒ—é–¢é€£
+// キューブマップ関連
 #if defined(CUBE_MAPPING_ENABLED)
 TextureCube<float4> CubeMapSampler
 <
@@ -2534,7 +2534,7 @@ TextureCube<float4> CubeMapSampler
 >;
 #endif // CUBE_MAPPING_ENABLED
 
-// ã‚­ãƒ¥ãƒ¼ãƒ–ãƒžãƒƒãƒ—ãƒ•ãƒ¬ãƒãƒ«é … - ãƒžãƒ†ãƒªã‚¢ãƒ«æ¯ŽUniform - ifdefã§å›²ã¾ãªã„ã“ã¨ã€‚
+// キューブマップフレネル項 - マテリアル毎Uniform - ifdefで囲まないこと。
 float CubeFresnelPower
 <
     string UIName = UINAME_CubeMapFresnelPower;
@@ -2545,7 +2545,7 @@ float CubeFresnelPower
 
 #ifndef CARTOON_SHADING_ENABLED
 //-----------------------------------------------------------------------------
-// å°„å½±ãƒžãƒƒãƒ—é–¢é€£
+// 射影マップ関連
 
 	#ifdef PROJECTION_MAP_ENABLED
 
@@ -2555,7 +2555,7 @@ Texture2D<float4> ProjectionMapSampler
 >;
 	#endif // PROJECTION_MAP_ENABLED
 
-// å°„å½±ãƒžãƒƒãƒ—é–¢é€£ - ãƒžãƒ†ãƒªã‚¢ãƒ«æ¯ŽUniform - ifdefã§å›²ã¾ãªã„ã“ã¨ã€‚
+// 射影マップ関連 - マテリアル毎Uniform - ifdefで囲まないこと。
 float2 ProjectionScale
 <
     string UIName = UINAME_ProjectionScale;
@@ -2571,7 +2571,7 @@ float2 ProjectionScroll
 > = {0.00, 0.00};
 
 //-----------------------------------------------------------------------------
-// DU/DVãƒžãƒƒãƒ—é–¢é€£
+// DU/DVマップ関連
 	#ifdef DUDV_MAPPING_ENABLED
 
 Texture2D<float4> DuDvMapSampler
@@ -2581,11 +2581,11 @@ Texture2D<float4> DuDvMapSampler
 	#endif // DUDV_MAPPING_ENABLED
 
 	#define DUDVMAP_SIZE	(256.0)
-// ã‚µã‚¤ã‚ºå›ºå®šã—ä»–ã®é–¢é€£ã™ã‚‹å¤‰æ•°ScreenWidth,ScreenHeightã¨åˆã‚ã›ã¦äº‹å‰ã«è¨ˆç®—ã—ã¦ãŠãã®ãŒæœ›ã¾ã—ã„
-// DuDvScaleã‚‚ã‚²ãƒ¼ãƒ å…¨ä½“ã§å›ºå®šå€¤ã«ã—ã¦ã—ã¾ã„ãŸã„ã€‚
+// サイズ固定し他の関連する変数ScreenWidth,ScreenHeightと合わせて事前に計算しておくのが望ましい
+// DuDvScaleもゲーム全体で固定値にしてしまいたい。
 //
 
-// DU/DVãƒžãƒƒãƒ—é–¢é€£ - ãƒžãƒ†ãƒªã‚¢ãƒ«æ¯ŽUniform - ifdefã§å›²ã¾ãªã„ã“ã¨ã€‚
+// DU/DVマップ関連 - マテリアル毎Uniform - ifdefで囲まないこと。
 float2 DuDvMapImageSize
 <
     string UIName = UINAME_DuDvMapImageSize;
@@ -2611,9 +2611,9 @@ float2 DuDvScale
 
 
 //-----------------------------------------------------------------------------
-// è‰ã‚†ã‚Œ
+// 草ゆれ
 
-// è‰ã‚†ã‚Œé–¢é€£ - ãƒžãƒ†ãƒªã‚¢ãƒ«æ¯ŽUniform - ifdefã§å›²ã¾ãªã„ã“ã¨ã€‚
+// 草ゆれ関連 - マテリアル毎Uniform - ifdefで囲まないこと。
 float2 WindyGrassDirection
 <
     string UIName = UINAME_WindyGrassDirection;
@@ -2652,7 +2652,7 @@ float WindyGrassScale
 #endif // CARTOON_SHADING_ENABLED
 
 //-----------------------------------------------------------------------------
-// ã‚¨ãƒƒã‚¸é–¢é€£
+// エッジ関連
 #if !defined(DCC_TOOL)
 float4 GameEdgeParameters : NodeEdgeParameters
 <
@@ -2682,7 +2682,7 @@ Texture2D<float4> GlareMapSampler
 >;
 #endif // GLARE_MAP_ENABLED
 
-// ã‚°ãƒ­ãƒ¼å¼·ã• - ãƒžãƒ†ãƒªã‚¢ãƒ«æ¯ŽUniform - ifdefã§å›²ã¾ãªã„ã“ã¨ã€‚
+// グロー強さ - マテリアル毎Uniform - ifdefで囲まないこと。
 float GlareIntensity
 <
     string UIName = UINAME_GlowIntensity;
@@ -2697,7 +2697,7 @@ float GlareIntensity
 uint4 DuranteSettings : DuranteSettings;
 #endif
 
-// ãã®ä»–Mayaã§ã‚µãƒãƒ¼ãƒˆã•ã‚Œãªã„ã‚‚ã®
+// その他Mayaでサポートされないもの
 #ifdef DCC_TOOL
 	#undef CASTS_SHADOWS
 	#undef RECEIVE_SHADOWS
@@ -2708,7 +2708,7 @@ uint4 DuranteSettings : DuranteSettings;
 #endif // DCC_TOOL
 
 ///////////////////////////////////////////////////////////////////////////////
-// ã‚·ã‚§ãƒ¼ãƒ€In/Outæ§‹é€ ä½“
+// シェーダIn/Out構造体
 
 
 #ifdef INSTANCING_ENABLED
@@ -2769,46 +2769,46 @@ struct DefaultVPInput
 
 struct DefaultVPOutput
 {
-	float4 Position			: SV_Position ;		// xyzw:[Proj]å°„å½±åº§æ¨™
+	float4 Position			: SV_Position ;		// xyzw:[Proj]射影座標
 
 	float4 Color0			: COLOR0;		// xyzw:VertexColor x GameDiffuse
 	float4 Color1			: COLOR1;		// [V] xyz:000 w:Fog
-											// [P] xyz:SubLightè¦ç´ ç·è¨ˆ w:Fog
+											// [P] xyz:SubLight要素総計 w:Fog
 
-	float2 TexCoord			: TEXCOORD0;	// xy: ãƒ†ã‚¯ã‚¹ãƒãƒ£åº§æ¨™
+	float2 TexCoord			: TEXCOORD0;	// xy: テクスチャ座標
 
-	float4	WorldPositionDepth	: TEXCOORD1;	// xyz[World]:åº§æ¨™ w[View]:z
+	float4	WorldPositionDepth	: TEXCOORD1;	// xyz[World]:座標 w[View]:z
 
 	// TexCoord2
 #if defined(DUDV_MAPPING_ENABLED)
-	float2	DuDvTexCoord	: TEXCOORD2;	// xy: ãƒ†ã‚¯ã‚¹ãƒãƒ£åº§æ¨™
+	float2	DuDvTexCoord	: TEXCOORD2;	// xy: テクスチャ座標
 #elif defined(MULTI_UV_ENANLED)
-	float2	TexCoord2		: TEXCOORD2;	// xy: ãƒ†ã‚¯ã‚¹ãƒãƒ£åº§æ¨™
+	float2	TexCoord2		: TEXCOORD2;	// xy: テクスチャ座標
 #endif // DUDV_MAPPING_ENABLED || MULTI_UV_ENANLED
 
 
 	// Projection/Etc
 #if defined(PROJECTION_MAP_ENABLED)
-	float2	ProjMap			: TEXCOORD3;	// xy: æŠ•å½±ãƒ†ã‚¯ã‚¹ãƒãƒ£	ç¾çŠ¶ã¯ é›²ã®å½±ãªã®ã§xyã—ã‹ä½¿ã£ã¦ãªã„
+	float2	ProjMap			: TEXCOORD3;	// xy: 投影テクスチャ	現状は 雲の影なのでxyしか使ってない
 #endif // PROJECTION_MAP_ENABLED
 
-	float3	Normal			: TEXCOORD4;		// xyz[World]:æ³•ç·š
+	float3	Normal			: TEXCOORD4;		// xyz[World]:法線
 	
 #if !defined(USE_PER_VERTEX_LIGHTING) && defined(USE_LIGHTING)
-// [P] ãƒ”ã‚¯ã‚»ãƒ«å˜ä½ãƒ©ã‚¤ãƒ†ã‚£ãƒ³ã‚°
+// [P] ピクセル単位ライティング
 	#ifdef USE_TANGENTS
-	float3	Tangent			: TEXCOORD6;		// xyz[World]:æ­£æŽ¥
+	float3	Tangent			: TEXCOORD6;		// xyz[World]:正接
 	#endif // USE_TANGENTS
 
 #else // !USE_PER_VERTEX_LIGHTING && USE_LIGHTING
-// [V] é ‚ç‚¹å˜ä½ãƒ©ã‚¤ãƒ†ã‚£ãƒ³ã‚°
+// [V] 頂点単位ライティング
 	#ifdef USE_LIGHTING
-	float3	LightingAmount	: TEXCOORD5;		// ã‚¹ãƒšã‚­ãƒ¥ãƒ©è¦ç´ ç·è¨ˆ
+	float3	LightingAmount	: TEXCOORD5;		// スペキュラ要素総計
 
 		#if defined(RIM_LIGHTING_ENABLED) && defined(USE_FORCE_VERTEX_RIM_LIGHTING)
-	float4	ShadingAmount	: TEXCOORD6;		// ãƒ‡ã‚£ãƒ•ã‚£ãƒ¼ã‚ºè¦ç´ ç·è¨ˆ
+	float4	ShadingAmount	: TEXCOORD6;		// ディフィーズ要素総計
 		#else // defined(USE_FORCE_VERTEX_RIM_LIGHTING)
-	float3	ShadingAmount	: TEXCOORD6;		// ãƒ‡ã‚£ãƒ•ã‚£ãƒ¼ã‚ºè¦ç´ ç·è¨ˆ
+	float3	ShadingAmount	: TEXCOORD6;		// ディフィーズ要素総計
 		#endif // defined(RIM_LIGHTING_ENABLED) && defined(USE_FORCE_VERTEX_RIM_LIGHTING)
 
 	#endif // USE_LIGHTING
@@ -2816,7 +2816,7 @@ struct DefaultVPOutput
 #endif // !USE_PER_VERTEX_LIGHTING && USE_LIGHTING
 
 	#if defined(MULTI_UV2_ENANLED)
-		float2	TexCoord3		: TEXCOORD7;	// xy: ãƒ†ã‚¯ã‚¹ãƒãƒ£åº§æ¨™
+		float2	TexCoord3		: TEXCOORD7;	// xy: テクスチャ座標
 	#endif // defined(MULTI_UV2_ENANLED)
 	#if defined(USE_SCREEN_UV)
 		float4 ReflectionMap			: TEXCOORD7;
@@ -2870,10 +2870,10 @@ struct EdgeVPInput
 
 struct EdgeVPOutput
 {
-	float4 Position			: SV_Position ;		// xyzw:[Proj]å°„å½±åº§æ¨™
+	float4 Position			: SV_Position ;		// xyzw:[Proj]射影座標
 
 	float4 Color0			: COLOR0;		// xyzw:EdgeColor + GameEmission
-	float3 TexCoord			: TEXCOORD0;	// xy: ãƒ†ã‚¯ã‚¹ãƒãƒ£åº§æ¨™ z:Fog
+	float3 TexCoord			: TEXCOORD0;	// xy: テクスチャ座標 z:Fog
 };
 
 //-----------------------------------------------------------------------------
@@ -2882,7 +2882,7 @@ struct EdgeVPOutput
 struct EdgeFPInput
 {
 	float4 Color0			: COLOR0;		// xyzw:
-	float3 TexCoord			: TEXCOORD0;	// xy: ãƒ†ã‚¯ã‚¹ãƒãƒ£åº§æ¨™ z:Fog
+	float3 TexCoord			: TEXCOORD0;	// xy: テクスチャ座標 z:Fog
 };
 */
 
@@ -2939,9 +2939,9 @@ struct ShadowTexturedVPOutput
 };
 
 ///////////////////////////////////////////////////////////////////////////////
-// ã‚µãƒ–ãƒ«ãƒ¼ãƒãƒ³
+// サブルーチン
 #ifdef SKINNING_ENABLED
-// 3ãƒœãƒ¼ãƒ³ã®ä½ç½®ã¨æ³•ç·šã¨æŽ¥ç·šã‚’è¨ˆç®—ã™ã‚‹ã€‚
+// 3ボーンの位置と法線と接線を計算する。
 //
 void EvaluateSkinPositionNormalTangent3Bones( inout float3 position, inout float3 normal, inout float3 tangent, float4 weights, uint4 boneIndices)
 {
@@ -2997,7 +2997,7 @@ void EvaluateSkinPositionNormalTangent4Bones( inout float3 position, inout float
 		
 }
 
-// 3ãƒœãƒ¼ãƒ³ã®ä½ç½®ã¨æ³•ç·šã‚’è¨ˆç®—ã™ã‚‹ã€‚
+// 3ボーンの位置と法線を計算する。
 //
 void EvaluateSkinPositionNormal3Bones( inout float3 position, inout float3 normal, float4 weights, uint4 boneIndices)
 {
@@ -3094,7 +3094,7 @@ void EvaluateSkinPosition4Bones( inout float3 position, float4 weights, uint4 bo
 #endif //SKINNING_ENABLED
 
 //-----------------------------------------------------------------------------
-// è¦–ç‚¹ã®ä½ç½®
+// 視点の位置
 //
 float3 getEyePosition()
 {
@@ -3122,7 +3122,7 @@ float3 getFakeSpecularLightDir(float3 trueLightDir)
 
 
 //-----------------------------------------------------------------------------
-// ã‚°ãƒ­ãƒ¼ãƒãƒ«ãƒ†ã‚¯ã‚¹ãƒãƒ£ã‚¹ã‚¯ãƒ­ãƒ¼ãƒ«
+// グローバルテクスチャスクロール
 //
 //#ifndef UVA_SCRIPT_ENABLED
 float2 getGlobalTextureFactor()
@@ -3136,7 +3136,7 @@ float2 getGlobalTextureFactor()
 //#endif // UVA_SCRIPT_ENABLED
 
 //-----------------------------------------------------------------------------
-// å°„å½±å¾Œã®ã‚¹ã‚¯ãƒªãƒ¼ãƒ³åº§æ¨™
+// 射影後のスクリーン座標
 #if defined(USE_SCREEN_UV)
 float4 GenerateScreenProjectedUv(float4 projPosition)
 {
@@ -3180,7 +3180,7 @@ float3 calcWindyGrass(float3 position)
 }
 #endif // WINDY_GRASS_ENABLED
 
-// ãƒ©ã‚¤ãƒ†ã‚£ãƒ³ã‚° æœ€çµ‚çš„ãªè¨ˆç®— Directional
+// ライティング 最終的な計算 Directional
 void EvaluateDiffuseAndSpecular_Directional(out float3 diffuseValue, out float ldotn, float3 normal, float3 lightDir, float3 lightColor
 #ifdef SPECULAR_ENABLED
 	, out float3 specularValue, float3 specularLightDir, float3 eyeDirection, float shininess, float specularPower//, half fresnelPower
@@ -3193,7 +3193,7 @@ void EvaluateDiffuseAndSpecular_Directional(out float3 diffuseValue, out float l
 #elif defined(NO_MAIN_LIGHT_SHADING_ENABLED)
 	ldotn = dot(lightDir, normal);
 //	ldotn = 1;
-	diffuseValue = lightColor / max(max(lightColor.r, lightColor.g), max(lightColor.b, 0.001f));	// ä¸€ç•ªå¤§ãã„è‰²æˆåˆ†ã§æ­£è¦åŒ–
+	diffuseValue = lightColor / max(max(lightColor.r, lightColor.g), max(lightColor.b, 0.001f));	// 一番大きい色成分で正規化
 //	diffuseValue = half3(1);
 #else
 	ldotn = dot(lightDir, normal);
@@ -3206,7 +3206,7 @@ void EvaluateDiffuseAndSpecular_Directional(out float3 diffuseValue, out float l
 #endif // SPECULAR_ENABLED
 }
 
-// ãƒ©ã‚¤ãƒ†ã‚£ãƒ³ã‚° æœ€çµ‚çš„ãªè¨ˆç®— Point/Spot
+// ライティング 最終的な計算 Point/Spot
 void EvaluateDiffuseAndSpecular_PointOrSpot(out float3 diffuseValue, out float ldotn, float3 normal, float3 lightDir, float3 lightColor, float attenuation
 #ifdef SPECULAR_ENABLED
 	, out float3 specularValue, float3 specularLightDir, float3 eyeDirection, float shininess, float specularPower//, half fresnelPower
@@ -3227,8 +3227,8 @@ void EvaluateDiffuseAndSpecular_PointOrSpot(out float3 diffuseValue, out float l
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Lighting code - could/should be defined in an external .h file. 
 
-// ãƒ©ã‚¤ãƒ†ã‚£ãƒ³ã‚° - å¹³è¡Œå…‰
-// ãƒ•ã‚§ã‚¤ã‚¯å¸¸åœ¨ã‚¹ãƒšã‚­ãƒ¥ãƒ©ã¯ãƒ¡ã‚¤ãƒ³ãƒ©ã‚¤ãƒˆç”¨
+// ライティング - 平行光
+// フェイク常在スペキュラはメインライト用
 void EvaluateLight(DirectionalLight light, out float ldotn, out float3 diffuseValue,
 	out float3 lightDir, float3 worldSpacePosition, float3 normal
 #ifdef SPECULAR_ENABLED
@@ -3255,7 +3255,7 @@ void EvaluateLight(DirectionalLight light, out float ldotn, out float3 diffuseVa
 		);
 }
 
-// ãƒ©ã‚¤ãƒ†ã‚£ãƒ³ã‚° - ãƒã‚¤ãƒ³ãƒˆãƒ©ã‚¤ãƒˆ
+// ライティング - ポイントライト
 void EvaluateLight(PointLight light, out float ldotn, out float3 diffuseValue,
 	out float3 lightDir, float3 worldSpacePosition, float3 normal
 #ifdef SPECULAR_ENABLED
@@ -3278,7 +3278,7 @@ void EvaluateLight(PointLight light, out float ldotn, out float3 diffuseValue,
 }
 
 
-// ãƒ©ã‚¤ãƒˆã®æ–¹å‘ã®ã¿å–å¾— - å¹³è¡Œå…‰
+// ライトの方向のみ取得 - 平行光
 float3 EvaluateLightDirection(DirectionalLight light, float3 worldSpacePosition)
 {
 #ifdef LIGHT_DIRECTION_FOR_CHARACTER_ENABLED
@@ -3288,7 +3288,7 @@ float3 EvaluateLightDirection(DirectionalLight light, float3 worldSpacePosition)
 #endif // LIGHT_DIRECTION_FOR_CHARACTER_ENABLED
 }
 
-// ãƒ©ã‚¤ãƒˆã®æ–¹å‘ã®ã¿å–å¾— - ãƒã‚¤ãƒ³ãƒˆãƒ©ã‚¤ãƒˆ
+// ライトの方向のみ取得 - ポイントライト
 float3 EvaluateLightDirection(PointLight light, float3 worldSpacePosition)
 {
 	float3 offset = light.m_position - worldSpacePosition;
@@ -3297,7 +3297,7 @@ float3 EvaluateLightDirection(PointLight light, float3 worldSpacePosition)
 }
 
 #if defined(LIGHT_DIRECTION_FOR_CHARACTER_ENABLED)
-// ãƒ©ã‚¤ãƒ†ã‚£ãƒ³ã‚° - å¹³è¡Œå…‰
+// ライティング - 平行光
 void PortraitEvaluateLight(out float ldotn, out float3 diffuseValue,
 	out float3 lightDir, float3 worldSpacePosition, float3 normal
 #ifdef SPECULAR_ENABLED
@@ -3323,11 +3323,11 @@ void PortraitEvaluateLight(out float ldotn, out float3 diffuseValue,
 #endif // defined(LIGHT_DIRECTION_FOR_CHARACTER_ENABLED)
 
 //-----------------------------------------------------------------------------
-// ã‚¢ãƒ³ãƒ“ã‚¨ãƒ³ãƒˆ
+// アンビエント
 float3 EvaluateAmbient(float3 normal)
 {
 	#ifdef HEMISPHERE_AMBIENT_ENABLED
-	// åŠçƒ
+	// 半球
 	float amt = (dot(normal, HemiSphereAmbientAxis) + 1.0f) * 0.5f;
 		#ifdef MULTIPLEX_HEMISPHERE_AMBIENT_ENABLED
 	float3 L = HemiSphereAmbientGndColor.rgb;
@@ -3355,7 +3355,7 @@ float3 PortraitEvaluateAmbient(float3 normal)
 #endif // defined(LIGHT_DIRECTION_FOR_CHARACTER_ENABLED)
 
 //-----------------------------------------------------------------------------
-// ãƒ•ã‚©ã‚°ä¿‚æ•°
+// フォグ係数
 //
 #ifdef FOG_ENABLED
 float EvaluateFogVP(float3 viewPosition)
@@ -3383,7 +3383,7 @@ void EvaluateFogFP(inout float3 resultColor, float3 fogColor, float fogValue)
 #endif // FOG_ENABLED
 
 //-----------------------------------------------------------------------------
-// FPå†…ã§ã®æ³•ç·š
+// FP内での法線
 //
 #if defined(NORMAL_MAPPING_ENABLED)
 	#if defined(DUDV_MAPPING_ENABLED)
@@ -3453,7 +3453,7 @@ float3 calcCustomDiffuse(float value)
 #endif // CUSTOM_DIFFUSE_ENABLED
 
 //-----------------------------------------------------------------------------
-// ãƒ”ã‚¯ã‚»ãƒ«å˜ä½ãƒ©ã‚¤ãƒ†ã‚£ãƒ³ã‚°-FP
+// ピクセル単位ライティング-FP
 //
 #if !defined(USE_PER_VERTEX_LIGHTING) && defined(USE_LIGHTING)
 
@@ -3680,7 +3680,7 @@ float3 PortraitEvaluateLightingPerPixelFP(inout float3 sublightAmount, float3 wo
 #else // !USE_PER_VERTEX_LIGHTING && USE_LIGHTING
 
 //-----------------------------------------------------------------------------
-// é ‚ç‚¹å˜ä½ãƒ©ã‚¤ãƒ†ã‚£ãƒ³ã‚°-VP
+// 頂点単位ライティング-VP
 //
 #ifdef USE_LIGHTING
 
@@ -3810,7 +3810,7 @@ void EvaluateLightingPerVertexVP(out float3 shadingAmount, out float3 lightingAm
 			#endif // DCC_TOOL
 		#else
 			#ifdef PRECALC_EVALUATE_AMBIENT
-				subLightingAmount = EvaluateAmbient(normal);	// Color1.rgbã‚’åˆ¥ã®ç”¨é€”ã«åˆ©ç”¨ã™ã‚‹
+				subLightingAmount = EvaluateAmbient(normal);	// Color1.rgbを別の用途に利用する
 			#endif
 		#endif // USE_POINT_LIGHT_0
 	}
@@ -3820,7 +3820,7 @@ void EvaluateLightingPerVertexVP(out float3 shadingAmount, out float3 lightingAm
 #endif // USE_LIGHTING
 
 //-----------------------------------------------------------------------------
-// é ‚ç‚¹å˜ä½ãƒ©ã‚¤ãƒ†ã‚£ãƒ³ã‚°-FP
+// 頂点単位ライティング-FP
 //
 float3 EvaluateLightingPerVertexFP(DefaultFPInput In, float3 worldSpacePosition, float glossValue, float shadowValue, float3 ambientAmount, float3 shadingAmount, float3 lightingAmount, float3 subLight)
 {
@@ -3835,7 +3835,7 @@ float3 EvaluateLightingPerVertexFP(DefaultFPInput In, float3 worldSpacePosition,
 		lightingAmount *= shadowValue * glossValue;
 		#endif // SPECULAR_ENABLED
 
-		// ãƒˆã‚¥ãƒ¼ãƒ³
+		// トゥーン
 		#ifdef CARTOON_SHADING_ENABLED
 		shadingAmount *= calcToonShadingValueFP(In.CartoonMap.z, shadowValue);
 		#else // CARTOON_SHADING_ENABLED
@@ -3876,13 +3876,13 @@ float3 EvaluateLightingPerVertexFP(DefaultFPInput In, float3 worldSpacePosition,
 
 ///////////////////////////////////////////////////////////////////////////////
 //-----------------------------------------------------------------------------
-// é€šå¸¸VP
+// 通常VP
 //
 #define VP_DEFAULT
 #undef VP_PORTRAIT
 
 #line 1 "Z:/data/shaders/ed8_vp_main.h"
-// ã“ã®ãƒ•ã‚¡ã‚¤ãƒ«ã¯UTF-8ã‚³ãƒ¼ãƒ‰ã§ä¿å­˜ã—ã¦ãã ã•ã„ã€‚
+// このファイルはUTF-8コードで保存してください。
 
 // VP_DEFAULT
 // VP_PORTRAIT
@@ -4022,7 +4022,7 @@ DefaultVPOutput PortraitVPShader(DefaultVPInput IN)
 #endif // defined(MULTI_UV2_ENANLED)
 
 
-	// æŠ•å½±å½±
+	// 投影影
 #if defined(PROJECTION_MAP_ENABLED) && !defined(CARTOON_SHADING_ENABLED)
 	#ifndef UVA_SCRIPT_ENABLED
 		#if defined(DCC_TOOL)
@@ -4062,10 +4062,10 @@ DefaultVPOutput PortraitVPShader(DefaultVPInput IN)
 	OUT.Color1.a = 0.0f;
 #endif // FOG_ENABLED
 
-	// ãƒ¯ãƒ¼ãƒ«ãƒ‰ç©ºé–“è¦–ç·š
+	// ワールド空間視線
 	float3 worldSpaceEyeDirection = normalize(getEyePosition() - worldSpacePosition);
 
-	// VPã§ã®å…‰æºè¨ˆç®—ãŒå¿…è¦ã‹
+	// VPでの光源計算が必要か
 	#if ((defined(USE_LIGHTING) && !defined(USE_PER_VERTEX_LIGHTING)) || (defined(CARTOON_SHADING_ENABLED) && !defined(CUBE_MAPPING_ENABLED) && !defined(SPHERE_MAPPING_ENABLED) ) || defined(RECEIVE_SHADOWS))
 		#define VP_LIGHTPROCESS
 	#endif
@@ -4076,7 +4076,7 @@ DefaultVPOutput PortraitVPShader(DefaultVPInput IN)
 			#ifdef LIGHT_DIRECTION_FOR_CHARACTER_ENABLED
 	light0dir = LightDirForChar;
 			#else
-	light0dir = float3(0.0f,1.0f,0.0f);	// ã‚¨ãƒ©ãƒ¼å›žé¿
+	light0dir = float3(0.0f,1.0f,0.0f);	// エラー回避
 			#endif // LIGHT_DIRECTION_FOR_CHARACTER_ENABLED
 		#else // VP_PORTRAIT
 	light0dir = EvaluateLightDirection(Light0, OUT.WorldPositionDepth.xyz);
@@ -4118,12 +4118,12 @@ DefaultVPOutput PortraitVPShader(DefaultVPInput IN)
 
 #if !defined(USE_PER_VERTEX_LIGHTING) && defined(USE_LIGHTING)
 	// Per-Pixel
-	// ãƒ”ã‚¯ã‚»ãƒ«å˜ä½ãƒ©ã‚¤ãƒ†ã‚£ãƒ³ã‚°-VP
+	// ピクセル単位ライティング-VP
 
 #else // !USE_PER_VERTEX_LIGHTING && USE_LIGHTING
 	// Per-Vertex
 	#ifdef USE_LIGHTING
-	// é ‚ç‚¹å˜ä½ãƒ©ã‚¤ãƒ†ã‚£ãƒ³ã‚°-VP
+	// 頂点単位ライティング-VP
 	EvaluateLightingPerVertexVP(OUT.ShadingAmount.rgb, OUT.LightingAmount.rgb, OUT.Color1.rgb, light0dir, IN, worldSpacePosition, worldSpaceNormal
 		#ifdef SPECULAR_ENABLED
 		, worldSpaceEyeDirection	//, FresnelPower
@@ -4142,7 +4142,7 @@ DefaultVPOutput PortraitVPShader(DefaultVPInput IN)
 
 #endif // !USE_PER_VERTEX_LIGHTING && USE_LIGHTING
 
-	// æ°´é¢
+	// 水面
 	#if defined(USE_SCREEN_UV)
 	OUT.ReflectionMap = GenerateScreenProjectedUv(OUT.Position);
 	#endif // defined(USE_SCREEN_UV)
@@ -4169,7 +4169,7 @@ DefaultVPOutput PortraitVPShader(DefaultVPInput IN)
 		#endif // !defined(CUBE_MAPPING_ENABLED) && !defined(SPHERE_MAPPING_ENABLED)
 	#endif // defined(CARTOON_SHADING_ENABLED)
 
-	// ã‚·ãƒ£ãƒ‰ã‚¦ãƒžãƒƒãƒ—åº§æ¨™ã®äº‹å‰è¨ˆç®—ï¼ˆMAX_SPLIT_CASCADED_SHADOWMAP == 1 é™å®šï¼‰
+	// シャドウマップ座標の事前計算(MAX_SPLIT_CASCADED_SHADOWMAP == 1 限定)
 #ifdef PRECALC_SHADOWMAP_POSITION
 	OUT.shadowPos.xyz = mul(float4(OUT.WorldPositionDepth.xyz, 1.0f), LightShadow0.m_splitTransformArray[0]).xyz;
 	OUT.shadowPos.w = saturate(OUT.WorldPositionDepth.w / LightShadow0.m_splitDistances.x);
@@ -4197,14 +4197,14 @@ DefaultVPOutput PortraitVPShader(DefaultVPInput IN)
 
 #line 2849 "Z:/data/shaders/ed8.fx"
 
-// ãƒ•ã‚§ã‚¤ã‚¹VP
+// フェイスVP
 //
 #if defined(LIGHT_DIRECTION_FOR_CHARACTER_ENABLED) || defined(SHINING_MODE_ENABLED)
 	#undef VP_DEFAULT
 	#define VP_PORTRAIT
 
 #line 1 "Z:/data/shaders/ed8_vp_main.h"
-// ã“ã®ãƒ•ã‚¡ã‚¤ãƒ«ã¯UTF-8ã‚³ãƒ¼ãƒ‰ã§ä¿å­˜ã—ã¦ãã ã•ã„ã€‚
+// このファイルはUTF-8コードで保存してください。
 
 // VP_DEFAULT
 // VP_PORTRAIT
@@ -4344,7 +4344,7 @@ DefaultVPOutput PortraitVPShader(DefaultVPInput IN)
 #endif // defined(MULTI_UV2_ENANLED)
 
 
-	// æŠ•å½±å½±
+	// 投影影
 #if defined(PROJECTION_MAP_ENABLED) && !defined(CARTOON_SHADING_ENABLED)
 	#ifndef UVA_SCRIPT_ENABLED
 		#if defined(DCC_TOOL)
@@ -4384,10 +4384,10 @@ DefaultVPOutput PortraitVPShader(DefaultVPInput IN)
 	OUT.Color1.a = 0.0f;
 #endif // FOG_ENABLED
 
-	// ãƒ¯ãƒ¼ãƒ«ãƒ‰ç©ºé–“è¦–ç·š
+	// ワールド空間視線
 	float3 worldSpaceEyeDirection = normalize(getEyePosition() - worldSpacePosition);
 
-	// VPã§ã®å…‰æºè¨ˆç®—ãŒå¿…è¦ã‹
+	// VPでの光源計算が必要か
 	#if ((defined(USE_LIGHTING) && !defined(USE_PER_VERTEX_LIGHTING)) || (defined(CARTOON_SHADING_ENABLED) && !defined(CUBE_MAPPING_ENABLED) && !defined(SPHERE_MAPPING_ENABLED) ) || defined(RECEIVE_SHADOWS))
 		#define VP_LIGHTPROCESS
 	#endif
@@ -4398,7 +4398,7 @@ DefaultVPOutput PortraitVPShader(DefaultVPInput IN)
 			#ifdef LIGHT_DIRECTION_FOR_CHARACTER_ENABLED
 	light0dir = LightDirForChar;
 			#else
-	light0dir = float3(0.0f,1.0f,0.0f);	// ã‚¨ãƒ©ãƒ¼å›žé¿
+	light0dir = float3(0.0f,1.0f,0.0f);	// エラー回避
 			#endif // LIGHT_DIRECTION_FOR_CHARACTER_ENABLED
 		#else // VP_PORTRAIT
 	light0dir = EvaluateLightDirection(Light0, OUT.WorldPositionDepth.xyz);
@@ -4440,12 +4440,12 @@ DefaultVPOutput PortraitVPShader(DefaultVPInput IN)
 
 #if !defined(USE_PER_VERTEX_LIGHTING) && defined(USE_LIGHTING)
 	// Per-Pixel
-	// ãƒ”ã‚¯ã‚»ãƒ«å˜ä½ãƒ©ã‚¤ãƒ†ã‚£ãƒ³ã‚°-VP
+	// ピクセル単位ライティング-VP
 
 #else // !USE_PER_VERTEX_LIGHTING && USE_LIGHTING
 	// Per-Vertex
 	#ifdef USE_LIGHTING
-	// é ‚ç‚¹å˜ä½ãƒ©ã‚¤ãƒ†ã‚£ãƒ³ã‚°-VP
+	// 頂点単位ライティング-VP
 	EvaluateLightingPerVertexVP(OUT.ShadingAmount.rgb, OUT.LightingAmount.rgb, OUT.Color1.rgb, light0dir, IN, worldSpacePosition, worldSpaceNormal
 		#ifdef SPECULAR_ENABLED
 		, worldSpaceEyeDirection	//, FresnelPower
@@ -4464,7 +4464,7 @@ DefaultVPOutput PortraitVPShader(DefaultVPInput IN)
 
 #endif // !USE_PER_VERTEX_LIGHTING && USE_LIGHTING
 
-	// æ°´é¢
+	// 水面
 	#if defined(USE_SCREEN_UV)
 	OUT.ReflectionMap = GenerateScreenProjectedUv(OUT.Position);
 	#endif // defined(USE_SCREEN_UV)
@@ -4491,7 +4491,7 @@ DefaultVPOutput PortraitVPShader(DefaultVPInput IN)
 		#endif // !defined(CUBE_MAPPING_ENABLED) && !defined(SPHERE_MAPPING_ENABLED)
 	#endif // defined(CARTOON_SHADING_ENABLED)
 
-	// ã‚·ãƒ£ãƒ‰ã‚¦ãƒžãƒƒãƒ—åº§æ¨™ã®äº‹å‰è¨ˆç®—ï¼ˆMAX_SPLIT_CASCADED_SHADOWMAP == 1 é™å®šï¼‰
+	// シャドウマップ座標の事前計算(MAX_SPLIT_CASCADED_SHADOWMAP == 1 限定)
 #ifdef PRECALC_SHADOWMAP_POSITION
 	OUT.shadowPos.xyz = mul(float4(OUT.WorldPositionDepth.xyz, 1.0f), LightShadow0.m_splitTransformArray[0]).xyz;
 	OUT.shadowPos.w = saturate(OUT.WorldPositionDepth.w / LightShadow0.m_splitDistances.x);
@@ -4522,7 +4522,7 @@ DefaultVPOutput PortraitVPShader(DefaultVPInput IN)
 
 ///////////////////////////////////////////////////////////////////////////////
 //-----------------------------------------------------------------------------
-// é€šå¸¸FP
+// 通常FP
 //
 #define FP_DEFAULT
 #undef FP_DEFAULTRT
@@ -4531,7 +4531,7 @@ DefaultVPOutput PortraitVPShader(DefaultVPInput IN)
 #undef FP_SHINING
 
 #line 1 "Z:/data/shaders/ed8_fp_main.h"
-// ã“ã®ãƒ•ã‚¡ã‚¤ãƒ«ã¯UTF-8ã‚³ãƒ¼ãƒ‰ã§ä¿å­˜ã—ã¦ãã ã•ã„ã€‚
+// このファイルはUTF-8コードで保存してください。
 
 // FP_DEFAULT
 // FP_DEFAULTRT
@@ -4578,7 +4578,7 @@ float4 ShiningFPShader(_FPINPUT) : FRAG_OUTPUT_COLOR0
 #else // NOTHING_ENABLED
 
 #ifdef FP_DEFAULTRT
-	// æ°´é¢ä¸‹ã‚’ã‚¯ãƒªãƒƒãƒ— - ï¼ˆZè»¸å›žè»¢ãŒãªã„ã¨ã‹æ¡ä»¶ã‚’ã¤ã‘ã‚Œã° oblique frustum clippingã®ã‚ˆã†ãªå°„å½±è¡Œåˆ—ã‚’åŠ å·¥ã™ã‚‹æ‰‹æ³•ãŒã‚ã‚‹)
+	// 水面下をクリップ - (Z軸回転がないとか条件をつければ oblique frustum clippingのような射影行列を加工する手法がある)
 	float3 waterNorm = float3(IN.WorldPositionDepth.x, IN.WorldPositionDepth.y - UserClipPlane.w, IN.WorldPositionDepth.z);
 	clip(dot(UserClipPlane.xyz, normalize(waterNorm)));
 #endif // FP_DEFAULTRT
@@ -4698,7 +4698,7 @@ float4 ShiningFPShader(_FPINPUT) : FRAG_OUTPUT_COLOR0
 	#endif // defined(USE_SCREEN_UV)
 #endif // defined(DCC_TOOL)
 
-	// ã‚¢ãƒ«ãƒ•ã‚¡ãƒ†ã‚¹ãƒˆ
+	// アルファテスト
 #ifdef FP_FORCETRANSPARENT
 	#if defined(ALPHA_BLENDING_ENABLED) || defined(ALPHA_TESTING_ENABLED)
 		#if defined(ALPHA_TESTING_ENABLED)
@@ -4723,7 +4723,7 @@ float4 ShiningFPShader(_FPINPUT) : FRAG_OUTPUT_COLOR0
 	#endif // ALPHA_BLENDING_ENABLED || ALPHA_TESTING_ENABLED
 #endif // FP_DEFAULT || FP_DEFAULTRT || FP_PORTRAIT
 
-	// ãƒžãƒ«ãƒUV
+	// マルチUV
 #ifdef MULTI_UV_ENANLED
 	#if !defined(MULTI_UV_NO_DIFFUSE_MAPPING_ENANLED)
 	float4 diffuse2Amt = DiffuseMap2Sampler.Sample(DiffuseMap2SamplerS, IN.TexCoord2.xy);
@@ -4738,11 +4738,11 @@ float4 ShiningFPShader(_FPINPUT) : FRAG_OUTPUT_COLOR0
 		#endif // defined(MULTI_UV_FACE_ENANLED)
 
 		#if defined(MULTI_UV_ADDITIVE_BLENDING_ENANLED)
-	// åŠ ç®—
+	// 加算
 	float3 muvtex_add = diffuse2Amt.rgb * multi_uv_alpha;
 	diffuseAmt.rgb += muvtex_add;
 		#elif defined(MULTI_UV_MULTIPLICATIVE_BLENDING_ENANLED)
-	// ä¹—ç®—
+	// 乗算
 	// v = lerp(x, x*y, t)
 	// v = x + (x*y - x) * t;
 	// v = x + (y - 1) * x * t;
@@ -4750,9 +4750,9 @@ float4 ShiningFPShader(_FPINPUT) : FRAG_OUTPUT_COLOR0
 	float3 muvtex_add = (diffuse2Amt.rgb - float3(1.0f, 1.0f, 1.0f)) * diffuseAmt.rgb * multi_uv_alpha;
 	diffuseAmt.rgb += muvtex_add;
 		#elif defined(MULTI_UV_SHADOW_ENANLED)
-	// å½±é ˜åŸŸã¨ã—ã¦æ‰±ã†
+	// 影領域として扱う
 		#else
-	// ã‚¢ãƒ«ãƒ•ã‚¡
+	// アルファ
 	diffuseAmt.rgb = lerp(diffuseAmt.rgb, diffuse2Amt.rgb, multi_uv_alpha);
 		#endif //
 
@@ -4772,11 +4772,11 @@ float4 ShiningFPShader(_FPINPUT) : FRAG_OUTPUT_COLOR0
 			#endif // defined(MULTI_UV_FACE_ENANLED)
 
 			#if defined(MULTI_UV2_ADDITIVE_BLENDING_ENANLED)
-	// åŠ ç®—
+	// 加算
 	float3 muvtex_add2 = diffuse3Amt.rgb * multi_uv2_alpha;
 	diffuseAmt.rgb += muvtex_add2;
 			#elif defined(MULTI_UV2_MULTIPLICATIVE_BLENDING_ENANLED)
-	// ä¹—ç®—
+	// 乗算
 	// v = lerp(x, x*y, t)
 	// v = x + (x*y - x) * t;
 	// v = x + (y - 1) * x * t;
@@ -4784,9 +4784,9 @@ float4 ShiningFPShader(_FPINPUT) : FRAG_OUTPUT_COLOR0
 	float3 muvtex_add2 = (diffuse3Amt.rgb - float3(1.0f, 1.0f, 1.0f)) * diffuseAmt.rgb * multi_uv2_alpha;
 	diffuseAmt.rgb += muvtex_add2;
 			#elif defined(MULTI_UV_SHADOW_ENANLED)
-	// å½±é ˜åŸŸã¨ã—ã¦æ‰±ã†
+	// 影領域として扱う
 			#else
-	// ã‚¢ãƒ«ãƒ•ã‚¡
+	// アルファ
 	diffuseAmt.rgb = lerp(diffuseAmt.rgb, diffuse3Amt.rgb, multi_uv2_alpha);
 			#endif //
 //		#else // !defined(MULTI_UV2_NO_DIFFUSE_MAPPING_ENANLED)
@@ -4800,10 +4800,10 @@ float4 ShiningFPShader(_FPINPUT) : FRAG_OUTPUT_COLOR0
 	diffuseAmt *= materialDiffuse;
 #endif // GAME_MATERIAL_ENABLED
 
-	// ã‚·ãƒ£ãƒ‰ã‚¦ãƒžãƒƒãƒ—
+	// シャドウマップ
 #if defined(RECEIVE_SHADOWS) && defined(USE_LIGHTING) && defined(FP_DEFAULT) && !defined(FP_PORTRAIT)
-	// è¤‡æ•°ãƒ©ã‚¤ãƒˆã®ã¨ãã¯ã©ã‚ŒãŒãƒ‡ã‚£ãƒ¬ã‚¯ã‚·ãƒ§ãƒŠãƒ«ã‹ã¯ã‚·ã‚¹ãƒ†ãƒ ã—ã ã„
-	// 2012/08/30 ç¾åœ¨ã¯è¿½åŠ ã®ãƒ©ã‚¤ãƒˆã¯è‡ªå‰ã€‚
+	// 複数ライトのときはどれがディレクショナルかはシステムしだい
+	// 2012/08/30 現在は追加のライトは自前。
 	float shadowValue = 1.0f;
 //	#if NUM_LIGHTS > 2
 //	shadowValue = min(shadowValue, EvaluateShadow(Light2, LightShadow2, IN.WorldPositionDepth.xyz, IN.WorldPositionDepth.w));
@@ -4850,23 +4850,23 @@ float4 ShiningFPShader(_FPINPUT) : FRAG_OUTPUT_COLOR0
 
 #ifdef MULTI_UV_ENANLED 
 	#if defined(MULTI_UV_SHADOW_ENANLED)
-	// å½±é ˜åŸŸã¨ã—ã¦æ‰±ã†
+	// 影領域として扱う
 	shadowValue = min(shadowValue, 1.0f - (diffuse2Amt.r * multi_uv_alpha));
 	#endif //
 	#if defined(MULTI_UV2_SHADOW_ENANLED)
-	// å½±é ˜åŸŸã¨ã—ã¦æ‰±ã†
+	// 影領域として扱う
 	shadowValue = min(shadowValue, 1.0f - (diffuse3Amt.r * multi_uv2_alpha));
 	#endif //
 #endif // MULTI_UV_ENANLED
 
 #if defined(PROJECTION_MAP_ENABLED)
 	float4 projTex = ProjectionMapSampler.Sample(ProjectionMapSamplerS, IN.ProjMap.xy);
-	// é›²ã®å½±
+	// 雲の影
 //	shadowValue = max(shadowValue - (1 - (projTex.r * projTex.a)), 0);
 	shadowValue = min(shadowValue, 1.0f - (projTex.r * projTex.a));
 #endif // PROJECTION_MAP_ENABLED
 
-	// ã‚¹ãƒšã‚­ãƒ¥ãƒ©ãƒžãƒƒãƒ—
+	// スペキュラマップ
 #if defined(SPECULAR_MAPPING_ENABLED) || (defined(MULTI_UV_ENANLED) && defined(MULTI_UV_SPECULAR_MAPPING_ENABLED)) || (defined(MULTI_UV2_ENANLED) && defined(MULTI_UV2_SPECULAR_MAPPING_ENABLED))
  
 	float glossValue = 1.0f;
@@ -4887,7 +4887,7 @@ float4 ShiningFPShader(_FPINPUT) : FRAG_OUTPUT_COLOR0
 	float glossValue = 1.0f;
 #endif // SPECULAR_MAPPING_ENABLED
 
-	// ç’°å¢ƒå…‰é®è”½ãƒžãƒƒãƒ—
+	// 環境光遮蔽マップ
 #if defined(OCCULUSION_MAPPING_ENABLED) || (defined(MULTI_UV_ENANLED) && defined(MULTI_UV_OCCULUSION_MAPPING_ENABLED)) || (defined(MULTI_UV2_ENANLED) && defined(MULTI_UV_OCCULUSION2_MAPPING_ENABLED))
 
 	float occulusionValue = 1.0f;
@@ -4916,7 +4916,7 @@ float4 ShiningFPShader(_FPINPUT) : FRAG_OUTPUT_COLOR0
 	float3 ambientOcclusion = (float3)IN.Color0.rgb;
 #endif // OCCULUSION_MAPPING_ENABLED
 
-	// ã‚¤ãƒ³ãƒã‚­ãƒ©ã‚¤ãƒˆã¸ã®å½±ã‚„ã‚¹ãƒšã‚­ãƒ¥ãƒ©ãƒžãƒƒãƒ—ã®å½±éŸ¿
+	// インチキライトへの影やスペキュラマップの影響
 #if defined(RIM_LIGHTING_ENABLED) || defined(CARTOON_SHADING_ENABLED) || defined(CUBE_MAPPING_ENABLED) || defined(SPHERE_MAPPING_ENABLED)
 
 	#if (NUM_LIGHTS > 0) && defined(USE_LIGHTING)
@@ -4942,7 +4942,7 @@ float4 ShiningFPShader(_FPINPUT) : FRAG_OUTPUT_COLOR0
 	float3 subLightColor = float3(0.0f, 0.0f, 0.0f);
 #endif // defined(RIM_LIGHTING_ENABLED) || defined(CARTOON_SHADING_ENABLED) || defined(CUBE_MAPPING_ENABLED) || defined(SPHERE_MAPPING_ENABLED)
 
-	// ã‚­ãƒ¥ãƒ¼ãƒ–ãƒžãƒƒãƒ—/ã‚¹ãƒ•ã‚£ã‚¢ãƒžãƒƒãƒ—-PerVertex
+	// キューブマップ/スフィアマップ-PerVertex
 #if defined(FORCE_PER_VERTEX_ENVIRON_MAP) || !defined(USE_TANGENTS) || !defined(USE_LIGHTING)
 	#if defined(CUBE_MAPPING_ENABLED)
 	//float4 cubeMapColor = h4texCUBE(CubeMapSampler, normalize(IN.CubeMap.xyz)).rgba;
@@ -4955,7 +4955,7 @@ float4 ShiningFPShader(_FPINPUT) : FRAG_OUTPUT_COLOR0
 #endif // defined(FORCE_PER_VERTEX_ENVIRON_MAP) || !defined(USE_TANGENTS) || !defined(USE_LIGHTING)
 
 
-	// ãƒ©ã‚¤ãƒ†ã‚£ãƒ³ã‚°
+	// ライティング
 	float4 resultColor = diffuseAmt;
 	float3 shadingAmt = float3(0.0f, 0.0f, 0.0f);
 
@@ -4989,7 +4989,7 @@ float4 ShiningFPShader(_FPINPUT) : FRAG_OUTPUT_COLOR0
 	float3 worldSpaceEyeDirection = normalize(getEyePosition() - IN.WorldPositionDepth.xyz);
 	#define FP_WS_EYEDIR_EXIST
 
-	// ãƒªãƒ ãƒ©ã‚¤ãƒˆã‚„ç’°å¢ƒãƒžãƒƒãƒ—ã®æº–å‚™
+	// リムライトや環境マップの準備
 	#if defined(USE_LIGHTING)
 		#ifdef RIM_LIGHTING_ENABLED
 			#define FP_NDOTE_1
@@ -5013,7 +5013,7 @@ float4 ShiningFPShader(_FPINPUT) : FRAG_OUTPUT_COLOR0
 
 	#endif // defined(FP_NDOTE_1) && defined(FP_NDOTE_2)
 
-	// ãƒªãƒ ãƒ©ã‚¤ãƒˆ
+	// リムライト
 	#if defined(USE_LIGHTING)
 		#ifdef RIM_LIGHTING_ENABLED
 			#ifdef RIM_TRANSPARENCY_ENABLED
@@ -5025,9 +5025,9 @@ float4 ShiningFPShader(_FPINPUT) : FRAG_OUTPUT_COLOR0
 		#endif // RIM_LIGHTING_ENABLED
 	#endif // defined(USE_LIGHTING)
 
-	// ç’°å¢ƒãƒžãƒƒãƒ—
+	// 環境マップ
 	#if !(defined(FORCE_PER_VERTEX_ENVIRON_MAP) || !defined(USE_TANGENTS))
-		// ã‚­ãƒ¥ãƒ¼ãƒ–ãƒžãƒƒãƒ—/ã‚¹ãƒ•ã‚£ã‚¢ãƒžãƒƒãƒ—-PerPixel
+		// キューブマップ/スフィアマップ-PerPixel
 		#if defined(CUBE_MAPPING_ENABLED)
 	float3 cubeMapParams = reflect(-worldSpaceEyeDirection, worldSpaceNormal);
 	float cubeMapIntensity = 1.0f - max(0.0f, ndote) * (float)CubeFresnelPower;
@@ -5072,7 +5072,7 @@ float4 ShiningFPShader(_FPINPUT) : FRAG_OUTPUT_COLOR0
 
 	float3 ambient = float3(0.0f, 0.0f, 0.0f);;
 
-	// ãƒªãƒ ãƒ©ã‚¤ãƒˆ
+	// リムライト
 	#if defined(USE_LIGHTING)
 
 	float3 worldSpaceNormal = normalize(IN.Normal);
@@ -5140,9 +5140,9 @@ float4 ShiningFPShader(_FPINPUT) : FRAG_OUTPUT_COLOR0
 	float3 worldSpaceEyeDirection2 = normalize(getEyePosition() - IN.WorldPositionDepth.xyz);
 	float ndote2 = dot(worldSpaceNormal, worldSpaceEyeDirection2);
 		#if !defined(USE_LIGHTING)
-	shadingAmt = (1.0f - float3(ndote2, ndote2, ndote2)) * 1.0f;//æœ€é©åŒ–ã§ãã‚‹
+	shadingAmt = (1.0f - float3(ndote2, ndote2, ndote2)) * 1.0f;//最適化できる
 		#else
-	shadingAmt = (1.0f - float3(ndote2, ndote2, ndote2)) * float3( 0.345f*3.5f, 0.875f*3.5f, 1.0f*3.5f );//æœ€é©åŒ–ã§ãã‚‹
+	shadingAmt = (1.0f - float3(ndote2, ndote2, ndote2)) * float3( 0.345f*3.5f, 0.875f*3.5f, 1.0f*3.5f );//最適化できる
 //	shadingAmt = (1 - half3(ndote2)) * ShiningLightColor;
 //	shadingAmt = (1 - half3(ndote2)) * Light0.m_colorIntensity;
 		#endif
@@ -5204,7 +5204,7 @@ float4 ShiningFPShader(_FPINPUT) : FRAG_OUTPUT_COLOR0
 	#endif // defined(DUDV_MAPPING_ENABLED) || defined(WATER_SURFACE_ENABLED)
 #endif // defined(DCC_TOOL)
 
-	// ãƒˆã‚¥ãƒ¼ãƒ³ãƒ»ãƒã‚¤ãƒ©ã‚¤ãƒˆ-é©ç”¨
+	// トゥーン・ハイライト-適用
 	#if defined(CARTOON_SHADING_ENABLED)
 		#if !defined(CUBE_MAPPING_ENABLED) && !defined(SPHERE_MAPPING_ENABLED)
 			#ifdef CARTOON_HILIGHT_ENABLED
@@ -5218,9 +5218,9 @@ float4 ShiningFPShader(_FPINPUT) : FRAG_OUTPUT_COLOR0
 	sublightAmount += hilightAmt;
 	#endif // FP_HAS_HILIGHT
 
-	// å½±ã‚«ãƒ©ãƒ¼ã‚·ãƒ•ãƒˆ
+	// 影カラーシフト
 #if defined(SHADOW_COLOR_SHIFT_ENABLED)
-	// [Not Toon] è¡¨é¢ä¸‹æ•£ä¹±ã®ã‚ˆã†ãªä½¿ã„æ–¹
+	// [Not Toon] 表面下散乱のような使い方
 	float3 subLightColor2 = max(float3(1.0f,1.0f,1.0f), subLightColor * 2.0f);
 	shadingAmt.rgb += (float3(1.0f,1.0f,1.0f) - min(float3(1.0f, 1.0f, 1.0f), shadingAmt.rgb)) * ShadowColorShift * subLightColor2;
 #endif // SHADOW_COLOR_SHIFT_ENABLED
@@ -5231,9 +5231,9 @@ float4 ShiningFPShader(_FPINPUT) : FRAG_OUTPUT_COLOR0
 	float3 envMapColor = float3(1.0f, 1.0f, 1.0f);
 	#endif // CUBE_MAPPING_ENABLED || SPHERE_MAPPING_ENABLED
 
-	// ã‚­ãƒ¥ãƒ¼ãƒ–ãƒžãƒƒãƒ—/ã‚¹ãƒ•ã‚£ã‚¢ãƒžãƒƒãƒ—-é©ç”¨ (éžIBL)
+	// キューブマップ/スフィアマップ-適用 (非IBL)
 #ifdef EMVMAP_AS_IBL_ENABLED
-	// ã‚­ãƒ¥ãƒ¼ãƒ–ãƒžãƒƒãƒ—/ã‚¹ãƒ•ã‚£ã‚¢ãƒžãƒƒãƒ—-é©ç”¨ (IBL)
+	// キューブマップ/スフィアマップ-適用 (IBL)
 	#if defined(CUBE_MAPPING_ENABLED)
 	shadingAmt.rgb	+= cubeMapColor.rgb * cubeMapIntensity * envMapColor * glossValue;
 	#elif defined(SPHERE_MAPPING_ENABLED)
@@ -5250,20 +5250,20 @@ float4 ShiningFPShader(_FPINPUT) : FRAG_OUTPUT_COLOR0
 	shadingAmt *= ambientOcclusion;
 	shadingAmt += sublightAmount;
 
-	// è‡ªå·±ç™ºå…‰åº¦ãƒžãƒƒãƒ— ãƒ©ã‚¤ãƒˆã‚„ã‚·ãƒ£ãƒ‰ã‚¦ã‚’æ‰“ã¡æ¶ˆã™å€¤ã¨ã„ã†è§£é‡ˆ
+	// 自己発光度マップ ライトやシャドウを打ち消す値という解釈
 #if defined(EMISSION_MAPPING_ENABLED)
 	float4 emiTex = EmissionMapSampler.Sample(EmissionMapSamplerS, IN.TexCoord.xy);
 	shadingAmt.rgb = lerp(shadingAmt.rgb, float3(1.0f, 1.0f, 1.0f), float3(emiTex.r,emiTex.r,emiTex.r));
 #endif // EMISSION_MAPPING_ENABLED
 
-	// ãƒ©ã‚¤ãƒˆã®åˆè¨ˆ
+	// ライトの合計
 	resultColor.rgb *= shadingAmt;
 
 #if defined(MULTIPLICATIVE_BLENDING_ENABLED)
 	resultColor.rgb += max((1.0f - resultColor.rgb), 0.0f) * (1.0f - shadowValue);
 #endif
 
-	// ãƒ•ã‚©ã‚°
+	// フォグ
 	//
 #ifdef FOG_ENABLED
 	#if !defined(FP_PORTRAIT)
@@ -5285,7 +5285,7 @@ float4 ShiningFPShader(_FPINPUT) : FRAG_OUTPUT_COLOR0
 	#endif
 
 
-	// å‡ºåŠ›
+	// 出力
 #if defined(FP_FORCETRANSPARENT) || defined(FP_PORTRAIT) || defined(FP_SHINING)
 	return resultColor;
 #endif // defined(FP_FORCETRANSPARENT) || defined(FP_PORTRAIT) || defined(FP_SHINING)
@@ -5304,7 +5304,7 @@ float4 ShiningFPShader(_FPINPUT) : FRAG_OUTPUT_COLOR0
 //	glowValue += (lumi > GlowThreshold) ? 1.0h : 0.0h;
 			#endif
 			#if defined(GLARE_OVERFLOW_ENABLED)
-	float3 glowof = max(float3(0.0f, 0.0f, 0.0f), resultColor.rgb - GlowThreshold); //GlowThreshold float3ã«?
+	float3 glowof = max(float3(0.0f, 0.0f, 0.0f), resultColor.rgb - GlowThreshold); //GlowThreshold float3に?
 	glowValue += dot(glowof, 1.0f);
 			#endif
 
@@ -5322,7 +5322,7 @@ float4 ShiningFPShader(_FPINPUT) : FRAG_OUTPUT_COLOR0
 		#endif // defined(GLARE_MAP_ENABLED) || defined(GLARE_OVERFLOW_ENABLED) || defined(GLARE_HIGHTPASS_ENABLED)
 //		#endif // defined(WATER_SURFACE_ENABLED) || defined(GLARE_MAP_ENABLED) || defined(GLARE_OVERFLOW_ENABLED) || defined(GLARE_HIGHTPASS_ENABLED)
 	#else // !defined(ALPHA_BLENDING_ENABLED)
-	// Mayaã§ã¯ã‚¢ãƒ«ãƒ•ã‚¡ã‚’ä»–ã®ç”¨é€”ã§ä½¿ã†ã¨ã‚¹ã‚¦ã‚©ãƒƒãƒã®è‰²ãŒå¤‰ã«ãªã‚‹
+	// Mayaではアルファを他の用途で使うとスウォッチの色が変になる
 	return resultColor;
 	#endif // !defined(ALPHA_BLENDING_ENABLED)
 #endif // FP_DEFAULT || FP_DEFAULTRT
@@ -5340,7 +5340,7 @@ float4 ShiningFPShader(_FPINPUT) : FRAG_OUTPUT_COLOR0
 
 #line 2870 "Z:/data/shaders/ed8.fx"
 
-// å¼·åˆ¶é€éŽFP
+// 強制透過FP
 //
 #undef FP_DEFAULT
 #undef FP_DEFAULTRT
@@ -5349,7 +5349,7 @@ float4 ShiningFPShader(_FPINPUT) : FRAG_OUTPUT_COLOR0
 #undef FP_SHINING
 
 #line 1 "Z:/data/shaders/ed8_fp_main.h"
-// ã“ã®ãƒ•ã‚¡ã‚¤ãƒ«ã¯UTF-8ã‚³ãƒ¼ãƒ‰ã§ä¿å­˜ã—ã¦ãã ã•ã„ã€‚
+// このファイルはUTF-8コードで保存してください。
 
 // FP_DEFAULT
 // FP_DEFAULTRT
@@ -5396,7 +5396,7 @@ float4 ShiningFPShader(_FPINPUT) : FRAG_OUTPUT_COLOR0
 #else // NOTHING_ENABLED
 
 #ifdef FP_DEFAULTRT
-	// æ°´é¢ä¸‹ã‚’ã‚¯ãƒªãƒƒãƒ— - ï¼ˆZè»¸å›žè»¢ãŒãªã„ã¨ã‹æ¡ä»¶ã‚’ã¤ã‘ã‚Œã° oblique frustum clippingã®ã‚ˆã†ãªå°„å½±è¡Œåˆ—ã‚’åŠ å·¥ã™ã‚‹æ‰‹æ³•ãŒã‚ã‚‹)
+	// 水面下をクリップ - (Z軸回転がないとか条件をつければ oblique frustum clippingのような射影行列を加工する手法がある)
 	float3 waterNorm = float3(IN.WorldPositionDepth.x, IN.WorldPositionDepth.y - UserClipPlane.w, IN.WorldPositionDepth.z);
 	clip(dot(UserClipPlane.xyz, normalize(waterNorm)));
 #endif // FP_DEFAULTRT
@@ -5516,7 +5516,7 @@ float4 ShiningFPShader(_FPINPUT) : FRAG_OUTPUT_COLOR0
 	#endif // defined(USE_SCREEN_UV)
 #endif // defined(DCC_TOOL)
 
-	// ã‚¢ãƒ«ãƒ•ã‚¡ãƒ†ã‚¹ãƒˆ
+	// アルファテスト
 #ifdef FP_FORCETRANSPARENT
 	#if defined(ALPHA_BLENDING_ENABLED) || defined(ALPHA_TESTING_ENABLED)
 		#if defined(ALPHA_TESTING_ENABLED)
@@ -5541,7 +5541,7 @@ float4 ShiningFPShader(_FPINPUT) : FRAG_OUTPUT_COLOR0
 	#endif // ALPHA_BLENDING_ENABLED || ALPHA_TESTING_ENABLED
 #endif // FP_DEFAULT || FP_DEFAULTRT || FP_PORTRAIT
 
-	// ãƒžãƒ«ãƒUV
+	// マルチUV
 #ifdef MULTI_UV_ENANLED
 	#if !defined(MULTI_UV_NO_DIFFUSE_MAPPING_ENANLED)
 	float4 diffuse2Amt = DiffuseMap2Sampler.Sample(DiffuseMap2SamplerS, IN.TexCoord2.xy);
@@ -5556,11 +5556,11 @@ float4 ShiningFPShader(_FPINPUT) : FRAG_OUTPUT_COLOR0
 		#endif // defined(MULTI_UV_FACE_ENANLED)
 
 		#if defined(MULTI_UV_ADDITIVE_BLENDING_ENANLED)
-	// åŠ ç®—
+	// 加算
 	float3 muvtex_add = diffuse2Amt.rgb * multi_uv_alpha;
 	diffuseAmt.rgb += muvtex_add;
 		#elif defined(MULTI_UV_MULTIPLICATIVE_BLENDING_ENANLED)
-	// ä¹—ç®—
+	// 乗算
 	// v = lerp(x, x*y, t)
 	// v = x + (x*y - x) * t;
 	// v = x + (y - 1) * x * t;
@@ -5568,9 +5568,9 @@ float4 ShiningFPShader(_FPINPUT) : FRAG_OUTPUT_COLOR0
 	float3 muvtex_add = (diffuse2Amt.rgb - float3(1.0f, 1.0f, 1.0f)) * diffuseAmt.rgb * multi_uv_alpha;
 	diffuseAmt.rgb += muvtex_add;
 		#elif defined(MULTI_UV_SHADOW_ENANLED)
-	// å½±é ˜åŸŸã¨ã—ã¦æ‰±ã†
+	// 影領域として扱う
 		#else
-	// ã‚¢ãƒ«ãƒ•ã‚¡
+	// アルファ
 	diffuseAmt.rgb = lerp(diffuseAmt.rgb, diffuse2Amt.rgb, multi_uv_alpha);
 		#endif //
 
@@ -5590,11 +5590,11 @@ float4 ShiningFPShader(_FPINPUT) : FRAG_OUTPUT_COLOR0
 			#endif // defined(MULTI_UV_FACE_ENANLED)
 
 			#if defined(MULTI_UV2_ADDITIVE_BLENDING_ENANLED)
-	// åŠ ç®—
+	// 加算
 	float3 muvtex_add2 = diffuse3Amt.rgb * multi_uv2_alpha;
 	diffuseAmt.rgb += muvtex_add2;
 			#elif defined(MULTI_UV2_MULTIPLICATIVE_BLENDING_ENANLED)
-	// ä¹—ç®—
+	// 乗算
 	// v = lerp(x, x*y, t)
 	// v = x + (x*y - x) * t;
 	// v = x + (y - 1) * x * t;
@@ -5602,9 +5602,9 @@ float4 ShiningFPShader(_FPINPUT) : FRAG_OUTPUT_COLOR0
 	float3 muvtex_add2 = (diffuse3Amt.rgb - float3(1.0f, 1.0f, 1.0f)) * diffuseAmt.rgb * multi_uv2_alpha;
 	diffuseAmt.rgb += muvtex_add2;
 			#elif defined(MULTI_UV_SHADOW_ENANLED)
-	// å½±é ˜åŸŸã¨ã—ã¦æ‰±ã†
+	// 影領域として扱う
 			#else
-	// ã‚¢ãƒ«ãƒ•ã‚¡
+	// アルファ
 	diffuseAmt.rgb = lerp(diffuseAmt.rgb, diffuse3Amt.rgb, multi_uv2_alpha);
 			#endif //
 //		#else // !defined(MULTI_UV2_NO_DIFFUSE_MAPPING_ENANLED)
@@ -5618,10 +5618,10 @@ float4 ShiningFPShader(_FPINPUT) : FRAG_OUTPUT_COLOR0
 	diffuseAmt *= materialDiffuse;
 #endif // GAME_MATERIAL_ENABLED
 
-	// ã‚·ãƒ£ãƒ‰ã‚¦ãƒžãƒƒãƒ—
+	// シャドウマップ
 #if defined(RECEIVE_SHADOWS) && defined(USE_LIGHTING) && defined(FP_DEFAULT) && !defined(FP_PORTRAIT)
-	// è¤‡æ•°ãƒ©ã‚¤ãƒˆã®ã¨ãã¯ã©ã‚ŒãŒãƒ‡ã‚£ãƒ¬ã‚¯ã‚·ãƒ§ãƒŠãƒ«ã‹ã¯ã‚·ã‚¹ãƒ†ãƒ ã—ã ã„
-	// 2012/08/30 ç¾åœ¨ã¯è¿½åŠ ã®ãƒ©ã‚¤ãƒˆã¯è‡ªå‰ã€‚
+	// 複数ライトのときはどれがディレクショナルかはシステムしだい
+	// 2012/08/30 現在は追加のライトは自前。
 	float shadowValue = 1.0f;
 //	#if NUM_LIGHTS > 2
 //	shadowValue = min(shadowValue, EvaluateShadow(Light2, LightShadow2, IN.WorldPositionDepth.xyz, IN.WorldPositionDepth.w));
@@ -5668,23 +5668,23 @@ float4 ShiningFPShader(_FPINPUT) : FRAG_OUTPUT_COLOR0
 
 #ifdef MULTI_UV_ENANLED 
 	#if defined(MULTI_UV_SHADOW_ENANLED)
-	// å½±é ˜åŸŸã¨ã—ã¦æ‰±ã†
+	// 影領域として扱う
 	shadowValue = min(shadowValue, 1.0f - (diffuse2Amt.r * multi_uv_alpha));
 	#endif //
 	#if defined(MULTI_UV2_SHADOW_ENANLED)
-	// å½±é ˜åŸŸã¨ã—ã¦æ‰±ã†
+	// 影領域として扱う
 	shadowValue = min(shadowValue, 1.0f - (diffuse3Amt.r * multi_uv2_alpha));
 	#endif //
 #endif // MULTI_UV_ENANLED
 
 #if defined(PROJECTION_MAP_ENABLED)
 	float4 projTex = ProjectionMapSampler.Sample(ProjectionMapSamplerS, IN.ProjMap.xy);
-	// é›²ã®å½±
+	// 雲の影
 //	shadowValue = max(shadowValue - (1 - (projTex.r * projTex.a)), 0);
 	shadowValue = min(shadowValue, 1.0f - (projTex.r * projTex.a));
 #endif // PROJECTION_MAP_ENABLED
 
-	// ã‚¹ãƒšã‚­ãƒ¥ãƒ©ãƒžãƒƒãƒ—
+	// スペキュラマップ
 #if defined(SPECULAR_MAPPING_ENABLED) || (defined(MULTI_UV_ENANLED) && defined(MULTI_UV_SPECULAR_MAPPING_ENABLED)) || (defined(MULTI_UV2_ENANLED) && defined(MULTI_UV2_SPECULAR_MAPPING_ENABLED))
  
 	float glossValue = 1.0f;
@@ -5705,7 +5705,7 @@ float4 ShiningFPShader(_FPINPUT) : FRAG_OUTPUT_COLOR0
 	float glossValue = 1.0f;
 #endif // SPECULAR_MAPPING_ENABLED
 
-	// ç’°å¢ƒå…‰é®è”½ãƒžãƒƒãƒ—
+	// 環境光遮蔽マップ
 #if defined(OCCULUSION_MAPPING_ENABLED) || (defined(MULTI_UV_ENANLED) && defined(MULTI_UV_OCCULUSION_MAPPING_ENABLED)) || (defined(MULTI_UV2_ENANLED) && defined(MULTI_UV_OCCULUSION2_MAPPING_ENABLED))
 
 	float occulusionValue = 1.0f;
@@ -5734,7 +5734,7 @@ float4 ShiningFPShader(_FPINPUT) : FRAG_OUTPUT_COLOR0
 	float3 ambientOcclusion = (float3)IN.Color0.rgb;
 #endif // OCCULUSION_MAPPING_ENABLED
 
-	// ã‚¤ãƒ³ãƒã‚­ãƒ©ã‚¤ãƒˆã¸ã®å½±ã‚„ã‚¹ãƒšã‚­ãƒ¥ãƒ©ãƒžãƒƒãƒ—ã®å½±éŸ¿
+	// インチキライトへの影やスペキュラマップの影響
 #if defined(RIM_LIGHTING_ENABLED) || defined(CARTOON_SHADING_ENABLED) || defined(CUBE_MAPPING_ENABLED) || defined(SPHERE_MAPPING_ENABLED)
 
 	#if (NUM_LIGHTS > 0) && defined(USE_LIGHTING)
@@ -5760,7 +5760,7 @@ float4 ShiningFPShader(_FPINPUT) : FRAG_OUTPUT_COLOR0
 	float3 subLightColor = float3(0.0f, 0.0f, 0.0f);
 #endif // defined(RIM_LIGHTING_ENABLED) || defined(CARTOON_SHADING_ENABLED) || defined(CUBE_MAPPING_ENABLED) || defined(SPHERE_MAPPING_ENABLED)
 
-	// ã‚­ãƒ¥ãƒ¼ãƒ–ãƒžãƒƒãƒ—/ã‚¹ãƒ•ã‚£ã‚¢ãƒžãƒƒãƒ—-PerVertex
+	// キューブマップ/スフィアマップ-PerVertex
 #if defined(FORCE_PER_VERTEX_ENVIRON_MAP) || !defined(USE_TANGENTS) || !defined(USE_LIGHTING)
 	#if defined(CUBE_MAPPING_ENABLED)
 	//float4 cubeMapColor = h4texCUBE(CubeMapSampler, normalize(IN.CubeMap.xyz)).rgba;
@@ -5773,7 +5773,7 @@ float4 ShiningFPShader(_FPINPUT) : FRAG_OUTPUT_COLOR0
 #endif // defined(FORCE_PER_VERTEX_ENVIRON_MAP) || !defined(USE_TANGENTS) || !defined(USE_LIGHTING)
 
 
-	// ãƒ©ã‚¤ãƒ†ã‚£ãƒ³ã‚°
+	// ライティング
 	float4 resultColor = diffuseAmt;
 	float3 shadingAmt = float3(0.0f, 0.0f, 0.0f);
 
@@ -5807,7 +5807,7 @@ float4 ShiningFPShader(_FPINPUT) : FRAG_OUTPUT_COLOR0
 	float3 worldSpaceEyeDirection = normalize(getEyePosition() - IN.WorldPositionDepth.xyz);
 	#define FP_WS_EYEDIR_EXIST
 
-	// ãƒªãƒ ãƒ©ã‚¤ãƒˆã‚„ç’°å¢ƒãƒžãƒƒãƒ—ã®æº–å‚™
+	// リムライトや環境マップの準備
 	#if defined(USE_LIGHTING)
 		#ifdef RIM_LIGHTING_ENABLED
 			#define FP_NDOTE_1
@@ -5831,7 +5831,7 @@ float4 ShiningFPShader(_FPINPUT) : FRAG_OUTPUT_COLOR0
 
 	#endif // defined(FP_NDOTE_1) && defined(FP_NDOTE_2)
 
-	// ãƒªãƒ ãƒ©ã‚¤ãƒˆ
+	// リムライト
 	#if defined(USE_LIGHTING)
 		#ifdef RIM_LIGHTING_ENABLED
 			#ifdef RIM_TRANSPARENCY_ENABLED
@@ -5843,9 +5843,9 @@ float4 ShiningFPShader(_FPINPUT) : FRAG_OUTPUT_COLOR0
 		#endif // RIM_LIGHTING_ENABLED
 	#endif // defined(USE_LIGHTING)
 
-	// ç’°å¢ƒãƒžãƒƒãƒ—
+	// 環境マップ
 	#if !(defined(FORCE_PER_VERTEX_ENVIRON_MAP) || !defined(USE_TANGENTS))
-		// ã‚­ãƒ¥ãƒ¼ãƒ–ãƒžãƒƒãƒ—/ã‚¹ãƒ•ã‚£ã‚¢ãƒžãƒƒãƒ—-PerPixel
+		// キューブマップ/スフィアマップ-PerPixel
 		#if defined(CUBE_MAPPING_ENABLED)
 	float3 cubeMapParams = reflect(-worldSpaceEyeDirection, worldSpaceNormal);
 	float cubeMapIntensity = 1.0f - max(0.0f, ndote) * (float)CubeFresnelPower;
@@ -5890,7 +5890,7 @@ float4 ShiningFPShader(_FPINPUT) : FRAG_OUTPUT_COLOR0
 
 	float3 ambient = float3(0.0f, 0.0f, 0.0f);;
 
-	// ãƒªãƒ ãƒ©ã‚¤ãƒˆ
+	// リムライト
 	#if defined(USE_LIGHTING)
 
 	float3 worldSpaceNormal = normalize(IN.Normal);
@@ -5958,9 +5958,9 @@ float4 ShiningFPShader(_FPINPUT) : FRAG_OUTPUT_COLOR0
 	float3 worldSpaceEyeDirection2 = normalize(getEyePosition() - IN.WorldPositionDepth.xyz);
 	float ndote2 = dot(worldSpaceNormal, worldSpaceEyeDirection2);
 		#if !defined(USE_LIGHTING)
-	shadingAmt = (1.0f - float3(ndote2, ndote2, ndote2)) * 1.0f;//æœ€é©åŒ–ã§ãã‚‹
+	shadingAmt = (1.0f - float3(ndote2, ndote2, ndote2)) * 1.0f;//最適化できる
 		#else
-	shadingAmt = (1.0f - float3(ndote2, ndote2, ndote2)) * float3( 0.345f*3.5f, 0.875f*3.5f, 1.0f*3.5f );//æœ€é©åŒ–ã§ãã‚‹
+	shadingAmt = (1.0f - float3(ndote2, ndote2, ndote2)) * float3( 0.345f*3.5f, 0.875f*3.5f, 1.0f*3.5f );//最適化できる
 //	shadingAmt = (1 - half3(ndote2)) * ShiningLightColor;
 //	shadingAmt = (1 - half3(ndote2)) * Light0.m_colorIntensity;
 		#endif
@@ -6022,7 +6022,7 @@ float4 ShiningFPShader(_FPINPUT) : FRAG_OUTPUT_COLOR0
 	#endif // defined(DUDV_MAPPING_ENABLED) || defined(WATER_SURFACE_ENABLED)
 #endif // defined(DCC_TOOL)
 
-	// ãƒˆã‚¥ãƒ¼ãƒ³ãƒ»ãƒã‚¤ãƒ©ã‚¤ãƒˆ-é©ç”¨
+	// トゥーン・ハイライト-適用
 	#if defined(CARTOON_SHADING_ENABLED)
 		#if !defined(CUBE_MAPPING_ENABLED) && !defined(SPHERE_MAPPING_ENABLED)
 			#ifdef CARTOON_HILIGHT_ENABLED
@@ -6036,9 +6036,9 @@ float4 ShiningFPShader(_FPINPUT) : FRAG_OUTPUT_COLOR0
 	sublightAmount += hilightAmt;
 	#endif // FP_HAS_HILIGHT
 
-	// å½±ã‚«ãƒ©ãƒ¼ã‚·ãƒ•ãƒˆ
+	// 影カラーシフト
 #if defined(SHADOW_COLOR_SHIFT_ENABLED)
-	// [Not Toon] è¡¨é¢ä¸‹æ•£ä¹±ã®ã‚ˆã†ãªä½¿ã„æ–¹
+	// [Not Toon] 表面下散乱のような使い方
 	float3 subLightColor2 = max(float3(1.0f,1.0f,1.0f), subLightColor * 2.0f);
 	shadingAmt.rgb += (float3(1.0f,1.0f,1.0f) - min(float3(1.0f, 1.0f, 1.0f), shadingAmt.rgb)) * ShadowColorShift * subLightColor2;
 #endif // SHADOW_COLOR_SHIFT_ENABLED
@@ -6049,9 +6049,9 @@ float4 ShiningFPShader(_FPINPUT) : FRAG_OUTPUT_COLOR0
 	float3 envMapColor = float3(1.0f, 1.0f, 1.0f);
 	#endif // CUBE_MAPPING_ENABLED || SPHERE_MAPPING_ENABLED
 
-	// ã‚­ãƒ¥ãƒ¼ãƒ–ãƒžãƒƒãƒ—/ã‚¹ãƒ•ã‚£ã‚¢ãƒžãƒƒãƒ—-é©ç”¨ (éžIBL)
+	// キューブマップ/スフィアマップ-適用 (非IBL)
 #ifdef EMVMAP_AS_IBL_ENABLED
-	// ã‚­ãƒ¥ãƒ¼ãƒ–ãƒžãƒƒãƒ—/ã‚¹ãƒ•ã‚£ã‚¢ãƒžãƒƒãƒ—-é©ç”¨ (IBL)
+	// キューブマップ/スフィアマップ-適用 (IBL)
 	#if defined(CUBE_MAPPING_ENABLED)
 	shadingAmt.rgb	+= cubeMapColor.rgb * cubeMapIntensity * envMapColor * glossValue;
 	#elif defined(SPHERE_MAPPING_ENABLED)
@@ -6068,20 +6068,20 @@ float4 ShiningFPShader(_FPINPUT) : FRAG_OUTPUT_COLOR0
 	shadingAmt *= ambientOcclusion;
 	shadingAmt += sublightAmount;
 
-	// è‡ªå·±ç™ºå…‰åº¦ãƒžãƒƒãƒ— ãƒ©ã‚¤ãƒˆã‚„ã‚·ãƒ£ãƒ‰ã‚¦ã‚’æ‰“ã¡æ¶ˆã™å€¤ã¨ã„ã†è§£é‡ˆ
+	// 自己発光度マップ ライトやシャドウを打ち消す値という解釈
 #if defined(EMISSION_MAPPING_ENABLED)
 	float4 emiTex = EmissionMapSampler.Sample(EmissionMapSamplerS, IN.TexCoord.xy);
 	shadingAmt.rgb = lerp(shadingAmt.rgb, float3(1.0f, 1.0f, 1.0f), float3(emiTex.r,emiTex.r,emiTex.r));
 #endif // EMISSION_MAPPING_ENABLED
 
-	// ãƒ©ã‚¤ãƒˆã®åˆè¨ˆ
+	// ライトの合計
 	resultColor.rgb *= shadingAmt;
 
 #if defined(MULTIPLICATIVE_BLENDING_ENABLED)
 	resultColor.rgb += max((1.0f - resultColor.rgb), 0.0f) * (1.0f - shadowValue);
 #endif
 
-	// ãƒ•ã‚©ã‚°
+	// フォグ
 	//
 #ifdef FOG_ENABLED
 	#if !defined(FP_PORTRAIT)
@@ -6103,7 +6103,7 @@ float4 ShiningFPShader(_FPINPUT) : FRAG_OUTPUT_COLOR0
 	#endif
 
 
-	// å‡ºåŠ›
+	// 出力
 #if defined(FP_FORCETRANSPARENT) || defined(FP_PORTRAIT) || defined(FP_SHINING)
 	return resultColor;
 #endif // defined(FP_FORCETRANSPARENT) || defined(FP_PORTRAIT) || defined(FP_SHINING)
@@ -6122,7 +6122,7 @@ float4 ShiningFPShader(_FPINPUT) : FRAG_OUTPUT_COLOR0
 //	glowValue += (lumi > GlowThreshold) ? 1.0h : 0.0h;
 			#endif
 			#if defined(GLARE_OVERFLOW_ENABLED)
-	float3 glowof = max(float3(0.0f, 0.0f, 0.0f), resultColor.rgb - GlowThreshold); //GlowThreshold float3ã«?
+	float3 glowof = max(float3(0.0f, 0.0f, 0.0f), resultColor.rgb - GlowThreshold); //GlowThreshold float3に?
 	glowValue += dot(glowof, 1.0f);
 			#endif
 
@@ -6140,7 +6140,7 @@ float4 ShiningFPShader(_FPINPUT) : FRAG_OUTPUT_COLOR0
 		#endif // defined(GLARE_MAP_ENABLED) || defined(GLARE_OVERFLOW_ENABLED) || defined(GLARE_HIGHTPASS_ENABLED)
 //		#endif // defined(WATER_SURFACE_ENABLED) || defined(GLARE_MAP_ENABLED) || defined(GLARE_OVERFLOW_ENABLED) || defined(GLARE_HIGHTPASS_ENABLED)
 	#else // !defined(ALPHA_BLENDING_ENABLED)
-	// Mayaã§ã¯ã‚¢ãƒ«ãƒ•ã‚¡ã‚’ä»–ã®ç”¨é€”ã§ä½¿ã†ã¨ã‚¹ã‚¦ã‚©ãƒƒãƒã®è‰²ãŒå¤‰ã«ãªã‚‹
+	// Mayaではアルファを他の用途で使うとスウォッチの色が変になる
 	return resultColor;
 	#endif // !defined(ALPHA_BLENDING_ENABLED)
 #endif // FP_DEFAULT || FP_DEFAULTRT
@@ -6158,7 +6158,7 @@ float4 ShiningFPShader(_FPINPUT) : FRAG_OUTPUT_COLOR0
 
 #line 2880 "Z:/data/shaders/ed8.fx"
 
-// é€šå¸¸FP ãƒ¬ãƒ³ãƒ€ãƒ¼ã‚¿ãƒ¼ã‚²ãƒƒãƒˆç”¨ â€»æ˜ ã‚Šè¾¼ã¿ç”¨ã€‚ä¸€éƒ¨ç°¡ç•¥åŒ–
+// 通常FP レンダーターゲット用 ※映り込み用。一部簡略化
 #if defined(GENERATE_RELFECTION_ENABLED)
 	#undef FP_DEFAULT
 	#define FP_DEFAULTRT
@@ -6167,7 +6167,7 @@ float4 ShiningFPShader(_FPINPUT) : FRAG_OUTPUT_COLOR0
 	#undef FP_SHINING
 
 #line 1 "Z:/data/shaders/ed8_fp_main.h"
-// ã“ã®ãƒ•ã‚¡ã‚¤ãƒ«ã¯UTF-8ã‚³ãƒ¼ãƒ‰ã§ä¿å­˜ã—ã¦ãã ã•ã„ã€‚
+// このファイルはUTF-8コードで保存してください。
 
 // FP_DEFAULT
 // FP_DEFAULTRT
@@ -6214,7 +6214,7 @@ float4 ShiningFPShader(_FPINPUT) : FRAG_OUTPUT_COLOR0
 #else // NOTHING_ENABLED
 
 #ifdef FP_DEFAULTRT
-	// æ°´é¢ä¸‹ã‚’ã‚¯ãƒªãƒƒãƒ— - ï¼ˆZè»¸å›žè»¢ãŒãªã„ã¨ã‹æ¡ä»¶ã‚’ã¤ã‘ã‚Œã° oblique frustum clippingã®ã‚ˆã†ãªå°„å½±è¡Œåˆ—ã‚’åŠ å·¥ã™ã‚‹æ‰‹æ³•ãŒã‚ã‚‹)
+	// 水面下をクリップ - (Z軸回転がないとか条件をつければ oblique frustum clippingのような射影行列を加工する手法がある)
 	float3 waterNorm = float3(IN.WorldPositionDepth.x, IN.WorldPositionDepth.y - UserClipPlane.w, IN.WorldPositionDepth.z);
 	clip(dot(UserClipPlane.xyz, normalize(waterNorm)));
 #endif // FP_DEFAULTRT
@@ -6334,7 +6334,7 @@ float4 ShiningFPShader(_FPINPUT) : FRAG_OUTPUT_COLOR0
 	#endif // defined(USE_SCREEN_UV)
 #endif // defined(DCC_TOOL)
 
-	// ã‚¢ãƒ«ãƒ•ã‚¡ãƒ†ã‚¹ãƒˆ
+	// アルファテスト
 #ifdef FP_FORCETRANSPARENT
 	#if defined(ALPHA_BLENDING_ENABLED) || defined(ALPHA_TESTING_ENABLED)
 		#if defined(ALPHA_TESTING_ENABLED)
@@ -6359,7 +6359,7 @@ float4 ShiningFPShader(_FPINPUT) : FRAG_OUTPUT_COLOR0
 	#endif // ALPHA_BLENDING_ENABLED || ALPHA_TESTING_ENABLED
 #endif // FP_DEFAULT || FP_DEFAULTRT || FP_PORTRAIT
 
-	// ãƒžãƒ«ãƒUV
+	// マルチUV
 #ifdef MULTI_UV_ENANLED
 	#if !defined(MULTI_UV_NO_DIFFUSE_MAPPING_ENANLED)
 	float4 diffuse2Amt = DiffuseMap2Sampler.Sample(DiffuseMap2SamplerS, IN.TexCoord2.xy);
@@ -6374,11 +6374,11 @@ float4 ShiningFPShader(_FPINPUT) : FRAG_OUTPUT_COLOR0
 		#endif // defined(MULTI_UV_FACE_ENANLED)
 
 		#if defined(MULTI_UV_ADDITIVE_BLENDING_ENANLED)
-	// åŠ ç®—
+	// 加算
 	float3 muvtex_add = diffuse2Amt.rgb * multi_uv_alpha;
 	diffuseAmt.rgb += muvtex_add;
 		#elif defined(MULTI_UV_MULTIPLICATIVE_BLENDING_ENANLED)
-	// ä¹—ç®—
+	// 乗算
 	// v = lerp(x, x*y, t)
 	// v = x + (x*y - x) * t;
 	// v = x + (y - 1) * x * t;
@@ -6386,9 +6386,9 @@ float4 ShiningFPShader(_FPINPUT) : FRAG_OUTPUT_COLOR0
 	float3 muvtex_add = (diffuse2Amt.rgb - float3(1.0f, 1.0f, 1.0f)) * diffuseAmt.rgb * multi_uv_alpha;
 	diffuseAmt.rgb += muvtex_add;
 		#elif defined(MULTI_UV_SHADOW_ENANLED)
-	// å½±é ˜åŸŸã¨ã—ã¦æ‰±ã†
+	// 影領域として扱う
 		#else
-	// ã‚¢ãƒ«ãƒ•ã‚¡
+	// アルファ
 	diffuseAmt.rgb = lerp(diffuseAmt.rgb, diffuse2Amt.rgb, multi_uv_alpha);
 		#endif //
 
@@ -6408,11 +6408,11 @@ float4 ShiningFPShader(_FPINPUT) : FRAG_OUTPUT_COLOR0
 			#endif // defined(MULTI_UV_FACE_ENANLED)
 
 			#if defined(MULTI_UV2_ADDITIVE_BLENDING_ENANLED)
-	// åŠ ç®—
+	// 加算
 	float3 muvtex_add2 = diffuse3Amt.rgb * multi_uv2_alpha;
 	diffuseAmt.rgb += muvtex_add2;
 			#elif defined(MULTI_UV2_MULTIPLICATIVE_BLENDING_ENANLED)
-	// ä¹—ç®—
+	// 乗算
 	// v = lerp(x, x*y, t)
 	// v = x + (x*y - x) * t;
 	// v = x + (y - 1) * x * t;
@@ -6420,9 +6420,9 @@ float4 ShiningFPShader(_FPINPUT) : FRAG_OUTPUT_COLOR0
 	float3 muvtex_add2 = (diffuse3Amt.rgb - float3(1.0f, 1.0f, 1.0f)) * diffuseAmt.rgb * multi_uv2_alpha;
 	diffuseAmt.rgb += muvtex_add2;
 			#elif defined(MULTI_UV_SHADOW_ENANLED)
-	// å½±é ˜åŸŸã¨ã—ã¦æ‰±ã†
+	// 影領域として扱う
 			#else
-	// ã‚¢ãƒ«ãƒ•ã‚¡
+	// アルファ
 	diffuseAmt.rgb = lerp(diffuseAmt.rgb, diffuse3Amt.rgb, multi_uv2_alpha);
 			#endif //
 //		#else // !defined(MULTI_UV2_NO_DIFFUSE_MAPPING_ENANLED)
@@ -6436,10 +6436,10 @@ float4 ShiningFPShader(_FPINPUT) : FRAG_OUTPUT_COLOR0
 	diffuseAmt *= materialDiffuse;
 #endif // GAME_MATERIAL_ENABLED
 
-	// ã‚·ãƒ£ãƒ‰ã‚¦ãƒžãƒƒãƒ—
+	// シャドウマップ
 #if defined(RECEIVE_SHADOWS) && defined(USE_LIGHTING) && defined(FP_DEFAULT) && !defined(FP_PORTRAIT)
-	// è¤‡æ•°ãƒ©ã‚¤ãƒˆã®ã¨ãã¯ã©ã‚ŒãŒãƒ‡ã‚£ãƒ¬ã‚¯ã‚·ãƒ§ãƒŠãƒ«ã‹ã¯ã‚·ã‚¹ãƒ†ãƒ ã—ã ã„
-	// 2012/08/30 ç¾åœ¨ã¯è¿½åŠ ã®ãƒ©ã‚¤ãƒˆã¯è‡ªå‰ã€‚
+	// 複数ライトのときはどれがディレクショナルかはシステムしだい
+	// 2012/08/30 現在は追加のライトは自前。
 	float shadowValue = 1.0f;
 //	#if NUM_LIGHTS > 2
 //	shadowValue = min(shadowValue, EvaluateShadow(Light2, LightShadow2, IN.WorldPositionDepth.xyz, IN.WorldPositionDepth.w));
@@ -6486,23 +6486,23 @@ float4 ShiningFPShader(_FPINPUT) : FRAG_OUTPUT_COLOR0
 
 #ifdef MULTI_UV_ENANLED 
 	#if defined(MULTI_UV_SHADOW_ENANLED)
-	// å½±é ˜åŸŸã¨ã—ã¦æ‰±ã†
+	// 影領域として扱う
 	shadowValue = min(shadowValue, 1.0f - (diffuse2Amt.r * multi_uv_alpha));
 	#endif //
 	#if defined(MULTI_UV2_SHADOW_ENANLED)
-	// å½±é ˜åŸŸã¨ã—ã¦æ‰±ã†
+	// 影領域として扱う
 	shadowValue = min(shadowValue, 1.0f - (diffuse3Amt.r * multi_uv2_alpha));
 	#endif //
 #endif // MULTI_UV_ENANLED
 
 #if defined(PROJECTION_MAP_ENABLED)
 	float4 projTex = ProjectionMapSampler.Sample(ProjectionMapSamplerS, IN.ProjMap.xy);
-	// é›²ã®å½±
+	// 雲の影
 //	shadowValue = max(shadowValue - (1 - (projTex.r * projTex.a)), 0);
 	shadowValue = min(shadowValue, 1.0f - (projTex.r * projTex.a));
 #endif // PROJECTION_MAP_ENABLED
 
-	// ã‚¹ãƒšã‚­ãƒ¥ãƒ©ãƒžãƒƒãƒ—
+	// スペキュラマップ
 #if defined(SPECULAR_MAPPING_ENABLED) || (defined(MULTI_UV_ENANLED) && defined(MULTI_UV_SPECULAR_MAPPING_ENABLED)) || (defined(MULTI_UV2_ENANLED) && defined(MULTI_UV2_SPECULAR_MAPPING_ENABLED))
  
 	float glossValue = 1.0f;
@@ -6523,7 +6523,7 @@ float4 ShiningFPShader(_FPINPUT) : FRAG_OUTPUT_COLOR0
 	float glossValue = 1.0f;
 #endif // SPECULAR_MAPPING_ENABLED
 
-	// ç’°å¢ƒå…‰é®è”½ãƒžãƒƒãƒ—
+	// 環境光遮蔽マップ
 #if defined(OCCULUSION_MAPPING_ENABLED) || (defined(MULTI_UV_ENANLED) && defined(MULTI_UV_OCCULUSION_MAPPING_ENABLED)) || (defined(MULTI_UV2_ENANLED) && defined(MULTI_UV_OCCULUSION2_MAPPING_ENABLED))
 
 	float occulusionValue = 1.0f;
@@ -6552,7 +6552,7 @@ float4 ShiningFPShader(_FPINPUT) : FRAG_OUTPUT_COLOR0
 	float3 ambientOcclusion = (float3)IN.Color0.rgb;
 #endif // OCCULUSION_MAPPING_ENABLED
 
-	// ã‚¤ãƒ³ãƒã‚­ãƒ©ã‚¤ãƒˆã¸ã®å½±ã‚„ã‚¹ãƒšã‚­ãƒ¥ãƒ©ãƒžãƒƒãƒ—ã®å½±éŸ¿
+	// インチキライトへの影やスペキュラマップの影響
 #if defined(RIM_LIGHTING_ENABLED) || defined(CARTOON_SHADING_ENABLED) || defined(CUBE_MAPPING_ENABLED) || defined(SPHERE_MAPPING_ENABLED)
 
 	#if (NUM_LIGHTS > 0) && defined(USE_LIGHTING)
@@ -6578,7 +6578,7 @@ float4 ShiningFPShader(_FPINPUT) : FRAG_OUTPUT_COLOR0
 	float3 subLightColor = float3(0.0f, 0.0f, 0.0f);
 #endif // defined(RIM_LIGHTING_ENABLED) || defined(CARTOON_SHADING_ENABLED) || defined(CUBE_MAPPING_ENABLED) || defined(SPHERE_MAPPING_ENABLED)
 
-	// ã‚­ãƒ¥ãƒ¼ãƒ–ãƒžãƒƒãƒ—/ã‚¹ãƒ•ã‚£ã‚¢ãƒžãƒƒãƒ—-PerVertex
+	// キューブマップ/スフィアマップ-PerVertex
 #if defined(FORCE_PER_VERTEX_ENVIRON_MAP) || !defined(USE_TANGENTS) || !defined(USE_LIGHTING)
 	#if defined(CUBE_MAPPING_ENABLED)
 	//float4 cubeMapColor = h4texCUBE(CubeMapSampler, normalize(IN.CubeMap.xyz)).rgba;
@@ -6591,7 +6591,7 @@ float4 ShiningFPShader(_FPINPUT) : FRAG_OUTPUT_COLOR0
 #endif // defined(FORCE_PER_VERTEX_ENVIRON_MAP) || !defined(USE_TANGENTS) || !defined(USE_LIGHTING)
 
 
-	// ãƒ©ã‚¤ãƒ†ã‚£ãƒ³ã‚°
+	// ライティング
 	float4 resultColor = diffuseAmt;
 	float3 shadingAmt = float3(0.0f, 0.0f, 0.0f);
 
@@ -6625,7 +6625,7 @@ float4 ShiningFPShader(_FPINPUT) : FRAG_OUTPUT_COLOR0
 	float3 worldSpaceEyeDirection = normalize(getEyePosition() - IN.WorldPositionDepth.xyz);
 	#define FP_WS_EYEDIR_EXIST
 
-	// ãƒªãƒ ãƒ©ã‚¤ãƒˆã‚„ç’°å¢ƒãƒžãƒƒãƒ—ã®æº–å‚™
+	// リムライトや環境マップの準備
 	#if defined(USE_LIGHTING)
 		#ifdef RIM_LIGHTING_ENABLED
 			#define FP_NDOTE_1
@@ -6649,7 +6649,7 @@ float4 ShiningFPShader(_FPINPUT) : FRAG_OUTPUT_COLOR0
 
 	#endif // defined(FP_NDOTE_1) && defined(FP_NDOTE_2)
 
-	// ãƒªãƒ ãƒ©ã‚¤ãƒˆ
+	// リムライト
 	#if defined(USE_LIGHTING)
 		#ifdef RIM_LIGHTING_ENABLED
 			#ifdef RIM_TRANSPARENCY_ENABLED
@@ -6661,9 +6661,9 @@ float4 ShiningFPShader(_FPINPUT) : FRAG_OUTPUT_COLOR0
 		#endif // RIM_LIGHTING_ENABLED
 	#endif // defined(USE_LIGHTING)
 
-	// ç’°å¢ƒãƒžãƒƒãƒ—
+	// 環境マップ
 	#if !(defined(FORCE_PER_VERTEX_ENVIRON_MAP) || !defined(USE_TANGENTS))
-		// ã‚­ãƒ¥ãƒ¼ãƒ–ãƒžãƒƒãƒ—/ã‚¹ãƒ•ã‚£ã‚¢ãƒžãƒƒãƒ—-PerPixel
+		// キューブマップ/スフィアマップ-PerPixel
 		#if defined(CUBE_MAPPING_ENABLED)
 	float3 cubeMapParams = reflect(-worldSpaceEyeDirection, worldSpaceNormal);
 	float cubeMapIntensity = 1.0f - max(0.0f, ndote) * (float)CubeFresnelPower;
@@ -6708,7 +6708,7 @@ float4 ShiningFPShader(_FPINPUT) : FRAG_OUTPUT_COLOR0
 
 	float3 ambient = float3(0.0f, 0.0f, 0.0f);;
 
-	// ãƒªãƒ ãƒ©ã‚¤ãƒˆ
+	// リムライト
 	#if defined(USE_LIGHTING)
 
 	float3 worldSpaceNormal = normalize(IN.Normal);
@@ -6776,9 +6776,9 @@ float4 ShiningFPShader(_FPINPUT) : FRAG_OUTPUT_COLOR0
 	float3 worldSpaceEyeDirection2 = normalize(getEyePosition() - IN.WorldPositionDepth.xyz);
 	float ndote2 = dot(worldSpaceNormal, worldSpaceEyeDirection2);
 		#if !defined(USE_LIGHTING)
-	shadingAmt = (1.0f - float3(ndote2, ndote2, ndote2)) * 1.0f;//æœ€é©åŒ–ã§ãã‚‹
+	shadingAmt = (1.0f - float3(ndote2, ndote2, ndote2)) * 1.0f;//最適化できる
 		#else
-	shadingAmt = (1.0f - float3(ndote2, ndote2, ndote2)) * float3( 0.345f*3.5f, 0.875f*3.5f, 1.0f*3.5f );//æœ€é©åŒ–ã§ãã‚‹
+	shadingAmt = (1.0f - float3(ndote2, ndote2, ndote2)) * float3( 0.345f*3.5f, 0.875f*3.5f, 1.0f*3.5f );//最適化できる
 //	shadingAmt = (1 - half3(ndote2)) * ShiningLightColor;
 //	shadingAmt = (1 - half3(ndote2)) * Light0.m_colorIntensity;
 		#endif
@@ -6840,7 +6840,7 @@ float4 ShiningFPShader(_FPINPUT) : FRAG_OUTPUT_COLOR0
 	#endif // defined(DUDV_MAPPING_ENABLED) || defined(WATER_SURFACE_ENABLED)
 #endif // defined(DCC_TOOL)
 
-	// ãƒˆã‚¥ãƒ¼ãƒ³ãƒ»ãƒã‚¤ãƒ©ã‚¤ãƒˆ-é©ç”¨
+	// トゥーン・ハイライト-適用
 	#if defined(CARTOON_SHADING_ENABLED)
 		#if !defined(CUBE_MAPPING_ENABLED) && !defined(SPHERE_MAPPING_ENABLED)
 			#ifdef CARTOON_HILIGHT_ENABLED
@@ -6854,9 +6854,9 @@ float4 ShiningFPShader(_FPINPUT) : FRAG_OUTPUT_COLOR0
 	sublightAmount += hilightAmt;
 	#endif // FP_HAS_HILIGHT
 
-	// å½±ã‚«ãƒ©ãƒ¼ã‚·ãƒ•ãƒˆ
+	// 影カラーシフト
 #if defined(SHADOW_COLOR_SHIFT_ENABLED)
-	// [Not Toon] è¡¨é¢ä¸‹æ•£ä¹±ã®ã‚ˆã†ãªä½¿ã„æ–¹
+	// [Not Toon] 表面下散乱のような使い方
 	float3 subLightColor2 = max(float3(1.0f,1.0f,1.0f), subLightColor * 2.0f);
 	shadingAmt.rgb += (float3(1.0f,1.0f,1.0f) - min(float3(1.0f, 1.0f, 1.0f), shadingAmt.rgb)) * ShadowColorShift * subLightColor2;
 #endif // SHADOW_COLOR_SHIFT_ENABLED
@@ -6867,9 +6867,9 @@ float4 ShiningFPShader(_FPINPUT) : FRAG_OUTPUT_COLOR0
 	float3 envMapColor = float3(1.0f, 1.0f, 1.0f);
 	#endif // CUBE_MAPPING_ENABLED || SPHERE_MAPPING_ENABLED
 
-	// ã‚­ãƒ¥ãƒ¼ãƒ–ãƒžãƒƒãƒ—/ã‚¹ãƒ•ã‚£ã‚¢ãƒžãƒƒãƒ—-é©ç”¨ (éžIBL)
+	// キューブマップ/スフィアマップ-適用 (非IBL)
 #ifdef EMVMAP_AS_IBL_ENABLED
-	// ã‚­ãƒ¥ãƒ¼ãƒ–ãƒžãƒƒãƒ—/ã‚¹ãƒ•ã‚£ã‚¢ãƒžãƒƒãƒ—-é©ç”¨ (IBL)
+	// キューブマップ/スフィアマップ-適用 (IBL)
 	#if defined(CUBE_MAPPING_ENABLED)
 	shadingAmt.rgb	+= cubeMapColor.rgb * cubeMapIntensity * envMapColor * glossValue;
 	#elif defined(SPHERE_MAPPING_ENABLED)
@@ -6886,20 +6886,20 @@ float4 ShiningFPShader(_FPINPUT) : FRAG_OUTPUT_COLOR0
 	shadingAmt *= ambientOcclusion;
 	shadingAmt += sublightAmount;
 
-	// è‡ªå·±ç™ºå…‰åº¦ãƒžãƒƒãƒ— ãƒ©ã‚¤ãƒˆã‚„ã‚·ãƒ£ãƒ‰ã‚¦ã‚’æ‰“ã¡æ¶ˆã™å€¤ã¨ã„ã†è§£é‡ˆ
+	// 自己発光度マップ ライトやシャドウを打ち消す値という解釈
 #if defined(EMISSION_MAPPING_ENABLED)
 	float4 emiTex = EmissionMapSampler.Sample(EmissionMapSamplerS, IN.TexCoord.xy);
 	shadingAmt.rgb = lerp(shadingAmt.rgb, float3(1.0f, 1.0f, 1.0f), float3(emiTex.r,emiTex.r,emiTex.r));
 #endif // EMISSION_MAPPING_ENABLED
 
-	// ãƒ©ã‚¤ãƒˆã®åˆè¨ˆ
+	// ライトの合計
 	resultColor.rgb *= shadingAmt;
 
 #if defined(MULTIPLICATIVE_BLENDING_ENABLED)
 	resultColor.rgb += max((1.0f - resultColor.rgb), 0.0f) * (1.0f - shadowValue);
 #endif
 
-	// ãƒ•ã‚©ã‚°
+	// フォグ
 	//
 #ifdef FOG_ENABLED
 	#if !defined(FP_PORTRAIT)
@@ -6921,7 +6921,7 @@ float4 ShiningFPShader(_FPINPUT) : FRAG_OUTPUT_COLOR0
 	#endif
 
 
-	// å‡ºåŠ›
+	// 出力
 #if defined(FP_FORCETRANSPARENT) || defined(FP_PORTRAIT) || defined(FP_SHINING)
 	return resultColor;
 #endif // defined(FP_FORCETRANSPARENT) || defined(FP_PORTRAIT) || defined(FP_SHINING)
@@ -6940,7 +6940,7 @@ float4 ShiningFPShader(_FPINPUT) : FRAG_OUTPUT_COLOR0
 //	glowValue += (lumi > GlowThreshold) ? 1.0h : 0.0h;
 			#endif
 			#if defined(GLARE_OVERFLOW_ENABLED)
-	float3 glowof = max(float3(0.0f, 0.0f, 0.0f), resultColor.rgb - GlowThreshold); //GlowThreshold float3ã«?
+	float3 glowof = max(float3(0.0f, 0.0f, 0.0f), resultColor.rgb - GlowThreshold); //GlowThreshold float3に?
 	glowValue += dot(glowof, 1.0f);
 			#endif
 
@@ -6958,7 +6958,7 @@ float4 ShiningFPShader(_FPINPUT) : FRAG_OUTPUT_COLOR0
 		#endif // defined(GLARE_MAP_ENABLED) || defined(GLARE_OVERFLOW_ENABLED) || defined(GLARE_HIGHTPASS_ENABLED)
 //		#endif // defined(WATER_SURFACE_ENABLED) || defined(GLARE_MAP_ENABLED) || defined(GLARE_OVERFLOW_ENABLED) || defined(GLARE_HIGHTPASS_ENABLED)
 	#else // !defined(ALPHA_BLENDING_ENABLED)
-	// Mayaã§ã¯ã‚¢ãƒ«ãƒ•ã‚¡ã‚’ä»–ã®ç”¨é€”ã§ä½¿ã†ã¨ã‚¹ã‚¦ã‚©ãƒƒãƒã®è‰²ãŒå¤‰ã«ãªã‚‹
+	// Mayaではアルファを他の用途で使うとスウォッチの色が変になる
 	return resultColor;
 	#endif // !defined(ALPHA_BLENDING_ENABLED)
 #endif // FP_DEFAULT || FP_DEFAULTRT
@@ -6977,7 +6977,7 @@ float4 ShiningFPShader(_FPINPUT) : FRAG_OUTPUT_COLOR0
 #line 2890 "Z:/data/shaders/ed8.fx"
 #endif // defined(GENERATE_RELFECTION_ENABLEDD)
 
-// ãƒ•ã‚§ã‚¤ã‚¹FP
+// フェイスFP
 #if defined(LIGHT_DIRECTION_FOR_CHARACTER_ENABLED)
 	#undef FP_DEFAULT
 	#undef FP_DEFAULTRT
@@ -6986,7 +6986,7 @@ float4 ShiningFPShader(_FPINPUT) : FRAG_OUTPUT_COLOR0
 	#undef FP_SHINING
 
 #line 1 "Z:/data/shaders/ed8_fp_main.h"
-// ã“ã®ãƒ•ã‚¡ã‚¤ãƒ«ã¯UTF-8ã‚³ãƒ¼ãƒ‰ã§ä¿å­˜ã—ã¦ãã ã•ã„ã€‚
+// このファイルはUTF-8コードで保存してください。
 
 // FP_DEFAULT
 // FP_DEFAULTRT
@@ -7033,7 +7033,7 @@ float4 ShiningFPShader(_FPINPUT) : FRAG_OUTPUT_COLOR0
 #else // NOTHING_ENABLED
 
 #ifdef FP_DEFAULTRT
-	// æ°´é¢ä¸‹ã‚’ã‚¯ãƒªãƒƒãƒ— - ï¼ˆZè»¸å›žè»¢ãŒãªã„ã¨ã‹æ¡ä»¶ã‚’ã¤ã‘ã‚Œã° oblique frustum clippingã®ã‚ˆã†ãªå°„å½±è¡Œåˆ—ã‚’åŠ å·¥ã™ã‚‹æ‰‹æ³•ãŒã‚ã‚‹)
+	// 水面下をクリップ - (Z軸回転がないとか条件をつければ oblique frustum clippingのような射影行列を加工する手法がある)
 	float3 waterNorm = float3(IN.WorldPositionDepth.x, IN.WorldPositionDepth.y - UserClipPlane.w, IN.WorldPositionDepth.z);
 	clip(dot(UserClipPlane.xyz, normalize(waterNorm)));
 #endif // FP_DEFAULTRT
@@ -7153,7 +7153,7 @@ float4 ShiningFPShader(_FPINPUT) : FRAG_OUTPUT_COLOR0
 	#endif // defined(USE_SCREEN_UV)
 #endif // defined(DCC_TOOL)
 
-	// ã‚¢ãƒ«ãƒ•ã‚¡ãƒ†ã‚¹ãƒˆ
+	// アルファテスト
 #ifdef FP_FORCETRANSPARENT
 	#if defined(ALPHA_BLENDING_ENABLED) || defined(ALPHA_TESTING_ENABLED)
 		#if defined(ALPHA_TESTING_ENABLED)
@@ -7178,7 +7178,7 @@ float4 ShiningFPShader(_FPINPUT) : FRAG_OUTPUT_COLOR0
 	#endif // ALPHA_BLENDING_ENABLED || ALPHA_TESTING_ENABLED
 #endif // FP_DEFAULT || FP_DEFAULTRT || FP_PORTRAIT
 
-	// ãƒžãƒ«ãƒUV
+	// マルチUV
 #ifdef MULTI_UV_ENANLED
 	#if !defined(MULTI_UV_NO_DIFFUSE_MAPPING_ENANLED)
 	float4 diffuse2Amt = DiffuseMap2Sampler.Sample(DiffuseMap2SamplerS, IN.TexCoord2.xy);
@@ -7193,11 +7193,11 @@ float4 ShiningFPShader(_FPINPUT) : FRAG_OUTPUT_COLOR0
 		#endif // defined(MULTI_UV_FACE_ENANLED)
 
 		#if defined(MULTI_UV_ADDITIVE_BLENDING_ENANLED)
-	// åŠ ç®—
+	// 加算
 	float3 muvtex_add = diffuse2Amt.rgb * multi_uv_alpha;
 	diffuseAmt.rgb += muvtex_add;
 		#elif defined(MULTI_UV_MULTIPLICATIVE_BLENDING_ENANLED)
-	// ä¹—ç®—
+	// 乗算
 	// v = lerp(x, x*y, t)
 	// v = x + (x*y - x) * t;
 	// v = x + (y - 1) * x * t;
@@ -7205,9 +7205,9 @@ float4 ShiningFPShader(_FPINPUT) : FRAG_OUTPUT_COLOR0
 	float3 muvtex_add = (diffuse2Amt.rgb - float3(1.0f, 1.0f, 1.0f)) * diffuseAmt.rgb * multi_uv_alpha;
 	diffuseAmt.rgb += muvtex_add;
 		#elif defined(MULTI_UV_SHADOW_ENANLED)
-	// å½±é ˜åŸŸã¨ã—ã¦æ‰±ã†
+	// 影領域として扱う
 		#else
-	// ã‚¢ãƒ«ãƒ•ã‚¡
+	// アルファ
 	diffuseAmt.rgb = lerp(diffuseAmt.rgb, diffuse2Amt.rgb, multi_uv_alpha);
 		#endif //
 
@@ -7227,11 +7227,11 @@ float4 ShiningFPShader(_FPINPUT) : FRAG_OUTPUT_COLOR0
 			#endif // defined(MULTI_UV_FACE_ENANLED)
 
 			#if defined(MULTI_UV2_ADDITIVE_BLENDING_ENANLED)
-	// åŠ ç®—
+	// 加算
 	float3 muvtex_add2 = diffuse3Amt.rgb * multi_uv2_alpha;
 	diffuseAmt.rgb += muvtex_add2;
 			#elif defined(MULTI_UV2_MULTIPLICATIVE_BLENDING_ENANLED)
-	// ä¹—ç®—
+	// 乗算
 	// v = lerp(x, x*y, t)
 	// v = x + (x*y - x) * t;
 	// v = x + (y - 1) * x * t;
@@ -7239,9 +7239,9 @@ float4 ShiningFPShader(_FPINPUT) : FRAG_OUTPUT_COLOR0
 	float3 muvtex_add2 = (diffuse3Amt.rgb - float3(1.0f, 1.0f, 1.0f)) * diffuseAmt.rgb * multi_uv2_alpha;
 	diffuseAmt.rgb += muvtex_add2;
 			#elif defined(MULTI_UV_SHADOW_ENANLED)
-	// å½±é ˜åŸŸã¨ã—ã¦æ‰±ã†
+	// 影領域として扱う
 			#else
-	// ã‚¢ãƒ«ãƒ•ã‚¡
+	// アルファ
 	diffuseAmt.rgb = lerp(diffuseAmt.rgb, diffuse3Amt.rgb, multi_uv2_alpha);
 			#endif //
 //		#else // !defined(MULTI_UV2_NO_DIFFUSE_MAPPING_ENANLED)
@@ -7255,10 +7255,10 @@ float4 ShiningFPShader(_FPINPUT) : FRAG_OUTPUT_COLOR0
 	diffuseAmt *= materialDiffuse;
 #endif // GAME_MATERIAL_ENABLED
 
-	// ã‚·ãƒ£ãƒ‰ã‚¦ãƒžãƒƒãƒ—
+	// シャドウマップ
 #if defined(RECEIVE_SHADOWS) && defined(USE_LIGHTING) && defined(FP_DEFAULT) && !defined(FP_PORTRAIT)
-	// è¤‡æ•°ãƒ©ã‚¤ãƒˆã®ã¨ãã¯ã©ã‚ŒãŒãƒ‡ã‚£ãƒ¬ã‚¯ã‚·ãƒ§ãƒŠãƒ«ã‹ã¯ã‚·ã‚¹ãƒ†ãƒ ã—ã ã„
-	// 2012/08/30 ç¾åœ¨ã¯è¿½åŠ ã®ãƒ©ã‚¤ãƒˆã¯è‡ªå‰ã€‚
+	// 複数ライトのときはどれがディレクショナルかはシステムしだい
+	// 2012/08/30 現在は追加のライトは自前。
 	float shadowValue = 1.0f;
 //	#if NUM_LIGHTS > 2
 //	shadowValue = min(shadowValue, EvaluateShadow(Light2, LightShadow2, IN.WorldPositionDepth.xyz, IN.WorldPositionDepth.w));
@@ -7305,23 +7305,23 @@ float4 ShiningFPShader(_FPINPUT) : FRAG_OUTPUT_COLOR0
 
 #ifdef MULTI_UV_ENANLED 
 	#if defined(MULTI_UV_SHADOW_ENANLED)
-	// å½±é ˜åŸŸã¨ã—ã¦æ‰±ã†
+	// 影領域として扱う
 	shadowValue = min(shadowValue, 1.0f - (diffuse2Amt.r * multi_uv_alpha));
 	#endif //
 	#if defined(MULTI_UV2_SHADOW_ENANLED)
-	// å½±é ˜åŸŸã¨ã—ã¦æ‰±ã†
+	// 影領域として扱う
 	shadowValue = min(shadowValue, 1.0f - (diffuse3Amt.r * multi_uv2_alpha));
 	#endif //
 #endif // MULTI_UV_ENANLED
 
 #if defined(PROJECTION_MAP_ENABLED)
 	float4 projTex = ProjectionMapSampler.Sample(ProjectionMapSamplerS, IN.ProjMap.xy);
-	// é›²ã®å½±
+	// 雲の影
 //	shadowValue = max(shadowValue - (1 - (projTex.r * projTex.a)), 0);
 	shadowValue = min(shadowValue, 1.0f - (projTex.r * projTex.a));
 #endif // PROJECTION_MAP_ENABLED
 
-	// ã‚¹ãƒšã‚­ãƒ¥ãƒ©ãƒžãƒƒãƒ—
+	// スペキュラマップ
 #if defined(SPECULAR_MAPPING_ENABLED) || (defined(MULTI_UV_ENANLED) && defined(MULTI_UV_SPECULAR_MAPPING_ENABLED)) || (defined(MULTI_UV2_ENANLED) && defined(MULTI_UV2_SPECULAR_MAPPING_ENABLED))
  
 	float glossValue = 1.0f;
@@ -7342,7 +7342,7 @@ float4 ShiningFPShader(_FPINPUT) : FRAG_OUTPUT_COLOR0
 	float glossValue = 1.0f;
 #endif // SPECULAR_MAPPING_ENABLED
 
-	// ç’°å¢ƒå…‰é®è”½ãƒžãƒƒãƒ—
+	// 環境光遮蔽マップ
 #if defined(OCCULUSION_MAPPING_ENABLED) || (defined(MULTI_UV_ENANLED) && defined(MULTI_UV_OCCULUSION_MAPPING_ENABLED)) || (defined(MULTI_UV2_ENANLED) && defined(MULTI_UV_OCCULUSION2_MAPPING_ENABLED))
 
 	float occulusionValue = 1.0f;
@@ -7371,7 +7371,7 @@ float4 ShiningFPShader(_FPINPUT) : FRAG_OUTPUT_COLOR0
 	float3 ambientOcclusion = (float3)IN.Color0.rgb;
 #endif // OCCULUSION_MAPPING_ENABLED
 
-	// ã‚¤ãƒ³ãƒã‚­ãƒ©ã‚¤ãƒˆã¸ã®å½±ã‚„ã‚¹ãƒšã‚­ãƒ¥ãƒ©ãƒžãƒƒãƒ—ã®å½±éŸ¿
+	// インチキライトへの影やスペキュラマップの影響
 #if defined(RIM_LIGHTING_ENABLED) || defined(CARTOON_SHADING_ENABLED) || defined(CUBE_MAPPING_ENABLED) || defined(SPHERE_MAPPING_ENABLED)
 
 	#if (NUM_LIGHTS > 0) && defined(USE_LIGHTING)
@@ -7397,7 +7397,7 @@ float4 ShiningFPShader(_FPINPUT) : FRAG_OUTPUT_COLOR0
 	float3 subLightColor = float3(0.0f, 0.0f, 0.0f);
 #endif // defined(RIM_LIGHTING_ENABLED) || defined(CARTOON_SHADING_ENABLED) || defined(CUBE_MAPPING_ENABLED) || defined(SPHERE_MAPPING_ENABLED)
 
-	// ã‚­ãƒ¥ãƒ¼ãƒ–ãƒžãƒƒãƒ—/ã‚¹ãƒ•ã‚£ã‚¢ãƒžãƒƒãƒ—-PerVertex
+	// キューブマップ/スフィアマップ-PerVertex
 #if defined(FORCE_PER_VERTEX_ENVIRON_MAP) || !defined(USE_TANGENTS) || !defined(USE_LIGHTING)
 	#if defined(CUBE_MAPPING_ENABLED)
 	//float4 cubeMapColor = h4texCUBE(CubeMapSampler, normalize(IN.CubeMap.xyz)).rgba;
@@ -7410,7 +7410,7 @@ float4 ShiningFPShader(_FPINPUT) : FRAG_OUTPUT_COLOR0
 #endif // defined(FORCE_PER_VERTEX_ENVIRON_MAP) || !defined(USE_TANGENTS) || !defined(USE_LIGHTING)
 
 
-	// ãƒ©ã‚¤ãƒ†ã‚£ãƒ³ã‚°
+	// ライティング
 	float4 resultColor = diffuseAmt;
 	float3 shadingAmt = float3(0.0f, 0.0f, 0.0f);
 
@@ -7444,7 +7444,7 @@ float4 ShiningFPShader(_FPINPUT) : FRAG_OUTPUT_COLOR0
 	float3 worldSpaceEyeDirection = normalize(getEyePosition() - IN.WorldPositionDepth.xyz);
 	#define FP_WS_EYEDIR_EXIST
 
-	// ãƒªãƒ ãƒ©ã‚¤ãƒˆã‚„ç’°å¢ƒãƒžãƒƒãƒ—ã®æº–å‚™
+	// リムライトや環境マップの準備
 	#if defined(USE_LIGHTING)
 		#ifdef RIM_LIGHTING_ENABLED
 			#define FP_NDOTE_1
@@ -7468,7 +7468,7 @@ float4 ShiningFPShader(_FPINPUT) : FRAG_OUTPUT_COLOR0
 
 	#endif // defined(FP_NDOTE_1) && defined(FP_NDOTE_2)
 
-	// ãƒªãƒ ãƒ©ã‚¤ãƒˆ
+	// リムライト
 	#if defined(USE_LIGHTING)
 		#ifdef RIM_LIGHTING_ENABLED
 			#ifdef RIM_TRANSPARENCY_ENABLED
@@ -7480,9 +7480,9 @@ float4 ShiningFPShader(_FPINPUT) : FRAG_OUTPUT_COLOR0
 		#endif // RIM_LIGHTING_ENABLED
 	#endif // defined(USE_LIGHTING)
 
-	// ç’°å¢ƒãƒžãƒƒãƒ—
+	// 環境マップ
 	#if !(defined(FORCE_PER_VERTEX_ENVIRON_MAP) || !defined(USE_TANGENTS))
-		// ã‚­ãƒ¥ãƒ¼ãƒ–ãƒžãƒƒãƒ—/ã‚¹ãƒ•ã‚£ã‚¢ãƒžãƒƒãƒ—-PerPixel
+		// キューブマップ/スフィアマップ-PerPixel
 		#if defined(CUBE_MAPPING_ENABLED)
 	float3 cubeMapParams = reflect(-worldSpaceEyeDirection, worldSpaceNormal);
 	float cubeMapIntensity = 1.0f - max(0.0f, ndote) * (float)CubeFresnelPower;
@@ -7527,7 +7527,7 @@ float4 ShiningFPShader(_FPINPUT) : FRAG_OUTPUT_COLOR0
 
 	float3 ambient = float3(0.0f, 0.0f, 0.0f);;
 
-	// ãƒªãƒ ãƒ©ã‚¤ãƒˆ
+	// リムライト
 	#if defined(USE_LIGHTING)
 
 	float3 worldSpaceNormal = normalize(IN.Normal);
@@ -7595,9 +7595,9 @@ float4 ShiningFPShader(_FPINPUT) : FRAG_OUTPUT_COLOR0
 	float3 worldSpaceEyeDirection2 = normalize(getEyePosition() - IN.WorldPositionDepth.xyz);
 	float ndote2 = dot(worldSpaceNormal, worldSpaceEyeDirection2);
 		#if !defined(USE_LIGHTING)
-	shadingAmt = (1.0f - float3(ndote2, ndote2, ndote2)) * 1.0f;//æœ€é©åŒ–ã§ãã‚‹
+	shadingAmt = (1.0f - float3(ndote2, ndote2, ndote2)) * 1.0f;//最適化できる
 		#else
-	shadingAmt = (1.0f - float3(ndote2, ndote2, ndote2)) * float3( 0.345f*3.5f, 0.875f*3.5f, 1.0f*3.5f );//æœ€é©åŒ–ã§ãã‚‹
+	shadingAmt = (1.0f - float3(ndote2, ndote2, ndote2)) * float3( 0.345f*3.5f, 0.875f*3.5f, 1.0f*3.5f );//最適化できる
 //	shadingAmt = (1 - half3(ndote2)) * ShiningLightColor;
 //	shadingAmt = (1 - half3(ndote2)) * Light0.m_colorIntensity;
 		#endif
@@ -7659,7 +7659,7 @@ float4 ShiningFPShader(_FPINPUT) : FRAG_OUTPUT_COLOR0
 	#endif // defined(DUDV_MAPPING_ENABLED) || defined(WATER_SURFACE_ENABLED)
 #endif // defined(DCC_TOOL)
 
-	// ãƒˆã‚¥ãƒ¼ãƒ³ãƒ»ãƒã‚¤ãƒ©ã‚¤ãƒˆ-é©ç”¨
+	// トゥーン・ハイライト-適用
 	#if defined(CARTOON_SHADING_ENABLED)
 		#if !defined(CUBE_MAPPING_ENABLED) && !defined(SPHERE_MAPPING_ENABLED)
 			#ifdef CARTOON_HILIGHT_ENABLED
@@ -7673,9 +7673,9 @@ float4 ShiningFPShader(_FPINPUT) : FRAG_OUTPUT_COLOR0
 	sublightAmount += hilightAmt;
 	#endif // FP_HAS_HILIGHT
 
-	// å½±ã‚«ãƒ©ãƒ¼ã‚·ãƒ•ãƒˆ
+	// 影カラーシフト
 #if defined(SHADOW_COLOR_SHIFT_ENABLED)
-	// [Not Toon] è¡¨é¢ä¸‹æ•£ä¹±ã®ã‚ˆã†ãªä½¿ã„æ–¹
+	// [Not Toon] 表面下散乱のような使い方
 	float3 subLightColor2 = max(float3(1.0f,1.0f,1.0f), subLightColor * 2.0f);
 	shadingAmt.rgb += (float3(1.0f,1.0f,1.0f) - min(float3(1.0f, 1.0f, 1.0f), shadingAmt.rgb)) * ShadowColorShift * subLightColor2;
 #endif // SHADOW_COLOR_SHIFT_ENABLED
@@ -7686,9 +7686,9 @@ float4 ShiningFPShader(_FPINPUT) : FRAG_OUTPUT_COLOR0
 	float3 envMapColor = float3(1.0f, 1.0f, 1.0f);
 	#endif // CUBE_MAPPING_ENABLED || SPHERE_MAPPING_ENABLED
 
-	// ã‚­ãƒ¥ãƒ¼ãƒ–ãƒžãƒƒãƒ—/ã‚¹ãƒ•ã‚£ã‚¢ãƒžãƒƒãƒ—-é©ç”¨ (éžIBL)
+	// キューブマップ/スフィアマップ-適用 (非IBL)
 #ifdef EMVMAP_AS_IBL_ENABLED
-	// ã‚­ãƒ¥ãƒ¼ãƒ–ãƒžãƒƒãƒ—/ã‚¹ãƒ•ã‚£ã‚¢ãƒžãƒƒãƒ—-é©ç”¨ (IBL)
+	// キューブマップ/スフィアマップ-適用 (IBL)
 	#if defined(CUBE_MAPPING_ENABLED)
 	shadingAmt.rgb	+= cubeMapColor.rgb * cubeMapIntensity * envMapColor * glossValue;
 	#elif defined(SPHERE_MAPPING_ENABLED)
@@ -7705,20 +7705,20 @@ float4 ShiningFPShader(_FPINPUT) : FRAG_OUTPUT_COLOR0
 	shadingAmt *= ambientOcclusion;
 	shadingAmt += sublightAmount;
 
-	// è‡ªå·±ç™ºå…‰åº¦ãƒžãƒƒãƒ— ãƒ©ã‚¤ãƒˆã‚„ã‚·ãƒ£ãƒ‰ã‚¦ã‚’æ‰“ã¡æ¶ˆã™å€¤ã¨ã„ã†è§£é‡ˆ
+	// 自己発光度マップ ライトやシャドウを打ち消す値という解釈
 #if defined(EMISSION_MAPPING_ENABLED)
 	float4 emiTex = EmissionMapSampler.Sample(EmissionMapSamplerS, IN.TexCoord.xy);
 	shadingAmt.rgb = lerp(shadingAmt.rgb, float3(1.0f, 1.0f, 1.0f), float3(emiTex.r,emiTex.r,emiTex.r));
 #endif // EMISSION_MAPPING_ENABLED
 
-	// ãƒ©ã‚¤ãƒˆã®åˆè¨ˆ
+	// ライトの合計
 	resultColor.rgb *= shadingAmt;
 
 #if defined(MULTIPLICATIVE_BLENDING_ENABLED)
 	resultColor.rgb += max((1.0f - resultColor.rgb), 0.0f) * (1.0f - shadowValue);
 #endif
 
-	// ãƒ•ã‚©ã‚°
+	// フォグ
 	//
 #ifdef FOG_ENABLED
 	#if !defined(FP_PORTRAIT)
@@ -7740,7 +7740,7 @@ float4 ShiningFPShader(_FPINPUT) : FRAG_OUTPUT_COLOR0
 	#endif
 
 
-	// å‡ºåŠ›
+	// 出力
 #if defined(FP_FORCETRANSPARENT) || defined(FP_PORTRAIT) || defined(FP_SHINING)
 	return resultColor;
 #endif // defined(FP_FORCETRANSPARENT) || defined(FP_PORTRAIT) || defined(FP_SHINING)
@@ -7759,7 +7759,7 @@ float4 ShiningFPShader(_FPINPUT) : FRAG_OUTPUT_COLOR0
 //	glowValue += (lumi > GlowThreshold) ? 1.0h : 0.0h;
 			#endif
 			#if defined(GLARE_OVERFLOW_ENABLED)
-	float3 glowof = max(float3(0.0f, 0.0f, 0.0f), resultColor.rgb - GlowThreshold); //GlowThreshold float3ã«?
+	float3 glowof = max(float3(0.0f, 0.0f, 0.0f), resultColor.rgb - GlowThreshold); //GlowThreshold float3に?
 	glowValue += dot(glowof, 1.0f);
 			#endif
 
@@ -7777,7 +7777,7 @@ float4 ShiningFPShader(_FPINPUT) : FRAG_OUTPUT_COLOR0
 		#endif // defined(GLARE_MAP_ENABLED) || defined(GLARE_OVERFLOW_ENABLED) || defined(GLARE_HIGHTPASS_ENABLED)
 //		#endif // defined(WATER_SURFACE_ENABLED) || defined(GLARE_MAP_ENABLED) || defined(GLARE_OVERFLOW_ENABLED) || defined(GLARE_HIGHTPASS_ENABLED)
 	#else // !defined(ALPHA_BLENDING_ENABLED)
-	// Mayaã§ã¯ã‚¢ãƒ«ãƒ•ã‚¡ã‚’ä»–ã®ç”¨é€”ã§ä½¿ã†ã¨ã‚¹ã‚¦ã‚©ãƒƒãƒã®è‰²ãŒå¤‰ã«ãªã‚‹
+	// Mayaではアルファを他の用途で使うとスウォッチの色が変になる
 	return resultColor;
 	#endif // !defined(ALPHA_BLENDING_ENABLED)
 #endif // FP_DEFAULT || FP_DEFAULTRT
@@ -7796,7 +7796,7 @@ float4 ShiningFPShader(_FPINPUT) : FRAG_OUTPUT_COLOR0
 #line 2901 "Z:/data/shaders/ed8.fx"
 #endif // defined(LIGHT_DIRECTION_FOR_CHARACTER_ENABLED)
 
-// ã‚¹ãƒ¼ãƒ‘ãƒ¼çŠ¶æ…‹
+// スーパー状態
 #if defined(SHINING_MODE_ENABLED)
 	#undef FP_DEFAULT
 	#undef FP_DEFAULTRT
@@ -7821,7 +7821,7 @@ float4 GlowFPShader(DefaultFPInput IN) : FRAG_OUTPUT_COLOR0
 	clip(resultColor.a - AlphaThreshold);
 		#endif // defined(ALPHA_TESTING_ENABLED)
 
-	// ãƒ•ã‚©ã‚°
+	// フォグ
 	//
 		#ifdef FOG_ENABLED
 			#if defined(DCC_TOOL)
@@ -7844,7 +7844,7 @@ float4 GlowFPShader(DefaultFPInput IN) : FRAG_OUTPUT_COLOR0
 		#if defined(GENERATE_RELFECTION_ENABLED)
 float4 GlowFPShaderRT(DefaultFPInput IN) : FRAG_OUTPUT_COLOR0
 {
-	// æ°´é¢ä¸‹ã‚’ã‚¯ãƒªãƒƒãƒ— - ï¼ˆZè»¸å›žè»¢ãŒãªã„ã¨ã‹æ¡ä»¶ã‚’ã¤ã‘ã‚Œã° oblique frustum clippingã®ã‚ˆã†ãªå°„å½±è¡Œåˆ—ã‚’åŠ å·¥ã™ã‚‹æ‰‹æ³•ãŒã‚ã‚‹)
+	// 水面下をクリップ - (Z軸回転がないとか条件をつければ oblique frustum clippingのような射影行列を加工する手法がある)
 	float3 waterNorm = float3(IN.WorldPositionDepth.x, IN.WorldPositionDepth.y - UserClipPlane.w, IN.WorldPositionDepth.z);
 	clip(dot(UserClipPlane.xyz, normalize(waterNorm) ));
 
@@ -7855,7 +7855,7 @@ float4 GlowFPShaderRT(DefaultFPInput IN) : FRAG_OUTPUT_COLOR0
 	clip(resultColor.a - AlphaThreshold);
 			#endif // defined(ALPHA_TESTING_ENABLED)
 
-	// ãƒ•ã‚©ã‚°
+	// フォグ
 	//
 			#ifdef FOG_ENABLED
 				#if defined(DCC_TOOL)
@@ -7872,7 +7872,7 @@ float4 GlowFPShaderRT(DefaultFPInput IN) : FRAG_OUTPUT_COLOR0
 
 ///////////////////////////////////////////////////////////////////////////////
 
-// ã‚¨ãƒƒã‚¸VP
+// エッジVP
 //
 	#if !defined(DCC_TOOL)
 EdgeVPOutput EdgeVPShader(EdgeVPInput IN)
@@ -7891,13 +7891,13 @@ EdgeVPOutput EdgeVPShader(EdgeVPInput IN)
 	float3 worldSpaceNormal = normalize(mul(float4(IN.Normal.xyz, 0.0f), World).xyz);
 	#endif // SKINNING_ENABLED
 
-	// æ³•ç·šæ–¹å‘ã«é ‚ç‚¹ã‚’è†¨ã‚‰ã¾ã›ã‚‹ï¼ˆãƒ—ãƒ­ã‚¸ã‚§ã‚¯ã‚·ãƒ§ãƒ³ç©ºé–“ä¸Šï¼‰
+	// 法線方向に頂点を膨らませる(プロジェクション空間上)
 	//
 	float2 projSpaceNormal = mul(float4(worldSpaceNormal.xyz, 0.0), scene_ViewProjection).xy;
 	projSpaceNormal = normalize(projSpaceNormal);
 	
 
-	projSpaceNormal *= OUT.Position.w;		// ã‚«ãƒ¡ãƒ©è·é›¢ã‚’è€ƒæ…®
+	projSpaceNormal *= OUT.Position.w;		// カメラ距離を考慮
 	OUT.Position.xy += (float2)(projSpaceNormal * GameEdgeParameters.w);
 
 	OUT.TexCoord.xyz = float3(IN.TexCoord.xy, 0.0f);
@@ -7914,9 +7914,9 @@ EdgeVPOutput EdgeVPShader(EdgeVPInput IN)
 }
 
 //-----------------------------------------------------------------------------
-// ã‚¨ãƒƒã‚¸FP
+// エッジFP
 //
-// éžé£½å’ŒåŠ ç®— - [ã‚·ã‚§ãƒ¼ãƒ€ãƒ¢ãƒ‡ãƒ«1.1ã‚·ãƒ³ã‚°ãƒ«ãƒ‘ã‚¹ã§é†œã„åŠ ç®—åˆæˆã®é£½å’Œã‚’ãªã‚“ã¨ã‹ã™ã‚‹]ã®ã‚„ã¤
+// 非飽和加算 - [シェーダモデル1.1シングルパスで醜い加算合成の飽和をなんとかする]のやつ
 float4 EvaluateAddUnsaturation(float4 color)
 {
 	float4 t0 = color;
@@ -7955,7 +7955,7 @@ float4 EdgeFPShader(EdgeFPInput IN) : FRAG_OUTPUT_COLOR0
 	#ifdef CASTS_SHADOWS
 
 ///////////////////////////////////////////////////////////////////////////////
-// ã‚·ãƒ£ãƒ‰ã‚¦VP(ãƒ†ã‚¯ã‚¹ãƒãƒ£ãªã—)
+// シャドウVP(テクスチャなし)
 //
 DepthVPOutput ShadowVPShader(DepthVPInput IN)
 {
@@ -8007,7 +8007,7 @@ DepthVPOutput ShadowVPShader(DepthVPInput IN)
 }
 
 //-----------------------------------------------------------------------------
-// ã‚·ãƒ£ãƒ‰ã‚¦FP(ãƒ†ã‚¯ã‚¹ãƒãƒ£ãªã—)
+// シャドウFP(テクスチャなし)
 //
 float4 ShadowFPShader(DepthVPOutput IN) : FRAG_OUTPUT_COLOR0
 {
@@ -8015,7 +8015,7 @@ float4 ShadowFPShader(DepthVPOutput IN) : FRAG_OUTPUT_COLOR0
 }
 
 ///////////////////////////////////////////////////////////////////////////////
-// ã‚·ãƒ£ãƒ‰ã‚¦VP(ãƒ†ã‚¯ã‚¹ãƒãƒ£ã‚ã‚Š)
+// シャドウVP(テクスチャあり)
 //
 ShadowTexturedVPOutput ShadowTexturedVPShader(ShadowTexturedVPInput IN)
 {
@@ -8083,7 +8083,7 @@ ShadowTexturedVPOutput ShadowTexturedVPShader(ShadowTexturedVPInput IN)
 }
 
 //-----------------------------------------------------------------------------
-// ã‚·ãƒ£ãƒ‰ã‚¦FP(ãƒ†ã‚¯ã‚¹ãƒãƒ£ã‚ã‚Š)
+// シャドウFP(テクスチャあり)
 //
 float4 ShadowTexturedFPShader(ShadowTexturedVPOutput IN/*, float4 ScreenPosition : WPOS*/) : FRAG_OUTPUT_COLOR0
 {
@@ -8215,7 +8215,7 @@ RasterizerState ReverseCullRasterState
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 	
 //-----------------------------------------------------------------------------
-// é€šå¸¸
+// 通常
 #if !defined(ALPHA_BLENDING_ENABLED) || defined(TWOPASS_ALPHA_BLENDING_ENABLED)
 
 	#if defined(WATER_SURFACE_ENABLED) && !defined(DCC_TOOL)
@@ -8385,16 +8385,16 @@ technique11 Transparent
 		SetPixelShader( CompileShader( ED8_PROFILE_FP, DefaultFPShader() ) );
 		
 	#ifdef ADDITIVE_BLENDING_ENABLED
-		//BlendFunc = {srcAlpha, one};	// åŠ ç®—
+		//BlendFunc = {srcAlpha, one};	// 加算
 		SetBlendState( SrcAlphaOneBlend, float4( 0.0f, 0.0f, 0.0f, 0.0f ), 0xFFFFFFFF );
 	#elif defined(SUBTRACT_BLENDING_ENABLED)
-		//BlendFunc = {zero, invSrcColor};	// æ¸›ç®—
+		//BlendFunc = {zero, invSrcColor};	// 減算
 		SetBlendState( ZeroInvSrcColorBlend, float4( 0.0f, 0.0f, 0.0f, 0.0f ), 0xFFFFFFFF );
 	#elif defined(MULTIPLICATIVE_BLENDING_ENABLED)
-		//BlendFunc = {zero, invSrcColor};	// ä¹—ç®—
+		//BlendFunc = {zero, invSrcColor};	// 乗算
 		SetBlendState( ZeroInvSrcColorBlend, float4( 0.0f, 0.0f, 0.0f, 0.0f ), 0xFFFFFFFF );
 	#else
-		//BlendFunc = {srcAlpha, oneMinusSrcAlpha};	// Î±åˆæˆ
+		//BlendFunc = {srcAlpha, oneMinusSrcAlpha};	// α合成
 		SetBlendState( SrcAlphaOneMinusSrcAlphaBlend, float4( 0.0f, 0.0f, 0.0f, 0.0f ), 0xFFFFFFFF );
 	#endif
 		
@@ -8437,16 +8437,16 @@ technique11 ForceTransparent
 		SetPixelShader( CompileShader( ED8_PROFILE_FP, ForceTransparentFPShader() ) );
 		
 	#ifdef ADDITIVE_BLENDING_ENABLED
-		//BlendFunc = {srcAlpha, one};	// åŠ ç®—
+		//BlendFunc = {srcAlpha, one};	// 加算
 		SetBlendState( SrcAlphaOneBlend, float4( 0.0f, 0.0f, 0.0f, 0.0f ), 0xFFFFFFFF );
 	#elif defined(SUBTRACT_BLENDING_ENABLED)
-		//BlendFunc = {zero, invSrcColor};	// æ¸›ç®—
+		//BlendFunc = {zero, invSrcColor};	// 減算
 		SetBlendState( ZeroInvSrcColorBlend, float4( 0.0f, 0.0f, 0.0f, 0.0f ), 0xFFFFFFFF );
 	#elif defined(MULTIPLICATIVE_BLENDING_ENABLED)
-		//BlendFunc = {zero, invSrcColor};	// ä¹—ç®—
+		//BlendFunc = {zero, invSrcColor};	// 乗算
 		SetBlendState( ZeroInvSrcColorBlend, float4( 0.0f, 0.0f, 0.0f, 0.0f ), 0xFFFFFFFF );
 	#else
-		//BlendFunc = {srcAlpha, oneMinusSrcAlpha};	// Î±åˆæˆ
+		//BlendFunc = {srcAlpha, oneMinusSrcAlpha};	// α合成
 		SetBlendState( SrcAlphaOneMinusSrcAlphaBlend, float4( 0.0f, 0.0f, 0.0f, 0.0f ), 0xFFFFFFFF );
 	#endif
 
@@ -8468,8 +8468,8 @@ technique11 ForceTransparent
 
 	//<<-----------------------------------------------------------------------------
 	#ifdef FOR_EFFECT
-		//ã‚¨ãƒ•ã‚§ã‚¯ãƒˆç”¨ï¼ˆå ´åˆã«ã‚ˆã£ã¦ã¯æ±Žç”¨ã«ã—ã¦ã‚‚å¯ï¼‰ Zæ›¸ãè¾¼ã¿ãªã—
-		//ã‚¨ãƒ•ã‚§ã‚¯ãƒˆæ±Žç”¨(ãƒ–ãƒ¬ãƒ³ãƒ‰ãªã©ã¯ãƒ—ãƒ­ã‚°ãƒ©ãƒ å´ã‹ã‚‰åˆ¶å¾¡)
+		//エフェクト用(場合によっては汎用にしても可) Z書き込みなし
+		//エフェクト汎用(ブレンドなどはプログラム側から制御)
 		technique11 ForceTransparent_forEffect
 		<
 			string PhyreRenderPass = "ForceTransparent_forEffect";
@@ -8482,16 +8482,16 @@ technique11 ForceTransparent
 				SetPixelShader( CompileShader( ED8_PROFILE_FP, ForceTransparentFPShader() ) );
 				
 			#ifdef ADDITIVE_BLENDING_ENABLED
-				//BlendFunc = {srcAlpha, one};	// åŠ ç®—
+				//BlendFunc = {srcAlpha, one};	// 加算
 				SetBlendState( SrcAlphaOneBlend, float4( 0.0f, 0.0f, 0.0f, 0.0f ), 0xFFFFFFFF );
 			#elif defined(SUBTRACT_BLENDING_ENABLED)
-				//BlendFunc = {zero, invSrcColor};	// æ¸›ç®—
+				//BlendFunc = {zero, invSrcColor};	// 減算
 				SetBlendState( ZeroInvSrcColorBlend, float4( 0.0f, 0.0f, 0.0f, 0.0f ), 0xFFFFFFFF );
 			#elif defined(MULTIPLICATIVE_BLENDING_ENABLED)
-				//BlendFunc = {zero, invSrcColor};	// ä¹—ç®—
+				//BlendFunc = {zero, invSrcColor};	// 乗算
 				SetBlendState( ZeroInvSrcColorBlend, float4( 0.0f, 0.0f, 0.0f, 0.0f ), 0xFFFFFFFF );
 			#else
-				//BlendFunc = {srcAlpha, oneMinusSrcAlpha};	// Î±åˆæˆ
+				//BlendFunc = {srcAlpha, oneMinusSrcAlpha};	// α合成
 				SetBlendState( SrcAlphaOneMinusSrcAlphaBlend, float4( 0.0f, 0.0f, 0.0f, 0.0f ), 0xFFFFFFFF );
 			#endif
 			
@@ -8509,7 +8509,7 @@ technique11 ForceTransparent
 #if !defined(DCC_TOOL) && !defined(NOTHING_ENABLED) && !defined(CASTS_SHADOWS_ONLY)
 
 //-----------------------------------------------------------------------------
-// é€šå¸¸-ãƒ¬ãƒ³ãƒ€ãƒªãƒ³ã‚°ã‚¿ãƒ¼ã‚²ãƒƒãƒˆç”¨
+// 通常-レンダリングターゲット用
 	#if defined(GENERATE_RELFECTION_ENABLED)
 		#if !defined(ALPHA_BLENDING_ENABLED)
 technique11 DefaultRT
@@ -8560,16 +8560,16 @@ technique11 DefaultRT
 		SetPixelShader( CompileShader( ED8_PROFILE_FP, DefaultFPShaderRT() ) );
 		
 		#ifdef ADDITIVE_BLENDING_ENABLED
-			//BlendFunc = {srcAlpha, one};	// åŠ ç®—
+			//BlendFunc = {srcAlpha, one};	// 加算
 			SetBlendState( SrcAlphaOneBlend, float4( 0.0f, 0.0f, 0.0f, 0.0f ), 0xFFFFFFFF );
 		#elif defined(SUBTRACT_BLENDING_ENABLED)
-			//BlendFunc = {zero, invSrcColor};	// æ¸›ç®—
+			//BlendFunc = {zero, invSrcColor};	// 減算
 			SetBlendState( ZeroInvSrcColorBlend, float4( 0.0f, 0.0f, 0.0f, 0.0f ), 0xFFFFFFFF );
 		#elif defined(MULTIPLICATIVE_BLENDING_ENABLED)
-			//BlendFunc = {zero, invSrcColor};	// ä¹—ç®—
+			//BlendFunc = {zero, invSrcColor};	// 乗算
 			SetBlendState( ZeroInvSrcColorBlend, float4( 0.0f, 0.0f, 0.0f, 0.0f ), 0xFFFFFFFF );
 		#else
-			//BlendFunc = {srcAlpha, oneMinusSrcAlpha};	// Î±åˆæˆ
+			//BlendFunc = {srcAlpha, oneMinusSrcAlpha};	// α合成
 			SetBlendState( SrcAlphaOneMinusSrcAlphaBlend, float4( 0.0f, 0.0f, 0.0f, 0.0f ), 0xFFFFFFFF );
 		#endif
 		
@@ -8588,7 +8588,7 @@ technique11 DefaultRT
 
 
 //-----------------------------------------------------------------------------
-// é€šå¸¸-ç«‹ã¡çµµç”¨
+// 通常-立ち絵用
 	#if defined(LIGHT_DIRECTION_FOR_CHARACTER_ENABLED)
 		#if !defined(ALPHA_BLENDING_ENABLED)
 technique11 PortraitOpaque
@@ -8635,16 +8635,16 @@ technique11 PortraitTransparent
 		
 		
 		#ifdef ADDITIVE_BLENDING_ENABLED
-			//BlendFunc = {srcAlpha, one};	// åŠ ç®—
+			//BlendFunc = {srcAlpha, one};	// 加算
 			SetBlendState( SrcAlphaOneBlend, float4( 0.0f, 0.0f, 0.0f, 0.0f ), 0xFFFFFFFF );
 		#elif defined(SUBTRACT_BLENDING_ENABLED)
-			//BlendFunc = {zero, invSrcColor};	// æ¸›ç®—
+			//BlendFunc = {zero, invSrcColor};	// 減算
 			SetBlendState( ZeroInvSrcColorBlend, float4( 0.0f, 0.0f, 0.0f, 0.0f ), 0xFFFFFFFF );
 		#elif defined(MULTIPLICATIVE_BLENDING_ENABLED)
-			//BlendFunc = {zero, invSrcColor};	// ä¹—ç®—
+			//BlendFunc = {zero, invSrcColor};	// 乗算
 			SetBlendState( ZeroInvSrcColorBlend, float4( 0.0f, 0.0f, 0.0f, 0.0f ), 0xFFFFFFFF );
 		#else
-			//BlendFunc = {srcAlpha, oneMinusSrcAlpha};	// Î±åˆæˆ
+			//BlendFunc = {srcAlpha, oneMinusSrcAlpha};	// α合成
 			SetBlendState( SrcAlphaOneMinusSrcAlphaBlend, float4( 0.0f, 0.0f, 0.0f, 0.0f ), 0xFFFFFFFF );
 		#endif
 		
@@ -8673,16 +8673,16 @@ technique11 PortraitForceTransparent
 		SetPixelShader( CompileShader( ED8_PROFILE_FP, PortraitFPShader() ) );
 		
 		#ifdef ADDITIVE_BLENDING_ENABLED
-			//BlendFunc = {srcAlpha, one};	// åŠ ç®—
+			//BlendFunc = {srcAlpha, one};	// 加算
 			SetBlendState( SrcAlphaOneBlend, float4( 0.0f, 0.0f, 0.0f, 0.0f ), 0xFFFFFFFF );
 		#elif defined(SUBTRACT_BLENDING_ENABLED)
-			//BlendFunc = {zero, invSrcColor};	// æ¸›ç®—
+			//BlendFunc = {zero, invSrcColor};	// 減算
 			SetBlendState( ZeroInvSrcColorBlend, float4( 0.0f, 0.0f, 0.0f, 0.0f ), 0xFFFFFFFF );
 		#elif defined(MULTIPLICATIVE_BLENDING_ENABLED)
-			//BlendFunc = {zero, invSrcColor};	// ä¹—ç®—
+			//BlendFunc = {zero, invSrcColor};	// 乗算
 			SetBlendState( ZeroInvSrcColorBlend, float4( 0.0f, 0.0f, 0.0f, 0.0f ), 0xFFFFFFFF );
 		#else
-			//BlendFunc = {srcAlpha, oneMinusSrcAlpha};	// Î±åˆæˆ
+			//BlendFunc = {srcAlpha, oneMinusSrcAlpha};	// α合成
 			SetBlendState( SrcAlphaOneMinusSrcAlphaBlend, float4( 0.0f, 0.0f, 0.0f, 0.0f ), 0xFFFFFFFF );
 		#endif
 		
@@ -8699,7 +8699,7 @@ technique11 PortraitForceTransparent
 	#endif // defined(LIGHT_DIRECTION_FOR_CHARACTER_ENABLED)
 
 //-----------------------------------------------------------------------------
-// ã‚·ãƒ£ã‚¤ãƒ‹ãƒ³ã‚°ãƒ¢ãƒ¼ãƒ‰
+// シャイニングモード
 	#if defined(SHINING_MODE_ENABLED)
 
 		#if !defined(ALPHA_BLENDING_ENABLED)
@@ -8756,16 +8756,16 @@ technique11 ShiningTransparent
 		#endif
 		
 		#ifdef ADDITIVE_BLENDING_ENABLED
-			//BlendFunc = {srcAlpha, one};	// åŠ ç®—
+			//BlendFunc = {srcAlpha, one};	// 加算
 			SetBlendState( SrcAlphaOneBlend, float4( 0.0f, 0.0f, 0.0f, 0.0f ), 0xFFFFFFFF );
 		#elif defined(SUBTRACT_BLENDING_ENABLED)
-			//BlendFunc = {zero, invSrcColor};	// æ¸›ç®—
+			//BlendFunc = {zero, invSrcColor};	// 減算
 			SetBlendState( ZeroInvSrcColorBlend, float4( 0.0f, 0.0f, 0.0f, 0.0f ), 0xFFFFFFFF );
 		#elif defined(MULTIPLICATIVE_BLENDING_ENABLED)
-			//BlendFunc = {zero, invSrcColor};	// ä¹—ç®—
+			//BlendFunc = {zero, invSrcColor};	// 乗算
 			SetBlendState( ZeroInvSrcColorBlend, float4( 0.0f, 0.0f, 0.0f, 0.0f ), 0xFFFFFFFF );
 		#else
-			//BlendFunc = {srcAlpha, oneMinusSrcAlpha};	// Î±åˆæˆ
+			//BlendFunc = {srcAlpha, oneMinusSrcAlpha};	// α合成
 			SetBlendState( SrcAlphaOneMinusSrcAlphaBlend, float4( 0.0f, 0.0f, 0.0f, 0.0f ), 0xFFFFFFFF );
 		#endif
 		
@@ -8799,16 +8799,16 @@ technique11 ShiningForceTransparent
 		#endif
 		
 		#ifdef ADDITIVE_BLENDING_ENABLED
-			//BlendFunc = {srcAlpha, one};	// åŠ ç®—
+			//BlendFunc = {srcAlpha, one};	// 加算
 			SetBlendState( SrcAlphaOneBlend, float4( 0.0f, 0.0f, 0.0f, 0.0f ), 0xFFFFFFFF );
 		#elif defined(SUBTRACT_BLENDING_ENABLED)
-			//BlendFunc = {zero, invSrcColor};	// æ¸›ç®—
+			//BlendFunc = {zero, invSrcColor};	// 減算
 			SetBlendState( ZeroInvSrcColorBlend, float4( 0.0f, 0.0f, 0.0f, 0.0f ), 0xFFFFFFFF );
 		#elif defined(MULTIPLICATIVE_BLENDING_ENABLED)
-			//BlendFunc = {zero, invSrcColor};	// ä¹—ç®—
+			//BlendFunc = {zero, invSrcColor};	// 乗算
 			SetBlendState( ZeroInvSrcColorBlend, float4( 0.0f, 0.0f, 0.0f, 0.0f ), 0xFFFFFFFF );
 		#else
-			//BlendFunc = {srcAlpha, oneMinusSrcAlpha};	// Î±åˆæˆ
+			//BlendFunc = {srcAlpha, oneMinusSrcAlpha};	// α合成
 			SetBlendState( SrcAlphaOneMinusSrcAlphaBlend, float4( 0.0f, 0.0f, 0.0f, 0.0f ), 0xFFFFFFFF );
 		#endif
 		
@@ -8824,7 +8824,7 @@ technique11 ShiningForceTransparent
 	#endif // defined(SHINING_MODE_ENABLED)
 
 //-----------------------------------------------------------------------------
-// ã‚¨ãƒƒã‚¸
+// エッジ
 	#if defined(ALPHA_BLENDING_ENABLED) || defined(ALPHA_TESTING_ENABLED)
 
 technique11 EdgeOpaque
@@ -8852,7 +8852,7 @@ technique11 EdgeTransparent
 			//BlendFunc = {one, invSrcAlpha};
 			SetBlendState( OneInvSrcAlphaBlend, float4( 0.0f, 0.0f, 0.0f, 0.0f ), 0xFFFFFFFF );
 		#else // USE_EDGE_ADDUNSAT
-			//BlendFunc = {srcAlpha, one};	// åŠ ç®—
+			//BlendFunc = {srcAlpha, one};	// 加算
 			SetBlendState( SrcAlphaOneBlend, float4( 0.0f, 0.0f, 0.0f, 0.0f ), 0xFFFFFFFF );
 		#endif // USE_EDGE_ADDUNSAT
 		

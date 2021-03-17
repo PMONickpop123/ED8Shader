@@ -420,7 +420,7 @@ float3 EvaluateAmbient(float3 normal) {
                         lightingAmount *= shadowValue * glossValue;
                     #endif // SPECULAR_ENABLED
 
-                    // ãƒˆã‚¥ãƒ¼ãƒ³
+                    // トゥーン
                     #if defined(CARTOON_SHADING_ENABLED)
                         shadingAmount *= calcToonShadingValueFP(In.CartoonMap.z, shadowValue);
                     #else // CARTOON_SHADING_ENABLED
