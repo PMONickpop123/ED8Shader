@@ -71,8 +71,6 @@ void ShadowVPShader (ShadowVPInput v, out float4 opos : SV_POSITION
         UNITY_INITIALIZE_VERTEX_OUTPUT_STEREO(os);
     #endif
 
-    TRANSFER_SHADOW_CASTER_NOPOS(o, opos)
-
     #if !defined(UVA_SCRIPT_ENABLED)
         #if defined(TEXCOORD_OFFSET_ENABLED)
             v.texcoord.xy += (float2)(_TexCoordOffset * getGlobalTextureFactor());
@@ -102,6 +100,9 @@ void ShadowVPShader (ShadowVPInput v, out float4 opos : SV_POSITION
     #else // WINDY_GRASS_ENABLED
         opos = UnityObjectToClipPos(position);
     #endif // WINDY_GRASS_ENABLED
+
+    TRANSFER_SHADOW_CASTER_NOPOS(o, opos)
+    //TRANSFER_SHADOW_CASTER_NOPOS_LEGACY (o, opos)
 }
 
 half4 ShadowFPShader (UNITY_POSITION(vpos)
