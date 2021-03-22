@@ -8,18 +8,9 @@
 #endif
 
 // Need to output UVs in shadow caster, since we need to sample texture and do clip/dithering based on it
-#if defined(ALPHA_TESTING_ENABLED) || defined(ALPHA_BLENDING_ENABLED)
+//#if defined(ALPHA_TESTING_ENABLED) || defined(ALPHA_BLENDING_ENABLED)
     #define UNITY_STANDARD_USE_SHADOW_UVS 1
-#endif
-
-// Has a non-empty shadow caster output struct (it's an error to have empty structs on some platforms...)
-#if !defined(V2F_SHADOW_CASTER_NOPOS_IS_EMPTY) || defined(UNITY_STANDARD_USE_SHADOW_UVS)
-    #define UNITY_STANDARD_USE_SHADOW_OUTPUT_STRUCT 1
-#endif
-
-#if defined(UNITY_STEREO_INSTANCING_ENABLED)
-    #define UNITY_STANDARD_USE_STEREO_SHADOW_OUTPUT_STRUCT 1
-#endif
+//#endif
 
 half4 _Color = half4(1, 1, 1, 1);
 half _Cutoff = 0.5;
@@ -31,45 +22,30 @@ half _Cutoff = 0.5;
 struct ShadowVPInput {
     float4 vertex   : POSITION;
     float3 normal   : NORMAL;
-    float2 texcoord      : TEXCOORD0;
+    float2 texcoord : TEXCOORD0;
 
     UNITY_VERTEX_INPUT_INSTANCE_ID
 };
 
-#if defined(UNITY_STANDARD_USE_SHADOW_OUTPUT_STRUCT)
+#if !defined(V2F_SHADOW_CASTER_NOPOS_IS_EMPTY) || defined(UNITY_STANDARD_USE_SHADOW_UVS)
     struct ShadowVPOutput {
         V2F_SHADOW_CASTER_NOPOS
-
-        #if defined(UNITY_STANDARD_USE_SHADOW_UVS)
-            float2 texcoord : TEXCOORD1;
-        #endif
-    };
-#endif
-
-#if defined(UNITY_STANDARD_USE_STEREO_SHADOW_OUTPUT_STRUCT)
-    struct ShadowVPOutputStereo {
-        UNITY_VERTEX_OUTPUT_STEREO
+        float4 pos : SV_POSITION;
+        float2 texcoord : TEXCOORD1;
+        UNITY_VERTEX_INPUT_INSTANCE_ID
     };
 #endif
 
 // We have to do these dances of outputting SV_POSITION separately from the vertex shader,
 // and inputting VPOS in the pixel shader, since they both map to "POSITION" semantic on
 // some platforms, and then things don't go well.
-void ShadowVPShader (ShadowVPInput v, out float4 opos : SV_POSITION
-    #ifdef UNITY_STANDARD_USE_SHADOW_OUTPUT_STRUCT
-    , out ShadowVPOutput o
-    #endif
+ShadowVPOutput ShadowVPShader (ShadowVPInput v) {
+    ShadowVPOutput o;
 
-    #ifdef UNITY_STANDARD_USE_STEREO_SHADOW_OUTPUT_STRUCT
-    , out ShadowVPOutputStereo os
-    #endif
-)
-{
     UNITY_SETUP_INSTANCE_ID(v);
-
-    #ifdef UNITY_STANDARD_USE_STEREO_SHADOW_OUTPUT_STRUCT
-        UNITY_INITIALIZE_VERTEX_OUTPUT_STEREO(os);
-    #endif
+    UNITY_INITIALIZE_OUTPUT(ShadowVPOutput, o);
+    UNITY_TRANSFER_INSTANCE_ID(v, o);
+    UNITY_INITIALIZE_VERTEX_OUTPUT_STEREO(o);
 
     #if !defined(UVA_SCRIPT_ENABLED)
         #if defined(TEXCOORD_OFFSET_ENABLED)
@@ -86,6 +62,7 @@ void ShadowVPShader (ShadowVPInput v, out float4 opos : SV_POSITION
     #endif
 
     float3 position = v.vertex.xyz;
+    float3 opos = position;
 
     #if defined(WINDY_GRASS_ENABLED)
         float3 worldSpacePosition = mul(unity_ObjectToWorld, position);
@@ -96,17 +73,20 @@ void ShadowVPShader (ShadowVPInput v, out float4 opos : SV_POSITION
             worldSpacePosition = calcWindyGrass(worldSpacePosition.xyz);
         #endif // WINDY_GRASS_TEXV_WEIGHT_ENABLED
 
-        opos = UnityWorldToClipPos(worldSpacePosition);
+        opos = mul(unity_WorldToObject, worldSpacePosition);
+        o.pos = UnityWorldToClipPos(worldSpacePosition);
     #else // WINDY_GRASS_ENABLED
-        opos = UnityObjectToClipPos(position);
+        o.pos = UnityObjectToClipPos(position);
     #endif // WINDY_GRASS_ENABLED
 
-    TRANSFER_SHADOW_CASTER_NOPOS(o, opos)
-    //TRANSFER_SHADOW_CASTER_NOPOS_LEGACY (o, opos)
+    o.pos = UnityClipSpaceShadowCasterPos(opos, v.normal);
+    o.pos = UnityApplyLinearShadowBias(o.pos);
+
+    return o;
 }
 
 half4 ShadowFPShader (UNITY_POSITION(vpos)
-#ifdef UNITY_STANDARD_USE_SHADOW_OUTPUT_STRUCT
+#if !defined(V2F_SHADOW_CASTER_NOPOS_IS_EMPTY) || defined(UNITY_STANDARD_USE_SHADOW_UVS)
     , ShadowVPOutput i
 #endif
 ) : SV_Target

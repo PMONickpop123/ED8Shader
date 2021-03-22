@@ -244,11 +244,11 @@
 #endif
 
 #if defined(LIGHT_DIRECTION_FOR_CHARACTER_ENABLED)
-    float3 _LightDirForChar;
+    half3 _LightDirForChar;
 #endif // LIGHT_DIRECTION_FOR_CHARACTER_ENABLED
 
-float _PerMaterialMainLightClampFactor;
-
+half _PerMaterialMainLightClampFactor;
+half _GlobalMainLightClampFactor;
 #if defined(MAINLIGHT_CLAMP_FACTOR_ENABLED)
 	#if defined(PER_MATERIAL_MAIN_LIGHT_CLAMP_ENABLED)
 		#define _MainLightClampFactor _PerMaterialMainLightClampFactor
@@ -263,84 +263,84 @@ float _PerMaterialMainLightClampFactor;
 #endif // defined(USE_SCREEN_UV)
 
 #if defined(GENERATE_RELFECTION_ENABLED) || defined(WATER_SURFACE_ENABLED)
-    float4 UserClipPlane = {0.0, 1.0, 0.0, 0.0}; // xyzw (nx,ny,nz,height)
+    half4 UserClipPlane = {0.0, 1.0, 0.0, 0.0}; // xyzw (nx,ny,nz,height)
 #endif // defined(GENERATE_RELFECTION_ENABLED) || defined(WATER_SURFACE_ENABLED)
 
-float _ReflectionIntensity;
+half _ReflectionIntensity;
 
 #if defined(LIGHT_DIRECTION_FOR_CHARACTER_ENABLED)
-    #define _PortraitLightColor float3(0.55f,0.55f,0.55f)
-    #define _PortraitAmbientColor float3(0.55f,0.55f,0.55f)
+    #define _PortraitLightColor half3(0.55f,0.55f,0.55f)
+    #define _PortraitAmbientColor half3(0.55f,0.55f,0.55f)
 #endif // defined(LIGHT_DIRECTION_FOR_CHARACTER_ENABLED)
 
 #if defined(SHINING_MODE_ENABLED)
-    float3 _ShiningLightColor;
+    half3 _ShiningLightColor;
 #endif // defined(SHINING_MODE_ENABLED)
 
 #if defined(CUSTOM_DIFFUSE_SUPPORT)
-    float3 _CustomDiffuse_Hilight;
-    float3 _CustomDiffuse_Base;
-    float3 _CustomDiffuse_Middle;
-    float3 _CustomDiffuse_Shadow;
+    half3 _CustomDiffuse_Hilight;
+    half3 _CustomDiffuse_Base;
+    half3 _CustomDiffuse_Middle;
+    half3 _CustomDiffuse_Shadow;
 #endif // CUSTOM_DIFFUSE_SUPPORT
 
-float _GlowThreshold = 1.0;
-float _GameMaterialID;
-float4 _GameMaterialDiffuse;
-float3 _GameMaterialEmission;
-float4 _GameMaterialTexcoord;
+half _GlowThreshold = 1.0;
+half _GameMaterialID;
+half4 _GameMaterialDiffuse;
+half3 _GameMaterialEmission;
+half4 _GameMaterialTexcoord;
 
 #if defined(UVA_SCRIPT_ENABLED)
-    float4 _UVaMUvColor;
-    float4 _UVaProjTexcoord;
-    float4 _UVaMUvTexcoord;
-    float4 _UVaMUv2Texcoord;
-    float4 _UVaDuDvTexcoord;
+    half4 _UVaMUvColor;
+    half4 _UVaProjTexcoord;
+    half4 _UVaMUvTexcoord;
+    half4 _UVaMUv2Texcoord;
+    half4 _UVaDuDvTexcoord;
 #endif // UVA_SCRIPT_ENABLED
 
-float _GlobalTexcoordFactor;
-float _AlphaTestDirection;
-float _AlphaThreshold;
+half _GlobalTexcoordFactor;
+half _AlphaTestDirection;
+half _AlphaThreshold;
 
 #if defined(FOG_ENABLED)
-    float3 _FogColor;
-    float2 _FogRangeParameters;
+    half3 _FogColor;
+    half2 _FogRangeParameters;
 
     #if defined(FOG_RATIO_ENABLED)
-        float _FogRatio;
+        half _FogRatio;
     #endif
 #endif // FOG_ENABLED
 
 #if defined(SHADOW_COLOR_SHIFT_ENABLED)
-    float3 _ShadowColorShift;
+    half3 _ShadowColorShift;
 #endif
 
 #if defined(HEMISPHERE_AMBIENT_ENABLED)
-    float3 _HemiSphereAmbientSkyColor;
-    float3 _HemiSphereAmbientGndColor;
-    float3 _HemiSphereAmbientAxis;
+    half3 _HemiSphereAmbientSkyColor;
+    half3 _HemiSphereAmbientGndColor;
+    half3 _HemiSphereAmbientAxis;
 #endif // HEMISPHERE_AMBIENT_ENABLED
 
 #if defined(SPECULAR_ENABLED)
-    float _Shininess;
-    float _SpecularPower;
-    float3 _FakeSpecularDir;
+    half _Shininess;
+    half _SpecularPower;
+    half3 _FakeSpecularDir;
 
    #if defined(SPECULAR_COLOR_ENABLED)
-        float4 _SpecularColor;
+        half4 _SpecularColor;
     #endif
 #endif
 
 #if defined(RIM_LIGHTING_ENABLED)
-    float3 _RimLitColor;
-    float _RimLitIntensity;
-    float _RimLitPower;
-    float _RimLightClampFactor;
+    half3 _RimLitColor;
+    half _RimLitIntensity;
+    half _RimLitPower;
+    half _RimLightClampFactor;
 #endif 
 
-float2 _TexCoordOffset;
-float2 _TexCoordOffset2;
-float2 _TexCoordOffset3;
+half2 _TexCoordOffset;
+half2 _TexCoordOffset2;
+half2 _TexCoordOffset3;
 
 #if !defined(NOTHING_ENABLED)
     sampler2D _DiffuseMapSampler;
@@ -417,42 +417,42 @@ half4 _DiffuseMapSampler_ST;
         float _HighlightIntensity;
 	#endif // CARTOON_HILIGHT_ENABLED
 
-    float _ShadowReceiveOffset;
+    half _ShadowReceiveOffset;
 #endif // CARTOON_SHADING_ENABLED
 
 #if defined(SPHERE_MAPPING_ENABLED)
     sampler2D _SphereMapSampler;
-    float _SphereMapIntensity;
+    half _SphereMapIntensity;
 #endif // SPHERE_MAPPING_ENABLED
 
 #if defined(CUBE_MAPPING_ENABLED)
     sampler2D _CubeMapSampler;
-    float _CubeFresnelPower;
+    half _CubeFresnelPower;
 #endif // CUBE_MAPPING_ENABLED
 
 #if !defined(CARTOON_SHADING_ENABLED)
 	#if defined(PROJECTION_MAP_ENABLED)
         sampler2D _ProjectionMapSampler;
-        float2 _ProjectionScale;
-        float2 _ProjectionScroll;
+        half2 _ProjectionScale;
+        half2 _ProjectionScroll;
 	#endif // PROJECTION_MAP_ENABLED
 
 	#if defined(DUDV_MAPPING_ENABLED)
         sampler2D _DuDvMapSampler;
-        float2 _DuDvMapImageSize;
-        float2 _DuDvScroll;
-        float2 _DuDvScale;
+        half2 _DuDvMapImageSize;
+        half2 _DuDvScroll;
+        half2 _DuDvScale;
 	#endif // DUDV_MAPPING_ENABLED
 
     #if defined(WINDY_GRASS_ENABLED)
-        float2 _WindyGrassDirection;
-        float _WindyGrassSpeed;
-        float _WindyGrassHomogenity;
-        float _WindyGrassScale;
+        half2 _WindyGrassDirection;
+        half _WindyGrassSpeed;
+        half _WindyGrassHomogenity;
+        half _WindyGrassScale;
 	#endif // WINDY_GRASS_ENABLED
 #endif // CARTOON_SHADING_ENABLED
 
-float4 _GameEdgeParameters;
+half4 _GameEdgeParameters;
 
 #if defined(USE_SCREEN_UV)
 	sampler2D _ReflectionTexture;
@@ -463,10 +463,12 @@ float4 _GameEdgeParameters;
     sampler2D _GlareMapSampler;
 #endif // GLARE_MAP_ENABLED
 
-float _GlareIntensity;
-float3 _GlobalAmbientColor;
-float _AdditionalShadowOffset;
+half _GlareIntensity;
+half3 _GlobalAmbientColor;
+half _AdditionalShadowOffset;
 int _Culling;
+half _SrcBlend;
+half _DstBlend;
 
 //-----------------------------------------------------------------------------
 struct DefaultVPInput {
@@ -489,6 +491,7 @@ struct DefaultVPInput {
     #if defined(MULTI_UV2_ENANLED)
         float2 TexCoord3		: TEXCOORD4;
     #endif // defined(MULTI_UV2_ENANLED)
+    UNITY_VERTEX_INPUT_INSTANCE_ID
 };
 
 //-----------------------------------------------------------------------------
@@ -553,6 +556,8 @@ struct DefaultVPOutput {
     #endif // CUBE_MAPPING_ENABLED
 
 	SHADOW_COORDS(8)
+    UNITY_VERTEX_INPUT_INSTANCE_ID
+    UNITY_VERTEX_OUTPUT_STEREO
 };
 
 //-----------------------------------------------------------------------------

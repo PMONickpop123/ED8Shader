@@ -13,24 +13,25 @@ float calcDiffuseLightAmtLdotN(float ldotn) {
 float calcSpecularLightAmt(float3 normal, float3 lightDir, float3 eyeDirection, float shininess, float specularPower) {
 	// Specular calcs
 	float3 halfVec = normalize(eyeDirection + lightDir);
-	float nDotH = saturate(dot(normal, halfVec));
+	float nDotH = saturate(dot(halfVec, normal));
 	float specularLightAmount = saturate(pow(nDotH, specularPower)) * shininess;
 	return specularLightAmount;
 }
 
 #if defined(FAKE_CONSTANT_SPECULAR_ENABLED)
     float3 getFakeSpecularLightDir(float3 trueLightDir) {
-        //float3 v0 = mul(float4(0, 0, 0, 1), UNITY_MATRIX_V).xyz;
-	    //float3 v1 = mul(float4(0, 0, -1, 1), UNITY_MATRIX_V).xyz;
-	    //float3 cameraEyeDir = normalize(v1 - v0);
-	    //return normalize(trueLightDir + 2 * (cameraEyeDir * 1.5f + float3(0, 1, 0)));
-	    return _FakeSpecularDir;
+        float3 v0 = mul(float4(0, 0, 0, 1), unity_CameraToWorld).xyz;
+	    float3 v1 = mul(float4(0, 0, -1, 1), unity_CameraToWorld).xyz;
+	    float3 cameraEyeDir = normalize(v1 - v0);
+        float3 lightDir = normalize(trueLightDir);
+	    return normalize(lightDir + 2 * (cameraEyeDir * 1.5f + normalize(_FakeSpecularDir)));
     }   
 #endif // FAKE_CONSTANT_SPECULAR_ENABLED
 
 float3 EvaluateAmbient(float3 normal) {
 	#if defined(HEMISPHERE_AMBIENT_ENABLED)
-	    float amt = (dot(normal, _HemiSphereAmbientAxis) + 1.0f) * 0.5f;
+        float3 upDirection = normalize(_HemiSphereAmbientAxis);
+        float amt = 0.5f * (1.0f + dot(upDirection, normal));
 
 		#if defined(MULTIPLEX_HEMISPHERE_AMBIENT_ENABLED)
             float3 L = _HemiSphereAmbientGndColor.rgb;
@@ -97,9 +98,9 @@ float3 EvaluateAmbient(float3 normal) {
             UNITY_BRANCH
             if (_WorldSpaceLightPos0.w == 0) {
                 #if defined(LIGHT_DIRECTION_FOR_CHARACTER_ENABLED)
-                    lightDir = _LightDirForChar;
+                    lightDir = normalize(_LightDirForChar);
                 #else // LIGHT_DIRECTION_FOR_CHARACTER_ENABLED
-                    lightDir = _WorldSpaceLightPos0.xyz;
+                    lightDir = normalize(_WorldSpaceLightPos0.xyz);
                 #endif // LIGHT_DIRECTION_FOR_CHARACTER_ENABLED
 
                 ldotn = dot(lightDir, normal);
@@ -141,11 +142,11 @@ float3 EvaluateAmbient(float3 normal) {
                 lightingResult += shadingAmount;
 
                 #if defined(MAINLIGHT_CLAMP_FACTOR_ENABLED)
-                    lightingResult = min(lightingResult, (float3)_MainLightClampFactor);
+                    lightingResult = min(lightingResult, (float3)_GlobalMainLightClampFactor);
                 #endif // MAINLIGHT_CLAMP_FACTOR_ENABLED
             }
         #elif defined(UNITY_PASS_FORWARDADD)
-            lightDir = _WorldSpaceLightPos0.xyz - worldSpacePosition;
+            lightDir = normalize(_WorldSpaceLightPos0.xyz - worldSpacePosition);
             ldotn = dot(lightDir, normal);
             float distance = length(lightDir);
             float atten = 1 / distance;
@@ -219,19 +220,19 @@ float3 EvaluateAmbient(float3 normal) {
             float3 shadingAmount = float3(0.0f, 0.0f, 0.0f);
             float3 lightingAmount = float3(0.0f, 0.0f, 0.0f);
             float3 lightDir = float3(0.0f, 0.0f, 0.0f);
+            float3 specularLightDir = float3(0.0f, 0.0f, 0.0f);
             float3 diffuseValue = float3(0.0f, 0.0f, 0.0f);
             float ldotn = 0;
 
             #if defined(SPECULAR_ENABLED)
                 float3 specularValue = float3(0.0f, 0.0f, 0.0f);
-                float3 specularLightDir = float3(0.0f, 0.0f, 0.0f);
                 float shininess = _Shininess * glossValue;
             #endif // SPECULAR_ENABLED
 
             #if defined(UNITY_PASS_FORWARDBASE)
                 UNITY_BRANCH
                 if (_WorldSpaceLightPos0.w == 0.0) {
-                    lightDir = _LightDirForChar;
+                    lightDir = normalize(_LightDirForChar);
 
                     #ifdef FAKE_CONSTANT_SPECULAR_ENABLED
                         specularLightDir = getFakeSpecularLightDir(lightDir);
@@ -278,7 +279,7 @@ float3 EvaluateAmbient(float3 normal) {
                     lightingResult += shadingAmount;
 
                     #if defined(MAINLIGHT_CLAMP_FACTOR_ENABLED)
-                        lightingResult = min(lightingResult, (float3)_MainLightClampFactor);
+                        lightingResult = min(lightingResult, (float3)_GlobalMainLightClampFactor);
                     #endif // MAINLIGHT_CLAMP_FACTOR_ENABLED
 
                     #if defined(SPECULAR_ENABLED)
@@ -315,9 +316,9 @@ float3 EvaluateAmbient(float3 normal) {
                 UNITY_BRANCH
                 if (_WorldSpaceLightPos0.w == 0.0) {
                     #if defined(LIGHT_DIRECTION_FOR_CHARACTER_ENABLED)
-                        lightDir = _LightDirForChar;
+                        lightDir = normalize(_LightDirForChar);
                     #else // LIGHT_DIRECTION_FOR_CHARACTER_ENABLED
-                        lightDir = _WorldSpaceLightPos0.xyz;
+                        lightDir = normalize(_WorldSpaceLightPos0.xyz);
                     #endif // LIGHT_DIRECTION_FOR_CHARACTER_ENABLED
 
                     ldotn = dot(lightDir, normal);
@@ -357,7 +358,7 @@ float3 EvaluateAmbient(float3 normal) {
                     subLightingAmount = EvaluateAmbient(normal);
                 #endif
             #elif defined(UNITY_PASS_FORWARDADD)
-                lightDir = _WorldSpaceLightPos0.xyz - worldSpacePosition;
+                lightDir = normalize(_WorldSpaceLightPos0.xyz - worldSpacePosition);
                 ldotn = dot(lightDir, normal);
                 float distance = length(lightDir);
                 float atten = 1 / distance;
@@ -430,7 +431,7 @@ float3 EvaluateAmbient(float3 normal) {
                     lightingResult += shadingAmount;
 
                     #if defined(MAINLIGHT_CLAMP_FACTOR_ENABLED)
-                        lightingResult = min(lightingResult, (float3)_MainLightClampFactor);
+                        lightingResult = min(lightingResult, (float3)_GlobalMainLightClampFactor);
                     #endif // MAINLIGHT_CLAMP_FACTOR_ENABLED
 
                     #if defined(SPECULAR_ENABLED)
@@ -448,7 +449,7 @@ float3 EvaluateAmbient(float3 normal) {
             lightingResult = max(_GlobalAmbientColor.rgb, (float3)shadowValue);
 
             #if defined(MAINLIGHT_CLAMP_FACTOR_ENABLED)
-                lightingResult = min(lightingResult, (float3)_MainLightClampFactor);
+                lightingResult = min(lightingResult, (float3)_GlobalMainLightClampFactor);
             #endif // MAINLIGHT_CLAMP_FACTOR_ENABLED
         #endif // USE_LIGHTING
 

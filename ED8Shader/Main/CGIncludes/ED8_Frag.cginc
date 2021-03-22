@@ -26,7 +26,9 @@
 
 //-----------------------------------------------------------------------------
 // fragment shader
-fixed4 DefaultFPShader (DefaultVPOutput IN) : SV_Target {
+fixed4 DefaultFPShader (DefaultVPOutput IN) : SV_TARGET {
+    UNITY_SETUP_INSTANCE_ID(IN);
+
     #if defined(NOTHING_ENABLED)
 	    float4 resultColor = IN.Color0;
         #if defined(FP_FORCETRANSPARENT) || defined(FP_PORTRAIT)
@@ -43,14 +45,14 @@ fixed4 DefaultFPShader (DefaultVPOutput IN) : SV_Target {
     #else // NOTHING_ENABLED
         #if defined(FP_DEFAULTRT)
             float3 waterNorm = float3(IN.WorldPositionDepth.x, IN.WorldPositionDepth.y - _UserClipPlane.w, IN.WorldPositionDepth.z);
-            clip(dot(_UserClipPlane.xyz, normalize(waterNorm)));
+            clip(dot(normalize(_UserClipPlane.xyz), normalize(waterNorm)));
         #endif // FP_DEFAULTRT
 
         #if defined(DUDV_MAPPING_ENABLED)
 	        float2 dudvValue = (tex2D(_DuDvMapSampler, IN.DuDvTexCoord.xy).xy * 2.0f - 1.0f) * (_DuDvScale / _DuDvMapImageSize);
         #endif // DUDV_MAPPING_ENABLED
 
-	    float4 diffuseAmt = float4(0.0f, 0.0f, 0.0f, 0.0f);
+	    float4 diffuseAmt = float4(0.0f, 0.0f, 0.0f, 1.0f);
 
         #if defined(ALPHA_TESTING_ENABLED)
             IN.Color0.a *= 1 + max(0, CalcMipLevel(IN.TexCoord)) * 0.25;
@@ -434,7 +436,7 @@ fixed4 DefaultFPShader (DefaultVPOutput IN) : SV_Target {
 		        #if defined(CUBE_MAPPING_ENABLED)
 	                float3 cubeMapParams = reflect(-worldSpaceEyeDirection, worldSpaceNormal);
 	                float cubeMapIntensity = 1.0f - max(0.0f, ndote) * (float)_CubeFresnelPower;
-	                float4 cubeMapColor = texCUBE(_CubeMapSampler, normalize(cubeMapParams.xyz)).rgba;
+	                float4 cubeMapColor = tex2D(_CubeMapSampler, normalize(cubeMapParams.xyz)).rgba;
 		        #elif defined(SPHERE_MAPPING_ENABLED)
                     float3 viewSpaceNormal = (float3)mul(worldSpaceNormal.xyz, (float3x3)UNITY_MATRIX_V);
                     float2 sphereMapParams = viewSpaceNormal.xy * 0.5f + float2(0.5f, 0.5f);
@@ -553,7 +555,7 @@ fixed4 DefaultFPShader (DefaultVPOutput IN) : SV_Target {
             UNITY_BRANCH
             if (_WorldSpaceLightPos0.w == 0.0) {
                 #if defined(LIGHT_DIRECTION_FOR_CHARACTER_ENABLED)
-                    float ldotn = (float)dot(_LightDirForChar, worldSpaceNormal);
+                    float ldotn = (float)dot(normalize(_LightDirForChar), worldSpaceNormal);
                     resultColor.rgb = calcCustomDiffuse(grayscale * (ldotn * 0.5f + 0.5f) * shadowValue);
                 #else // LIGHT_DIRECTION_FOR_CHARACTER_ENABLED
                     float ldotn = (float)dot(_WorldSpaceLightPos0.xyz, worldSpaceNormal);
@@ -585,7 +587,7 @@ fixed4 DefaultFPShader (DefaultVPOutput IN) : SV_Target {
                     float3 worldSpaceEyeDirection = normalize(getEyePosition() - IN.WorldPositionDepth.xyz);
                 #endif // FP_WS_EYEDIR_EXIST
 
-                float water_ndote = dot(_UserClipPlane.xyz, worldSpaceEyeDirection);
+                float water_ndote = dot(normalize(_UserClipPlane.xyz), worldSpaceEyeDirection);
                 float waterAlpha = pow(1.0f - abs(water_ndote), 4.0f);
                 resultColor.rgb = lerp(refrColor.rgb, resultColor.rgb, resultColor.a) + reflColor.rgb * waterAlpha * _ReflectionIntensity;
                 float waterGlowValue = reflColor.a + refrColor.a;

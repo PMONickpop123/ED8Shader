@@ -1,4 +1,4 @@
-﻿Shader "ED8/Cold Steel Shader/Opaque" {
+﻿Shader "ED8/Cold Steel Shader/Transparent" {
     Properties {	
         [HideInInspector] shader_is_using_thry_editor("", Float)= 0
         [HideInInspector] shader_master_label ("<color=#000000ff>Trails of Cold Steel Shader</color>", Float) = 0
@@ -114,9 +114,9 @@
         [HideInInspector][Toggle(RIM_LIGHTING_ENABLED)]_RimLightingEnabled ("Enable Rim Lighting", Float) = 0
         [Toggle(RIM_TRANSPARENCY_ENABLED)]_RimTransparencyEnabled ("Enable Rim Transparency", Float) = 0
         _RimLitColor("Rim Lit Color", Color) = (1.0, 1.0, 1.0, 0.0)
-        _RimLitIntensity("Rim Lit Intensity", Range(0.001, 100.0)) = 4.0
-        _RimLitPower("Rim Lit Power", Range(0.001, 50.0)) = 2.0
-        _RimLightClampFactor("Rim Light Clamp", Range(0.001, 10.0)) = 1.0
+        _RimLitIntensity("Rim Lit Intensity", Range(0.001, 10.0)) = 4.0
+        _RimLitPower("Rim Lit Power", Range(0.001, 20.0)) = 2.0
+        _RimLightClampFactor("Rim Light Clamp", Range(0.001, 5.0)) = 1.0
         [HideInInspector] m_end_RimLighting ("Enable Rim Lighting", Float) = 0
         // #endif (RIM_LIGHTING_ENABLED)
 
@@ -347,6 +347,12 @@
         //[Toggle(GLARE_EMISSION_ENABLED)]_GlareEmissionEnabled ("Enable Glare Emission", Float) = 0
         _GlareIntensity("Glare Intensity", Range(0.004, 5.0)) = 1.0
 
+        [HideInInspector] m_start_BlendOptions ("Blending", Float) = 0
+        [Enum(UnityEngine.Rendering.BlendMode)] _SrcBlend("Source Blend", Float) = 5
+        [Enum(UnityEngine.Rendering.BlendMode)] _DstBlend("Destination Blend", Float) = 10
+        [Enum(DepthWrite)] _ZWrite("Depth Write", Float) = 0
+        [HideInInspector] m_end_BlendOptions ("Blending", Float) = 0
+
         [HideInInspector] m_start_StencilOptions ("Stencil", Float) = 0
         [IntRange] _Stencil ("Stencil ID [0;255]", Range(0,255)) = 0
         [Enum(UnityEngine.Rendering.CompareFunction)] _StencilComp ("Stencil Comparison", Int) = 0
@@ -373,7 +379,7 @@
 
     CustomEditor "Thry.ShaderEditor"
     SubShader {
-        Tags { "RenderType"="Opaque" "Queue"="Geometry"}
+        Tags { "RenderType"="Transparent" "Queue"="Transparent" "IgnoreProjector"="True"}
         Cull [_Culling]
         Stencil {
             Ref [_Stencil]
@@ -381,9 +387,12 @@
             Pass [_StencilOp]
         }
 
+        ZWrite [_ZWrite]
+
         Pass {
             Name "FORWARD"
             Tags { "LightMode" = "ForwardBase" }
+            Blend [_SrcBlend] [_DstBlend]
             
             CGPROGRAM
 
@@ -392,6 +401,8 @@
             #ifndef UNITY_PASS_FORWARDBASE
                 #define UNITY_PASS_FORWARDBASE
             #endif
+
+            #define ALPHA_BLENDING_ENABLED
 
             #pragma shader_feature NOTHING_ENABLED
             #pragma shader_feature VERTEX_COLOR_ENABLED
@@ -470,7 +481,7 @@
         Pass {
             Name "FWDADD"
             Tags { "LightMode" = "ForwardAdd" }
-            Blend One One
+            Blend SrcAlpha One
 
             CGPROGRAM
 
@@ -479,6 +490,8 @@
             #ifndef UNITY_PASS_FORWARDADD
                  #define UNITY_PASS_FORWARDADD
             #endif
+
+            #define ALPHA_BLENDING_ENABLED
 
             #pragma shader_feature NOTHING_ENABLED
             #pragma shader_feature VERTEX_COLOR_ENABLED
@@ -553,33 +566,33 @@
             ENDCG
         }
 
-        Pass {
-            Name "ShadowCaster"
-            Tags{ "LightMode" = "ShadowCaster" }
-            ZWrite On ZTest LEqual
-            CGPROGRAM
+        //Pass {
+        //    Name "ShadowCaster"
+        //    Tags{ "LightMode" = "ShadowCaster" }
+        //    ZWrite On ZTest LEqual
+        //    CGPROGRAM
 
-            #pragma target 4.0
+        //    #pragma target 4.0
 
-            #ifndef UNITY_PASS_SHADOWCASTER
-                #define UNITY_PASS_SHADOWCASTER
-            #endif
+        //    #ifndef UNITY_PASS_SHADOWCASTER
+        //        #define UNITY_PASS_SHADOWCASTER
+        //    #endif
 
-            #pragma skip_variants FOG_LINEAR FOG_EXP FOG_EXP2
-            #pragma shader_feature WINDY_GRASS_ENABLED
-            #pragma shader_feature WINDY_GRASS_TEXV_WEIGHT_ENABLED
+        //    #pragma skip_variants FOG_LINEAR FOG_EXP FOG_EXP2
+        //    #pragma shader_feature WINDY_GRASS_ENABLED
+        //    #pragma shader_feature WINDY_GRASS_TEXV_WEIGHT_ENABLED
 
-            #pragma multi_compile_instancing
-            #pragma vertex ShadowVPShader
-            #pragma fragment ShadowFPShader
-            #pragma multi_compile_shadowcaster
+        //    #pragma multi_compile_instancing
+        //    #pragma vertex ShadowVPShader
+        //    #pragma fragment ShadowFPShader
+        //    #pragma multi_compile_shadowcaster
             
-            #include "../CGIncludes/ED8_Defines.cginc"
-            #include "../CGIncludes/ED8_HelperFunctions.cginc"
-            #include "../CGIncludes/ED8_ShadowCaster.cginc"
-            ENDCG
-        }
+        //    #include "../CGIncludes/ED8_Defines.cginc"
+        //    #include "../CGIncludes/ED8_HelperFunctions.cginc"
+        //    #include "../CGIncludes/ED8_ShadowCaster.cginc"
+        //    ENDCG
+        //}
     }
 
-    Fallback "Diffuse"
+    Fallback "Transparent/Diffuse"
 }

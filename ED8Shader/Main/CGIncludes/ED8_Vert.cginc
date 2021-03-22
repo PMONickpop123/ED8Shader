@@ -2,8 +2,9 @@
 // vertex shader
 DefaultVPOutput DefaultVPShader (DefaultVPInput IN) {
     UNITY_SETUP_INSTANCE_ID(IN);
-    DefaultVPOutput OUT = (DefaultVPOutput)0;
+    DefaultVPOutput OUT;
     UNITY_INITIALIZE_OUTPUT(DefaultVPOutput, OUT);
+    UNITY_TRANSFER_INSTANCE_ID(IN, OUT);
     UNITY_INITIALIZE_VERTEX_OUTPUT_STEREO(OUT);
 
     float3 normal = IN.Normal;
@@ -52,7 +53,7 @@ DefaultVPOutput DefaultVPShader (DefaultVPInput IN) {
             OUT.TexCoord2.xy = (float2)IN.TexCoord2.xy;
 
             #if defined(MULTI_UV_TEXCOORD_OFFSET_ENABLED)
-                OUT.TexCoord2.xy += (float2)(_TexCoordOffset2 * getGlobalTextureFactor();
+                OUT.TexCoord2.xy += (float2)(_TexCoordOffset2 * getGlobalTextureFactor());
             #endif // MULTI_UV_TEXCOORD_OFFSET_ENABLED
 
             OUT.TexCoord2.xy += (float2)_GameMaterialTexcoord.xy;
@@ -67,7 +68,7 @@ DefaultVPOutput DefaultVPShader (DefaultVPInput IN) {
             OUT.TexCoord3.xy = (float2)IN.TexCoord3.xy;
 
             #if defined(MULTI_UV2_TEXCOORD_OFFSET_ENABLED)
-                OUT.TexCoord3.xy += (float2)(_TexCoordOffset3 * getGlobalTextureFactor();
+                OUT.TexCoord3.xy += (float2)(_TexCoordOffset3 * getGlobalTextureFactor());
             #endif // MULTI_UV2_TEXCOORD_OFFSET_ENABLED
 
             OUT.TexCoord3.xy += (float2)_GameMaterialTexcoord.xy;
@@ -109,11 +110,11 @@ DefaultVPOutput DefaultVPShader (DefaultVPInput IN) {
     float3 light0dir = float3(0.0f, 0.0f, 0.0f);
     #if defined(VP_LIGHTPROCESS)
         #if defined(LIGHT_DIRECTION_FOR_CHARACTER_ENABLED)
-            light0dir = _LightDirForChar;
+            light0dir = normalize(_LightDirForChar);
         #elif defined(SHINING_MODE_ENABLED)
-            light0dir = float3(0.0f, 1.0f, 0.0f);
+            light0dir = normalize(float3(0.0f, 1.0f, 0.0f));
         #else
-            light0dir = _WorldSpaceLightPos0.xyz;
+            light0dir = normalize(_WorldSpaceLightPos0.xyz);
         #endif // LIGHT_DIRECTION_FOR_CHARACTER_ENABLED
 
         //#if defined(RECEIVE_SHADOWS)
@@ -124,7 +125,7 @@ DefaultVPOutput DefaultVPShader (DefaultVPInput IN) {
         #endif // !defined(CARTOON_AVOID_SELFSHADOW_OFFSET) && !defined(CARTOON_SHADING_ENABLED)
         //#endif // RECEIVE_SHADOWS
     #else
-        light0dir = float3(0.0f, -1.0f, 0.0f);
+        light0dir = normalize(float3(0.0f, -1.0f, 0.0f));
     #endif
 
     #if !defined(USE_PER_VERTEX_LIGHTING) && defined(USE_LIGHTING)

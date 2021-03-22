@@ -16,7 +16,9 @@ float3 EvaluateNormalMapNormal(float3 inNormal, float2 inUv, float3 inTangent, u
         normalMapNormal.y = normalMapData.g;
         normalMapNormal.z = sqrt(1 - saturate(normalMapNormal.x * normalMapNormal.x - normalMapNormal.y * normalMapNormal.y));
     #else // NORMAL_MAPP_DXT5_NM_ENABLED
-        float3 normalMapNormal = normalMapData.xyz * 2.0 - 1.0;
+        float3 normalMapNormal;
+        normalMapNormal.xy = normalMapData.xy * 2.0 - 1.0;
+        normalMapNormal.z = sqrt(1 - saturate(dot(normalMapData.xy, normalMapData.xy)));
     #endif // NORMAL_MAPP_DXT5_NM_ENABLED
 
 	inTangent = normalize(inTangent);
@@ -38,7 +40,7 @@ float3 getEyePosition() {
 //-----------------------------------------------------------------------------
 float2 getGlobalTextureFactor() {
 	//return (_GlobalTexcoordFactor + 0.001) * (float2)_Time * 0.25f;
-    return (float2)_Time.y;
+    return (float2)_Time.y * 0.60f;
 }
 
 float CalcMipLevel(float2 texcoord){
@@ -70,7 +72,7 @@ float CalcMipLevel(float2 texcoord){
         float a = k * (1.0f / (_WindyGrassHomogenity * _WindyGrassHomogenity));
         float t = a * 0.25f + frac(a) + time.x * _WindyGrassSpeed;
 
-        #ifndef WINDY_GRASS_TEXV_WEIGHT_ENABLED
+        #if !defined(WINDY_GRASS_TEXV_WEIGHT_ENABLED)
             float2 dd = _WindyGrassDirection * sin(t) * _WindyGrassScale * weight;
         #else // WINDY_GRASS_TEXV_WEIGHT_ENABLED
             float2 dd = _WindyGrassDirection * sin(t) * _WindyGrassScale;
@@ -123,7 +125,8 @@ float CalcMipLevel(float2 texcoord){
 #if defined(RIM_LIGHTING_ENABLED)
     float EvaluateRimLightValue(float ndote) {
         float rimLightvalue = pow(1.0f - abs(ndote), _RimLitPower);
-        return min(rimLightvalue * _RimLitIntensity, (float3)_RimLightClampFactor);
+        //return min(rimLightvalue * _RimLitIntensity, (float3)_RimLightClampFactor);
+        return (rimLightvalue * _RimLitIntensity);
     }
 #endif // RIM_LIGHTING_ENABLED
 

@@ -347,9 +347,11 @@
         //[Toggle(GLARE_EMISSION_ENABLED)]_GlareEmissionEnabled ("Enable Glare Emission", Float) = 0
         _GlareIntensity("Glare Intensity", Range(0.004, 5.0)) = 1.0
 
+        [HideInInspector] m_start_StencilOptions ("Stencil", Float) = 0
         [IntRange] _Stencil ("Stencil ID [0;255]", Range(0,255)) = 0
         [Enum(UnityEngine.Rendering.CompareFunction)] _StencilComp ("Stencil Comparison", Int) = 0
         [Enum(UnityEngine.Rendering.StencilOp)] _StencilOp ("Stencil Operation", Int) = 0
+        [HideInInspector] m_end_StencilOptions ("Stencil", Float) = 0
 
         //[HideInInspector] m_animationToggles ("Animation Support Toggles", Float) = 0
         //[HelpBox(1)] _AnimationToggleHelp ("You don't need to search through this list. You can enable animation support on any property by right clicking it", Int) = 0
@@ -386,14 +388,6 @@
             CGPROGRAM
 
             #pragma target 4.0
-            #pragma vertex DefaultVPShader
-            #pragma fragment DefaultFPShader
-            #pragma multi_compile_fwdbase
-            #include "../CGIncludes/ED8_Defines.cginc"
-            #include "../CGIncludes/ED8_HelperFunctions.cginc"
-            #include "../CGIncludes/ED8_Lighting.cginc"
-            #include "../CGIncludes/ED8_Vert.cginc"
-            #include "../CGIncludes/ED8_Frag.cginc"
             
             #ifndef UNITY_PASS_FORWARDBASE
                 #define UNITY_PASS_FORWARDBASE
@@ -461,6 +455,17 @@
             #pragma shader_feature GLARE_MAP_ENABLED
             #pragma shader_feature GLARE_HIGHTPASS_ENABLED
 
+            #pragma multi_compile_instancing
+            #pragma multi_compile_fwdbase
+            #pragma fragmentoption ARB_precision_hint_fastest
+            #pragma vertex DefaultVPShader
+            #pragma fragment DefaultFPShader
+
+            #include "../CGIncludes/ED8_Defines.cginc"
+            #include "../CGIncludes/ED8_HelperFunctions.cginc"
+            #include "../CGIncludes/ED8_Lighting.cginc"
+            #include "../CGIncludes/ED8_Vert.cginc"
+            #include "../CGIncludes/ED8_Frag.cginc"
             ENDCG
         }
 
@@ -472,9 +477,6 @@
             CGPROGRAM
 
             #pragma target 4.0
-            #pragma vertex DefaultVPShader
-            #pragma fragment DefaultFPShader
-            #pragma multi_compile_fwdadd_fullshadows
             
             #ifndef UNITY_PASS_FORWARDADD
                  #define UNITY_PASS_FORWARDADD
@@ -541,6 +543,11 @@
             #pragma shader_feature USE_SCREEN_UV
             #pragma shader_feature GLARE_MAP_ENABLED
             #pragma shader_feature GLARE_HIGHTPASS_ENABLED
+
+            #pragma multi_compile_instancing
+            #pragma multi_compile_fwdadd_fullshadows
+            #pragma vertex DefaultVPShader
+            #pragma fragment DefaultFPShader
             
             #include "../CGIncludes/ED8_Defines.cginc"
             #include "../CGIncludes/ED8_HelperFunctions.cginc"
@@ -557,10 +564,6 @@
             CGPROGRAM
 
             #pragma target 4.0
-            #pragma vertex ShadowVPShader
-            #pragma fragment ShadowFPShader
-            #pragma fragmentoption ARB_precision_hint_fastest
-            #pragma multi_compile_shadowcaster
 
             #ifndef UNITY_PASS_SHADOWCASTER
                 #define UNITY_PASS_SHADOWCASTER
@@ -571,6 +574,10 @@
             #pragma shader_feature WINDY_GRASS_ENABLED
             #pragma shader_feature WINDY_GRASS_TEXV_WEIGHT_ENABLED
 
+            #pragma multi_compile_instancing
+            #pragma vertex ShadowVPShader
+            #pragma fragment ShadowFPShader
+            #pragma multi_compile_shadowcaster
             #include "../CGIncludes/ED8_Defines.cginc"
             #include "../CGIncludes/ED8_HelperFunctions.cginc"
             #include "../CGIncludes/ED8_ShadowCaster.cginc"
