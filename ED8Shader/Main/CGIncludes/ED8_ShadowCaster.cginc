@@ -65,7 +65,7 @@ ShadowVPOutput ShadowVPShader (ShadowVPInput v) {
     float3 opos = position;
 
     #if defined(WINDY_GRASS_ENABLED)
-        float3 worldSpacePosition = mul(unity_ObjectToWorld, position);
+        float3 worldSpacePosition = mul(unity_ObjectToWorld, float4(position.xyz, 1.0f)).xyz; 
 
         #if !defined(WINDY_GRASS_TEXV_WEIGHT_ENABLED)
             worldSpacePosition = calcWindyGrass(worldSpacePosition.xyz, v.texcoord.y);
@@ -73,7 +73,7 @@ ShadowVPOutput ShadowVPShader (ShadowVPInput v) {
             worldSpacePosition = calcWindyGrass(worldSpacePosition.xyz);
         #endif // WINDY_GRASS_TEXV_WEIGHT_ENABLED
 
-        opos = mul(unity_WorldToObject, worldSpacePosition);
+        opos = mul(unity_WorldToObject, float4(worldSpacePosition.xyz, 1.0));
         o.pos = UnityWorldToClipPos(worldSpacePosition);
     #else // WINDY_GRASS_ENABLED
         o.pos = UnityObjectToClipPos(position);
