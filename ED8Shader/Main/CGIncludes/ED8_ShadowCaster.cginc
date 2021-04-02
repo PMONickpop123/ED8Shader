@@ -58,22 +58,22 @@ ShadowVPOutput ShadowVPShader (ShadowVPInput v) {
     #endif // UVA_SCRIPT_ENABLED
 
     #if defined(UNITY_STANDARD_USE_SHADOW_UVS)
-        o.texcoord = TRANSFORM_TEX(v.texcoord, _DiffuseMapSampler);
+        o.texcoord = TRANSFORM_TEX(v.texcoord, _MainTex);
     #endif
 
     float3 position = v.vertex.xyz;
     float3 opos = position;
 
     #if defined(WINDY_GRASS_ENABLED)
-        float3 worldSpacePosition = mul(unity_ObjectToWorld, position);
+        float3 worldSpacePosition = mul(unity_ObjectToWorld, float4(position.xyz, 1.0f)).xyz; 
 
         #if !defined(WINDY_GRASS_TEXV_WEIGHT_ENABLED)
-            worldSpacePosition = calcWindyGrass(worldSpacePosition.xyz, v.texcoord.y);
+            worldSpacePosition = calcWindyGrass(worldSpacePosition.xyz, 1.0f - v.texcoord.y);
         #else // WINDY_GRASS_TEXV_WEIGHT_ENABLED
             worldSpacePosition = calcWindyGrass(worldSpacePosition.xyz);
         #endif // WINDY_GRASS_TEXV_WEIGHT_ENABLED
 
-        opos = mul(unity_WorldToObject, worldSpacePosition);
+        opos = mul(unity_WorldToObject, float4(worldSpacePosition.xyz, 1.0));
         o.pos = UnityWorldToClipPos(worldSpacePosition);
     #else // WINDY_GRASS_ENABLED
         o.pos = UnityObjectToClipPos(position);
@@ -97,7 +97,7 @@ half4 ShadowFPShader (UNITY_POSITION(vpos)
         #if defined(_SMOOTHNESS_TEXTURE_ALBEDO_CHANNEL_A)
             half alpha = _Color.a;
         #else
-            half alpha = tex2D(_DiffuseMapSampler, i.texcoord.xy).a * _Color.a;
+            half alpha = tex2D(_MainTex, i.texcoord.xy).a * _Color.a;
         #endif
 
         _Cutoff = half(_AlphaThreshold);

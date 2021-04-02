@@ -30,7 +30,7 @@
     #define SHDOW_DOUBLE_SIDED
     #define FOG_ENABLED
     #define FOG_RATIO_ENABLED
-    #define VERTEX_COLOR_ENABLED 
+    #define VERTEX_COLOR_ENABLED VERTEXLIGHT_ON
     #define TEXCOORD_OFFSET_ENABLED
     #define FORCE_CHAR_LIGHT_DIRECTION_ENABLED
     #define HEMISPHERE_AMBIENT_ENABLED
@@ -101,10 +101,6 @@
 //		#define CASTS_SHADOWS
 //	#endif
 //#endif
-
-#if !defined(CUSTOM_DIFFUSE_SUPPORT)
-	#undef CUSTOM_DIFFUSE_ENABLED 
-#endif // CUSTOM_DIFFUSE_SUPPORT
 
 #if !defined(NO_ALL_LIGHTING_ENABLED) && defined(LIGHTING_ENABLED)
 	#define USE_LIGHTING
@@ -244,7 +240,7 @@
 #endif
 
 #if defined(LIGHT_DIRECTION_FOR_CHARACTER_ENABLED)
-    half3 _LightDirForChar;
+    half3 _LightDirForChar = half3(8.0f, 8.0f, 0.0f);
 #endif // LIGHT_DIRECTION_FOR_CHARACTER_ENABLED
 
 half _PerMaterialMainLightClampFactor;
@@ -269,20 +265,13 @@ half _GlobalMainLightClampFactor;
 half _ReflectionIntensity;
 
 #if defined(LIGHT_DIRECTION_FOR_CHARACTER_ENABLED)
-    #define _PortraitLightColor half3(0.55f,0.55f,0.55f)
-    #define _PortraitAmbientColor half3(0.55f,0.55f,0.55f)
+    half3 _PortraitLightColor = half3(0.55f,0.55f,0.55f);
+    half3 _PortraitAmbientColor = half3(0.55f,0.55f,0.55f);
 #endif // defined(LIGHT_DIRECTION_FOR_CHARACTER_ENABLED)
 
 #if defined(SHINING_MODE_ENABLED)
     half3 _ShiningLightColor;
 #endif // defined(SHINING_MODE_ENABLED)
-
-#if defined(CUSTOM_DIFFUSE_SUPPORT)
-    half3 _CustomDiffuse_Hilight;
-    half3 _CustomDiffuse_Base;
-    half3 _CustomDiffuse_Middle;
-    half3 _CustomDiffuse_Shadow;
-#endif // CUSTOM_DIFFUSE_SUPPORT
 
 half _GlowThreshold = 1.0;
 half _GameMaterialID;
@@ -343,12 +332,12 @@ half2 _TexCoordOffset2;
 half2 _TexCoordOffset3;
 
 #if !defined(NOTHING_ENABLED)
-    sampler2D _DiffuseMapSampler;
+    sampler2D _MainTex;
 #endif 
-half4 _DiffuseMapSampler_ST;
+half4 _MainTex_ST;
 
 #if defined(NORMAL_MAPPING_ENABLED)
-    sampler2D _NormalMapSampler;
+    sampler2D _BumpMap;
 #endif // NORMAL_MAPPING_ENABLED
 
 #if defined(SPECULAR_MAPPING_ENABLED)
@@ -362,11 +351,6 @@ half4 _DiffuseMapSampler_ST;
 #if defined(EMISSION_MAPPING_ENABLED)
     sampler2D _EmissionMapSampler;
 #endif // EMISSION_MAPPING_ENABLED
-
-#if defined(DIFFUSEMAP_CHANGING_ENABLED)
-    sampler2D _DiffuseMapTrans1Sampler;
-    sampler2D _DiffuseMapTrans2Sampler;
-#endif // DIFFUSEMAP_CHANGING_ENABLED
 
 #if defined(MULTI_UV_ENANLED)
 	#if !defined(MULTI_UV_NO_DIFFUSE_MAPPING_ENANLED)
@@ -472,24 +456,24 @@ half _DstBlend;
 
 //-----------------------------------------------------------------------------
 struct DefaultVPInput {
-    float4 Position			: POSITION;
-    float3 Normal			: NORMAL;
-    float2 TexCoord			: TEXCOORD0;
+    float4 vertex			: POSITION;
+    float3 normal			: NORMAL;
+    float2 uv			: TEXCOORD0;
 
     #if defined(VERTEX_COLOR_ENABLED)
-        float4 Color			: COLOR0;
+        float4 color			: COLOR0;
     #endif // VERTEX_COLOR_ENABLED
 
     #if defined(USE_TANGENTS)
-        float3 Tangent			: TANGENT;
+        float4 tangent			: TANGENT;
     #endif // USE_TANGENTS
 
     #if defined(MULTI_UV_ENANLED)
-        float2 TexCoord2		: TEXCOORD3;
+        float2 uv2		: TEXCOORD3;
     #endif // MULTI_UV_ENANLED
 
     #if defined(MULTI_UV2_ENANLED)
-        float2 TexCoord3		: TEXCOORD4;
+        float2 uv3		: TEXCOORD4;
     #endif // defined(MULTI_UV2_ENANLED)
     UNITY_VERTEX_INPUT_INSTANCE_ID
 };
@@ -500,14 +484,14 @@ struct DefaultVPOutput {
     float4 Color0			: COLOR0;		// xyzw:VertexColor x GameDiffuse
     float4 Color1			: COLOR1;		// [V] xyz:000 w:Fog
                                 // [P] xyz:SubLight w:Fog
-    float2 TexCoord			: TEXCOORD0;	// xy: UV
+    float2 uv			: TEXCOORD0;	// xy: UV
     float4 WorldPositionDepth	: TEXCOORD1;	// xyz[World]: w[View]:z
 
     // TexCoord2
     #if defined(DUDV_MAPPING_ENABLED)
         float2 DuDvTexCoord	: TEXCOORD2;	// xy: DUDV
     #elif defined(MULTI_UV_ENANLED)
-        float2 TexCoord2		: TEXCOORD2;	// xy: UV Vertex Alpha Lerp
+        float2 uv2		: TEXCOORD2;	// xy: UV Vertex Alpha Lerp
     #endif // DUDV_MAPPING_ENABLED || MULTI_UV_ENANLED
 
     // Projection/Etc
@@ -515,11 +499,11 @@ struct DefaultVPOutput {
         float2 ProjMap			: TEXCOORD3;	// xy: Projection UV
     #endif // PROJECTION_MAP_ENABLED
 
-    float3 Normal			: TEXCOORD4;		// xyz[World]: Normals
+    float3 normal			: TEXCOORD4;		// xyz[World]: Normals
 
     #if !defined(USE_PER_VERTEX_LIGHTING) && defined(USE_LIGHTING)
         #if defined(USE_TANGENTS)
-            float3 Tangent			: TEXCOORD6;		// xyz[World]: Tangents
+            float3 tangent			: TEXCOORD6;		// xyz[World]: Tangents
         #endif // USE_TANGENTS
     #else // !USE_PER_VERTEX_LIGHTING && USE_LIGHTING
         #if defined(USE_LIGHTING)
@@ -534,7 +518,7 @@ struct DefaultVPOutput {
     #endif // !USE_PER_VERTEX_LIGHTING && USE_LIGHTING
 
     #if defined(MULTI_UV2_ENANLED)
-        float2 TexCoord3		: TEXCOORD7;	// xy: UV2 Vertex Alpha Lerp
+        float2 uv3		: TEXCOORD7;	// xy: UV2 Vertex Alpha Lerp
     #endif // defined(MULTI_UV2_ENANLED)
 
     #if defined(USE_SCREEN_UV)

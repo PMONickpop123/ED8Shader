@@ -3,7 +3,7 @@
 	    #if defined(NOTHING_ENABLED)
 	        return float4(0.0f, 0.0f, 0.0f, 0.0f);
 	    #else // NOTHING_ENABLED
-	        float4 resultColor = tex2D(_DiffuseMapSampler, IN.TexCoord.xy);
+	        float4 resultColor = tex2D(_MainTex, IN.TexCoord.xy);
 	        resultColor *= (float4)IN.Color0;
 
 		    #if defined(ALPHA_TESTING_ENABLED)
@@ -26,7 +26,7 @@
 	            float3 waterNorm = float3(IN.WorldPositionDepth.x, IN.WorldPositionDepth.y - _UserClipPlane.w, IN.WorldPositionDepth.z);
 	            clip(dot(_UserClipPlane.xyz, normalize(waterNorm) ));
 
-	            float4 resultColor = tex2D(_DiffuseMapSampler, IN.TexCoord.xy);
+	            float4 resultColor = tex2D(_MainTex, IN.TexCoord.xy);
 	            resultColor *= (float4)IN.Color0;
 
                 #if defined(ALPHA_TESTING_ENABLED)

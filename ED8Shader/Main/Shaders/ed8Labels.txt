@@ -1,5 +1,4 @@
 m_start_PortraitLight:=Enable Light Direction (Characters)--{reference_property:_PortraitLightEnabled,is_hideable:true}
-m_start_CustomDiffuse:=Enable Custom Diffuse--{reference_property:_CustomDiffuseEnabled,is_hideable:true}
 m_start_UVA:=Enable UV Animation--{reference_property:_UVAEnabled,is_hideable:true}
 _UVAEnabled:=Enable UV Animation--{hide_in_inspector:true}
 m_start_Fog:=Enable Fog--{reference_property:_FogEnabled,is_hideable:true}
@@ -14,7 +13,6 @@ m_start_NormalMap:=Enable Normal Mapping--{reference_property:_NormalMappingEnab
 m_start_SpecularMap:=Enable Specular Mapping--{reference_property:_SpecularMappingEnabled,is_hideable:true}
 m_start_OcculusionMap:=Enable Occulusion Mapping--{reference_property:_OcculusionMappingEnabled,is_hideable:true}
 m_start_EmissionMap:=Enable Emission Mapping--{reference_property:_EmissionMappingEnabled,is_hideable:true}
-m_start_DiffuseMapChanging:=Enable Diffuse Map Changing--{reference_property:_DiffuseMapChangingEnabled,is_hideable:true}
 m_start_MultiUV:=Enable Multi UV--{reference_property:_MultiUVEnabled,is_hideable:true}
 m_start_MultiUVNormalMap:=Enable Normal Map 2--{reference_property:_MultiUVNormalMappingEnabled,is_hideable:true}
 _MultiUVNormalMappingEnabled:=Enable Normal Map 2--{hide_in_inspector:true}

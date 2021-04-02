@@ -1,24 +1,21 @@
 float3 EvaluateNormalMapNormal(float3 inNormal, float2 inUv, float3 inTangent, uniform sampler2D normalMap) {
     float4 normalMapData = tex2D(normalMap, inUv).xyzw;
+    float3 normalMapNormal = float3(0.0f, 0.0f, 0.0f);
 
     #if defined(NORMAL_MAPP_DXT5_NM_ENABLED)
-        float3 normalMapNormal = float3(0.0f, 0.0f, 0.0f);
-
         normalMapNormal.x = normalMapData.a * 2.0 - 1.0;
         normalMapNormal.y = normalMapData.r * 2.0 - 1.0;
         normalMapNormal.z = sqrt(1 - saturate(normalMapNormal.x * normalMapNormal.x - normalMapNormal.y * normalMapNormal.y));
     #elif defined(NORMAL_MAPP_DXT5_LP_ENABLED)
         normalMapData = normalMapData * 2.0 - 1.0;
-
-        float3 normalMapNormal = float3(0.0f, 0.0f, 0.0f);
-
         normalMapNormal.x = normalMapData.r * normalMapData.a;
         normalMapNormal.y = normalMapData.g;
         normalMapNormal.z = sqrt(1 - saturate(normalMapNormal.x * normalMapNormal.x - normalMapNormal.y * normalMapNormal.y));
     #else // NORMAL_MAPP_DXT5_NM_ENABLED
-        float3 normalMapNormal;
-        normalMapNormal.xy = normalMapData.xy * 2.0 - 1.0;
-        normalMapNormal.z = sqrt(1 - saturate(dot(normalMapData.xy, normalMapData.xy)));
+        normalMapNormal = normalMapData.xyz * 2.0 - 1.0;
+        //normalMapNormal.xy = normalMapData.xy * 2.0 - 1.0;
+        //normalMapNormal.z = sqrt(1 - saturate(normalMapNormal.x * normalMapNormal.x - normalMapNormal.y * normalMapNormal.y));
+        //normalMapNormal.z = sqrt(1 - saturate(dot(normalMapData.xy, normalMapData.xy)));
     #endif // NORMAL_MAPP_DXT5_NM_ENABLED
 
 	inTangent = normalize(inTangent);
@@ -103,37 +100,42 @@ float CalcMipLevel(float2 texcoord){
 
 #if defined(NORMAL_MAPPING_ENABLED)
 	#if defined(DUDV_MAPPING_ENABLED)
-		#define EvaluateNormalFP(In) EvaluateNormalMapNormal(In.Normal.xyz, In.DuDvTexCoord.xy, In.Tangent, _NormalMapSampler)
+		#define EvaluateNormalFP(In) EvaluateNormalMapNormal(In.normal.xyz, In.DuDvTexCoord.xy, In.tangent, _BumpMap)
 	#else // defined(DUDV_MAPPING_ENABLED)
-		#define EvaluateNormalFP(In) EvaluateNormalMapNormal(In.Normal.xyz, In.TexCoord.xy, In.Tangent, _NormalMapSampler)
+		#define EvaluateNormalFP(In) EvaluateNormalMapNormal(In.normal.xyz, In.uv.xy, In.tangent, _BumpMap)
 	#endif // defined(DUDV_MAPPING_ENABLED)
 #else
-	#define EvaluateNormalFP(In) EvaluateStandardNormal(In.Normal.xyz)
+	#define EvaluateNormalFP(In) EvaluateStandardNormal(In.normal.xyz)
 #endif
 
 #if defined(NORMAL_MAPPING2_ENABLED)
 	#if defined(DUDV_MAPPING_ENABLED)
-		#define EvaluateNormal2FP(In) EvaluateNormalMapNormal(In.Normal.xyz, In.DuDvTexCoord.xy, In.Tangent, _NormalMap2Sampler)
+		#define EvaluateNormal2FP(In) EvaluateNormalMapNormal(In.normal.xyz, In.DuDvTexCoord.xy, In.tangent, _NormalMap2Sampler)
 	#else // defined(DUDV_MAPPING_ENABLED)
-		#define EvaluateNormal2FP(In) EvaluateNormalMapNormal(In.Normal.xyz, In.TexCoord.xy, In.Tangent, _NormalMap2Sampler)
+		#define EvaluateNormal2FP(In) EvaluateNormalMapNormal(In.normal.xyz, In.uv.xy, In.tangent, _NormalMap2Sampler)
 	#endif // defined(DUDV_MAPPING_ENABLED)
 #else
-	#define EvaluateNormal2FP(In) EvaluateStandardNormal(In.Normal.xyz)
+	#define EvaluateNormal2FP(In) EvaluateStandardNormal(In.normal.xyz)
 #endif
 
 //-----------------------------------------------------------------------------
 #if defined(RIM_LIGHTING_ENABLED)
     float EvaluateRimLightValue(float ndote) {
         float rimLightvalue = pow(1.0f - abs(ndote), _RimLitPower);
-        //return min(rimLightvalue * _RimLitIntensity, (float3)_RimLightClampFactor);
-        return (rimLightvalue * _RimLitIntensity);
+        rimLightvalue *= _RimLitIntensity;
+        return rimLightvalue;
     }
 #endif // RIM_LIGHTING_ENABLED
 
 //-----------------------------------------------------------------------------
 #if defined(CARTOON_SHADING_ENABLED)
     float calcToonShadingValueFP(float ldotn, float shadowValue) {
-        float u = (ldotn * 0.5f + 0.5f) * shadowValue;
+        float u = (ldotn * 0.5f + 0.5f);
+
+        #if defined(UNITY_PASS_FORWARDBASE)
+            u *= shadowValue;
+        #endif
+
         float r = tex2D(_CartoonMapSampler, float2(u, 0.0f)).r;
         return r;
     }

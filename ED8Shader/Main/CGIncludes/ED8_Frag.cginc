@@ -26,11 +26,11 @@
 
 //-----------------------------------------------------------------------------
 // fragment shader
-fixed4 DefaultFPShader (DefaultVPOutput IN) : SV_TARGET {
-    UNITY_SETUP_INSTANCE_ID(IN);
+fixed4 DefaultFPShader (DefaultVPOutput i) : SV_TARGET {
+    UNITY_SETUP_INSTANCE_ID(i);
 
     #if defined(NOTHING_ENABLED)
-	    float4 resultColor = IN.Color0;
+	    float4 resultColor = i.Color0;
         #if defined(FP_FORCETRANSPARENT) || defined(FP_PORTRAIT)
             return resultColor;
         #endif // FP_FORCETRANSPARENT
@@ -44,91 +44,32 @@ fixed4 DefaultFPShader (DefaultVPOutput IN) : SV_TARGET {
         #endif
     #else // NOTHING_ENABLED
         #if defined(FP_DEFAULTRT)
-            float3 waterNorm = float3(IN.WorldPositionDepth.x, IN.WorldPositionDepth.y - _UserClipPlane.w, IN.WorldPositionDepth.z);
+            float3 waterNorm = float3(i.WorldPositionDepth.x, i.WorldPositionDepth.y - _UserClipPlane.w, i.WorldPositionDepth.z);
             clip(dot(normalize(_UserClipPlane.xyz), normalize(waterNorm)));
         #endif // FP_DEFAULTRT
 
         #if defined(DUDV_MAPPING_ENABLED)
-	        float2 dudvValue = (tex2D(_DuDvMapSampler, IN.DuDvTexCoord.xy).xy * 2.0f - 1.0f) * (_DuDvScale / _DuDvMapImageSize);
+	        float2 dudvValue = (tex2D(_DuDvMapSampler, i.DuDvTexCoord.xy).xy * 2.0f - 1.0f) * (_DuDvScale / _DuDvMapImageSize);
         #endif // DUDV_MAPPING_ENABLED
 
-	    float4 diffuseAmt = float4(0.0f, 0.0f, 0.0f, 1.0f);
+	    float4 diffuseAmt = float4(0.0f, 0.0f, 0.0f, 0.0f);
 
         #if defined(ALPHA_TESTING_ENABLED)
-            IN.Color0.a *= 1 + max(0, CalcMipLevel(IN.TexCoord)) * 0.25;
-            IN.Color0.a = (IN.Color0.a - _AlphaThreshold) / max(fwidth(IN.Color0.a), 0.0001) + 0.5;
+            i.Color0.a *= 1 + max(0, CalcMipLevel(i.uv)) * 0.25;
+            i.Color0.a = (i.Color0.a - _AlphaThreshold) / max(fwidth(i.Color0.a), 0.0001) + 0.5;
         #endif //ALPHA_TESTING_ENABLED
 
         float4 materialDiffuse = (float4)_GameMaterialDiffuse;
-
-        #if !defined(DIFFUSEMAP_CHANGING_ENABLED)
-	        diffuseAmt = tex2D(_DiffuseMapSampler, IN.TexCoord.xy 
-	        #if defined(DUDV_MAPPING_ENABLED)
-		        + dudvValue
-	        #endif // DUDV_MAPPING_ENABLED
-		    );
-        #else // DIFFUSEMAP_CHANGING_ENABLED
-	        float diffuseTxRatio = (float)materialDiffuse.a - 1.0f;
-	        materialDiffuse.a = min(1.0f, materialDiffuse.a);
-
-            UNITY_BRANCH
-            if (diffuseTxRatio < 1.0f) {
-                float t = max(0.0f, diffuseTxRatio);
-
-                float4 diffuseTx0 = tex2D(_DiffuseMapSampler, IN.TexCoord.xy 
-                #if defined(DUDV_MAPPING_ENABLED)
-                    + dudvValue
-                #endif // DUDV_MAPPING_ENABLED
-                );
-
-                float4 diffuseTx1 = tex2D(_DiffuseMapTrans1Sampler, IN.TexCoord.xy
-                #if defined(DUDV_MAPPING_ENABLED)
-                    + dudvValue
-                #endif // DUDV_MAPPING_ENABLED
-                );
-
-                diffuseAmt = lerp(diffuseTx0, diffuseTx1, t);
-            }
-            else if (diffuseTxRatio < 2.0f) {
-                float t = diffuseTxRatio - 1.0f;
-
-                float4 diffuseTx1 = tex2D(_DiffuseMapTrans1Sampler, IN.TexCoord.xy
-                #if defined(DUDV_MAPPING_ENABLED)
-                    + dudvValue
-                #endif // DUDV_MAPPING_ENABLED
-                );
-
-                float4 diffuseTx2 = tex2D(_DiffuseMapTrans2Sampler IN.TexCoord.xy
-                #if defined(DUDV_MAPPING_ENABLED)
-                    + dudvValue
-                #endif // DUDV_MAPPING_ENABLED
-                );
-
-                diffuseAmt = lerp(diffuseTx1, diffuseTx2, t);
-            }
-            else {
-                float t = (min(3.0f, diffuseTxRatio) - 2.0f);
-
-                float4 diffuseTx2 = tex2D(_DiffuseMapTrans2Sampler, IN.TexCoord.xy
-                #if defined(DUDV_MAPPING_ENABLED)
-                    + dudvValue
-                #endif // DUDV_MAPPING_ENABLED
-                );
-
-                float4 diffuseTx0 = tex2D(_DiffuseMapSampler, IN.TexCoord.xy
-                #if defined(DUDV_MAPPING_ENABLED)
-                    + dudvValue
-                #endif // DUDV_MAPPING_ENABLED
-                );
-
-                diffuseAmt = lerp(diffuseTx2, diffuseTx0, t);
-            }
-        #endif // DIFFUSEMAP_CHANGING_ENABLED
+        diffuseAmt = tex2D(_MainTex, i.uv.xy 
+        #if defined(DUDV_MAPPING_ENABLED)
+            + dudvValue
+        #endif // DUDV_MAPPING_ENABLED
+        );
         
-	    diffuseAmt.a *= (float)IN.Color0.a;
+	    diffuseAmt.a *= (float)i.Color0.a;
 
         #if defined(USE_SCREEN_UV)
-            float4 dudvTex = IN.ReflectionMap;
+            float4 dudvTex = i.ReflectionMap;
 
             #if defined(DUDV_MAPPING_ENABLED)
                 float2 dudvAmt = dudvValue * float2(_ScreenWidth /_DuDvMapImageSize.x, _ScreenHeight / _DuDvMapImageSize.y);
@@ -146,7 +87,7 @@ fixed4 DefaultFPShader (DefaultVPOutput IN) : SV_TARGET {
         #if defined(FP_FORCETRANSPARENT)
             #if defined(ALPHA_BLENDING_ENABLED) || defined(ALPHA_TESTING_ENABLED)
                 #if defined(ALPHA_TESTING_ENABLED)
-                    clip(diffuseAmt.a - _AlphaThreshold * (float)IN.Color0.a);
+                    clip(diffuseAmt.a - _AlphaThreshold * (float)i.Color0.a);
                 #else
                     clip(diffuseAmt.a - 0.004f);
                 #endif
@@ -154,11 +95,11 @@ fixed4 DefaultFPShader (DefaultVPOutput IN) : SV_TARGET {
         #elif defined(FP_DEFAULT) || defined(FP_DEFAULTRT) || defined(FP_PORTRAIT)
             #if defined(ALPHA_BLENDING_ENABLED) || defined(ALPHA_TESTING_ENABLED)
                 #if defined(TWOPASS_ALPHA_BLENDING_ENABLED)
-                    float alphaAmt = diffuseAmt.a - _AlphaThreshold * (float)IN.Color0.a;
+                    float alphaAmt = diffuseAmt.a - _AlphaThreshold * (float)i.Color0.a;
                     clip((alphaAmt > 0.0f) ? (alphaAmt * _AlphaTestDirection) : (-1.0f/255.0f));
                 #else // defined(TWOPASS_ALPHA_BLENDING_ENABLED)
                     #if defined(ALPHA_TESTING_ENABLED)
-                        clip(diffuseAmt.a - _AlphaThreshold * (float)IN.Color0.a);
+                        clip(diffuseAmt.a - _AlphaThreshold * (float)i.Color0.a);
                     #else
                         clip(diffuseAmt.a - 0.004f);
                     #endif
@@ -168,7 +109,7 @@ fixed4 DefaultFPShader (DefaultVPOutput IN) : SV_TARGET {
 
         #if defined(MULTI_UV_ENANLED)
 	        #if !defined(MULTI_UV_NO_DIFFUSE_MAPPING_ENANLED)
-	            float4 diffuse2Amt = tex2D(_DiffuseMap2Sampler, IN.TexCoord2.xy);
+	            float4 diffuse2Amt = tex2D(_DiffuseMap2Sampler, i.uv2.xy);
 
 		        #if defined(UVA_SCRIPT_ENABLED)
 	                diffuse2Amt *= (float4)_UVaMUvColor;
@@ -177,7 +118,7 @@ fixed4 DefaultFPShader (DefaultVPOutput IN) : SV_TARGET {
                 #if defined(MULTI_UV_FACE_ENANLED)
                     float multi_uv_alpha = (float)diffuse2Amt.a;
                 #else // defined(MULTI_UV_FACE_ENANLED)
-                    float multi_uv_alpha = (float)IN.Color0.a * diffuse2Amt.a;
+                    float multi_uv_alpha = (float)i.Color0.a * diffuse2Amt.a;
                 #endif // defined(MULTI_UV_FACE_ENANLED)
 
 		        #if defined(MULTI_UV_ADDITIVE_BLENDING_ENANLED)
@@ -199,17 +140,17 @@ fixed4 DefaultFPShader (DefaultVPOutput IN) : SV_TARGET {
 	                diffuseAmt.rgb = lerp(diffuseAmt.rgb, diffuse2Amt.rgb, multi_uv_alpha);
 		        #endif //
 	        #else // !defined(MULTI_UV_NO_DIFFUSE_MAPPING_ENANLED)
-	            float multi_uv_alpha = (float)IN.Color0.a;
+	            float multi_uv_alpha = (float)i.Color0.a;
 	        #endif // !defined(MULTI_UV_NO_DIFFUSE_MAPPING_ENANLED)
 
             #if defined(MULTI_UV2_ENANLED)
                 #if !defined(MULTI_UV2_NO_DIFFUSE_MAPPING_ENANLED)
-                    float4 diffuse3Amt = tex2D(_DiffuseMap3Sampler, IN.TexCoord3.xy);
+                    float4 diffuse3Amt = tex2D(_DiffuseMap3Sampler, i.uv3.xy);
 
                     #if defined(MULTI_UV2_FACE_ENANLED)
                         float multi_uv2_alpha = (float)diffuse3Amt.a;
                     #else // defined(MULTI_UV2_FACE_ENANLED)
-                        float multi_uv2_alpha = (float)IN.Color0.a * diffuse3Amt.a;
+                        float multi_uv2_alpha = (float)i.Color0.a * diffuse3Amt.a;
 			        #endif // defined(MULTI_UV_FACE_ENANLED)
 
 			        #if defined(MULTI_UV2_ADDITIVE_BLENDING_ENANLED)
@@ -240,13 +181,45 @@ fixed4 DefaultFPShader (DefaultVPOutput IN) : SV_TARGET {
             float shadowValue = 1.0f;
 
             UNITY_BRANCH
-            if (_WorldSpaceLightPos0.w >= 0) {
-                shadowValue = SHADOW_ATTENUATION(IN);
+            if (_WorldSpaceLightPos0.w >= 0.0f) {
+                shadowValue = SHADOW_ATTENUATION(i);
             }
 
-            #if defined(FP_DUDV_AMT_EXIST)
-                shadowValue = (shadowValue + 1.0f) * 0.5f;
-            #endif
+            /*
+            {
+                #ifdef PRECALC_SHADOWMAP_POSITION
+                    if (i.shadowPos.w < 1.0f) {
+                        float shadowMin = SampleOrthographicShadowMap(i.shadowPos.xyz, LightShadowMap0, DuranteSettings.x, 1.0f);
+
+                        #ifdef SHADOW_ATTENUATION_ENABLED
+                            shadowMin = (float)min(shadowMin + i.shadowPos.w, 1.0f);
+                        #endif
+                        shadowValue = min(shadowValue, shadowMin);
+                    }
+                #else // PRECALC_SHADOWMAP_POSITION
+                    #if defined(DUDV_MAPPING_ENABLED)
+                        float3 dudv0 = float3(dudvValue.x, dudvValue.y, 0.0f);
+                        float shadowMin = min(shadowValue, EvaluateShadow(Light0, LightShadow0, LightShadowMap0, i.WorldPositionDepth.xyz + dudv0, i.WorldPositionDepth.w, DuranteSettings.x));
+                    #else // DUDV_MAPPING_ENABLED
+                        float shadowMin = min(shadowValue, EvaluateShadow(Light0, LightShadow0, LightShadowMap0, i.WorldPositionDepth.xyz, i.WorldPositionDepth.w, DuranteSettings.x));
+                    #endif // DUDV_MAPPING_ENABLED
+
+                    #ifdef SHADOW_ATTENUATION_VERTICAL_ENABLED
+                        if (scene_MiscParameters2.x > 0.0f) {
+                            float shadowMinBias = min(abs(i.WorldPositionDepth.y - scene_MiscParameters2.y) * scene_MiscParameters2.x, 1.0f);
+                            shadowMinBias = pow(shadowMinBias, SHADOW_ATTENUATION_POWER_VERTICAL);
+                            shadowMin = min(shadowMin + shadowMinBias, 1.0f);
+                        }
+                    #endif
+
+                    shadowValue = min(shadowValue, shadowMin);
+                #endif // PRECALC_SHADOWMAP_POSITION
+
+                #if defined(FP_DUDV_AMT_EXIST)
+                    shadowValue = (shadowValue + 1.0f) * 0.5f;
+                #endif
+            }
+            */
         #else // defined(USE_LIGHTING) && defined(FP_DEFAULT) && !defined(FP_PORTRAIT)
             float shadowValue = 1.0f;
         #endif // defined(USE_LIGHTING)
@@ -264,7 +237,7 @@ fixed4 DefaultFPShader (DefaultVPOutput IN) : SV_TARGET {
         #endif // MULTI_UV_ENANLED
 
         #if defined(PROJECTION_MAP_ENABLED)
-            float4 projTex = tex2D(_ProjectionMapSampler, IN.ProjMap.xy);
+            float4 projTex = tex2D(_ProjectionMapSampler, i.ProjMap.xy);
             shadowValue = min(shadowValue, 1.0f - (projTex.r * projTex.a));
         #endif // PROJECTION_MAP_ENABLED
 
@@ -272,17 +245,17 @@ fixed4 DefaultFPShader (DefaultVPOutput IN) : SV_TARGET {
 	        float glossValue = 1.0f;
 
 	        #if defined(SPECULAR_MAPPING_ENABLED)
-	            glossValue = tex2D(_SpecularMapSampler, IN.TexCoord.xy).x;
+	            glossValue = tex2D(_SpecularMapSampler, i.uv.xy).x;
 	        #endif // SPECULAR_MAPPING_ENABLED
 
             #if defined(MULTI_UV_ENANLED)
                 #if defined(MULTI_UV_SPECULAR_MAPPING_ENABLED)
-                    float glossValue2 = tex2D(_SpecularMap2Sampler, IN.TexCoord2.xy).x;
+                    float glossValue2 = tex2D(_SpecularMap2Sampler, i.uv2.xy).x;
                     glossValue = lerp(glossValue, glossValue2, multi_uv_alpha);
                 #endif // defined(MULTI_UV_SPECULAR_MAPPING_ENABLED)
 
                 #if defined(MULTI_UV2_SPECULAR_MAPPING_ENABLED)
-                    float glossValue3 = tex2D(_SpecularMap3Sampler, IN.TexCoord3.xy).x;
+                    float glossValue3 = tex2D(_SpecularMap3Sampler, i.uv3.xy).x;
                     glossValue = lerp(glossValue, glossValue3, multi_uv2_alpha);
                 #endif // defined(MULTI_UV2_OCCULUSION_MAPPING_ENABLED)
             #endif // 
@@ -294,12 +267,12 @@ fixed4 DefaultFPShader (DefaultVPOutput IN) : SV_TARGET {
 	        float occulusionValue = 1.0f;
 
 	        #if defined(OCCULUSION_MAPPING_ENABLED)
-	            occulusionValue = tex2D(_OcculusionMapSampler, IN.TexCoord.xy).x;
+	            occulusionValue = tex2D(_OcculusionMapSampler, i.uv.xy).x;
 	        #endif // OCCULUSION_MAPPING_ENABLED
 
 	        #if defined(MULTI_UV_ENANLED)
 		        #if defined(MULTI_UV_OCCULUSION_MAPPING_ENABLED)
-	                float4 occulusionValue2 = tex2D(_OcculusionMap2Sampler, IN.TexCoord2.xy);
+	                float4 occulusionValue2 = tex2D(_OcculusionMap2Sampler, i.uv2.xy);
 
 			        #if defined(MULTI_UV_NO_DIFFUSE_MAPPING_ENANLED)
 	                    multi_uv_alpha = occulusionValue2.a;
@@ -309,7 +282,7 @@ fixed4 DefaultFPShader (DefaultVPOutput IN) : SV_TARGET {
 		        #endif // defined(MULTI_UV_OCCULUSION_MAPPING_ENABLED)
 
 		        #if defined(MULTI_UV2_ENANLED) && defined(MULTI_UV2_OCCULUSION_MAPPING_ENABLED)
-	                float4 occulusionValue3 = tex2D(_OcculusionMap3Sampler, IN.TexCoord3.xy);
+	                float4 occulusionValue3 = tex2D(_OcculusionMap3Sampler, i.uv3.xy);
 
 			        #if defined(MULTI_UV2_NO_DIFFUSE_MAPPING_ENANLED)
 	                    float multi_uv2_alpha = occulusionValue3.a;
@@ -319,9 +292,9 @@ fixed4 DefaultFPShader (DefaultVPOutput IN) : SV_TARGET {
 		        #endif // defined(MULTI_UV2_ENANLED) && defined(MULTI_UV2_OCCULUSION_MAPPING_ENABLED)
 	        #endif // defined(MULTI_UV_ENANLED)
 
-	        float3 ambientOcclusion = (float3)IN.Color0.rgb * occulusionValue;
+	        float3 ambientOcclusion = (float3)i.Color0.rgb * occulusionValue;
         #else // OCCULUSION_MAPPING_ENABLED
-	        float3 ambientOcclusion = (float3)IN.Color0.rgb;
+	        float3 ambientOcclusion = (float3)i.Color0.rgb;
         #endif // OCCULUSION_MAPPING_ENABLED
 
         #if defined(RIM_LIGHTING_ENABLED) || defined(CARTOON_SHADING_ENABLED) || defined(CUBE_MAPPING_ENABLED) || defined(SPHERE_MAPPING_ENABLED)
@@ -350,10 +323,10 @@ fixed4 DefaultFPShader (DefaultVPOutput IN) : SV_TARGET {
 
         #if defined(FORCE_PER_VERTEX_ENVIRON_MAP) || !defined(USE_TANGENTS) || !defined(USE_LIGHTING)
 	        #if defined(CUBE_MAPPING_ENABLED)
-	            float4 cubeMapColor = texCUBE(_CubeMapSampler, normalize(IN.CubeMap.xyz)).rgba; //TODO : check
-	            float cubeMapIntensity = IN.CubeMap.w;
+	            float4 cubeMapColor = texCUBE(_CubeMapSampler, normalize(i.CubeMap.xyz)).rgba; //TODO : check
+	            float cubeMapIntensity = i.CubeMap.w;
             #elif defined(SPHERE_MAPPING_ENABLED)
-	            float4 sphereMapColor = tex2D(_SphereMapSampler, IN.SphereMap.xy).rgba;
+	            float4 sphereMapColor = tex2D(_SphereMapSampler, i.SphereMap.xy).rgba;
 	        #endif // CUBE_MAPPING_ENABLED || SPHERE_MAPPING_ENABLED
         #else // defined(FORCE_PER_VERTEX_ENVIRON_MAP) || !defined(USE_TANGENTS) || !defined(USE_LIGHTING)
 
@@ -365,10 +338,10 @@ fixed4 DefaultFPShader (DefaultVPOutput IN) : SV_TARGET {
 
         #if !defined(USE_PER_VERTEX_LIGHTING) && defined(USE_LIGHTING)
 	        // [PerPixel]
-	        float3 worldSpaceNormal = EvaluateNormalFP(IN);
+	        float3 worldSpaceNormal = EvaluateNormalFP(i);
 
 	        #if defined(MULTI_UV_ENANLED) && defined(MULTI_UV_NORMAL_MAPPING_ENABLED)
-	            worldSpaceNormal = normalize(lerp(worldSpaceNormal, EvaluateNormal2FP(IN), multi_uv_alpha));
+	            worldSpaceNormal = normalize(lerp(worldSpaceNormal, EvaluateNormal2FP(i), multi_uv_alpha));
 	        #endif //
 
 	        float3 ambient = float3(0.0f, 0.0f, 0.0f);
@@ -388,7 +361,7 @@ fixed4 DefaultFPShader (DefaultVPOutput IN) : SV_TARGET {
 		        #endif // NO_MAIN_LIGHT_SHADING_ENABLED
 	        #endif // defined(ALPHA_BLENDING_ENABLED) && defined(USE_EXTRA_BLENDING)
 
-            float3 worldSpaceEyeDirection = normalize(getEyePosition() - IN.WorldPositionDepth.xyz);
+            float3 worldSpaceEyeDirection = normalize(getEyePosition() - i.WorldPositionDepth.xyz);
             #define FP_WS_EYEDIR_EXIST
 
 	        // リムライトや環境マップの準備
@@ -424,7 +397,8 @@ fixed4 DefaultFPShader (DefaultVPOutput IN) : SV_TARGET {
                     #if defined(RIM_TRANSPARENCY_ENABLED)
                         resultColor.a *= 1.0f - EvaluateRimLightValue(ndote);
                     #else // RIM_TRANSPARENCY_ENABLED
-                        float rimLightvalue = EvaluateRimLightValue(ndote);
+                        half rimLightvalue = EvaluateRimLightValue(ndote);
+                        //rimLightvalue = min(_RimLightClampFactor, rimLightvalue);
                         ambient += rimLightvalue * (float3)_RimLitColor * subLightColor;
                     #endif // RIM_TRANSPARENCY_ENABLED
                 #endif // RIM_LIGHTING_ENABLED
@@ -448,9 +422,9 @@ fixed4 DefaultFPShader (DefaultVPOutput IN) : SV_TARGET {
                 shadingAmt = (1.0f - float3(ndote, ndote, ndote)) * float3(0.345f * 3.5f, 0.875f * 3.5f, 1.0f * 3.5f);
                 resultColor.rgb = dot(resultColor.rgb, float3(0.299f, 0.587f, 0.114f));
             #elif defined(FP_PORTRAIT)
-                shadingAmt = PortraitEvaluateLightingPerPixelFP(sublightAmount, IN.WorldPositionDepth.xyz, worldSpaceNormal, glossValue, shadowValue, ambient, worldSpaceEyeDirection);
+                shadingAmt = PortraitEvaluateLightingPerPixelFP(sublightAmount, i.WorldPositionDepth.xyz, worldSpaceNormal, glossValue, shadowValue, ambient, worldSpaceEyeDirection);
             #else
-                shadingAmt = EvaluateLightingPerPixelFP(sublightAmount, IN.WorldPositionDepth.xyz, worldSpaceNormal, glossValue, shadowValue, ambient, worldSpaceEyeDirection);
+                shadingAmt = EvaluateLightingPerPixelFP(sublightAmount, i.WorldPositionDepth.xyz, worldSpaceNormal, glossValue, shadowValue, ambient, worldSpaceEyeDirection);
             #endif
         #else // !USE_PER_VERTEX_LIGHTING && USE_LIGHTING
 	        // [PerVertex]
@@ -458,11 +432,11 @@ fixed4 DefaultFPShader (DefaultVPOutput IN) : SV_TARGET {
                 #if defined(PRECALC_EVALUATE_AMBIENT)
                     float3 subLight = float3(0.0f, 0.0f, 0.0f);
                 #else
-                    float3 subLight = IN.Color1.rgb;
+                    float3 subLight = i.Color1.rgb;
                 #endif
 
-                float3 diffuse = IN.ShadingAmount.rgb;
-                float3 specular = IN.LightingAmount.rgb;
+                float3 diffuse = i.ShadingAmount.rgb;
+                float3 specular = i.LightingAmount.rgb;
             #else // USE_LIGHTING
                 float3 subLight = float3(0.0f, 0.0f, 0.0f);
                 float3 diffuse = float3(1.0f, 1.0f, 1.0f);
@@ -473,7 +447,7 @@ fixed4 DefaultFPShader (DefaultVPOutput IN) : SV_TARGET {
 
             // リムライト
             #if defined(USE_LIGHTING)
-	            float3 worldSpaceNormal = normalize(IN.Normal);
+	            float3 worldSpaceNormal = normalize(i.normal);
 
 		        #if defined(ALPHA_BLENDING_ENABLED) && defined(USE_EXTRA_BLENDING)
 	                //ambient = float3(0.0f, 0.0f, 0.0f);
@@ -486,7 +460,7 @@ fixed4 DefaultFPShader (DefaultVPOutput IN) : SV_TARGET {
 	                        ambient = PortraitEvaluateAmbient();
 				        #else // FP_PORTRAIT
                             #if defined(PRECALC_EVALUATE_AMBIENT)
-                                ambient = IN.Color1.rgb;
+                                ambient = i.Color1.rgb;
                             #else
                                 ambient = EvaluateAmbient(worldSpaceNormal);
                             #endif
@@ -496,7 +470,8 @@ fixed4 DefaultFPShader (DefaultVPOutput IN) : SV_TARGET {
 
 		        #if defined(RIM_LIGHTING_ENABLED)
 			        #if defined(USE_FORCE_VERTEX_RIM_LIGHTING)
-	                    float rimLightvalue = IN.ShadingAmount.a;
+	                    half rimLightvalue = i.ShadingAmount.a;
+                        //rimLightvalue = min(_RimLightClampFactor, rimLightvalue);
 
 				        #if defined(RIM_TRANSPARENCY_ENABLED)
 	                        resultColor.a *= rimLightvalue;
@@ -504,7 +479,7 @@ fixed4 DefaultFPShader (DefaultVPOutput IN) : SV_TARGET {
 	                        ambient += rimLightvalue * (float3)_RimLitColor * subLightColor;
 				        #endif // RIM_TRANSPARENCY_ENABLED
 			        #else // defined(USE_FORCE_VERTEX_RIM_LIGHTING)
-	                    float3 worldSpaceEyeDirection = normalize(getEyePosition() - IN.WorldPositionDepth.xyz);
+	                    float3 worldSpaceEyeDirection = normalize(getEyePosition() - i.WorldPositionDepth.xyz);
 				        #define FP_WS_EYEDIR_EXIST
 	                    float ndote = dot(worldSpaceNormal, worldSpaceEyeDirection);
 
@@ -518,7 +493,8 @@ fixed4 DefaultFPShader (DefaultVPOutput IN) : SV_TARGET {
                             }
                         }
 
-	                    float rimLightvalue = EvaluateRimLightValue(ndote);
+	                    half rimLightvalue = EvaluateRimLightValue(ndote);
+                        //rimLightvalue = min(_RimLightClampFactor, rimLightvalue);
 
 				        #if defined(RIM_TRANSPARENCY_ENABLED)
 	                        resultColor.a *= rimLightvalue;
@@ -533,10 +509,10 @@ fixed4 DefaultFPShader (DefaultVPOutput IN) : SV_TARGET {
 
             #if defined(FP_SHINING)
 		        #if !defined(USE_LIGHTING)
-	                float3 worldSpaceNormal = normalize(IN.Normal);
+	                float3 worldSpaceNormal = normalize(i.normal);
 		        #endif
 
-	            float3 worldSpaceEyeDirection2 = normalize(getEyePosition() - IN.WorldPositionDepth.xyz);
+	            float3 worldSpaceEyeDirection2 = normalize(getEyePosition() - i.WorldPositionDepth.xyz);
 	            float ndote2 = dot(worldSpaceNormal, worldSpaceEyeDirection2);
 
 		        #if !defined(USE_LIGHTING)
@@ -545,34 +521,16 @@ fixed4 DefaultFPShader (DefaultVPOutput IN) : SV_TARGET {
 	                shadingAmt = (1.0f - float3(ndote2, ndote2, ndote2)) * float3(0.345f * 3.5f, 0.875f * 3.5f, 1.0f * 3.5f);
 		        #endif
 	        #else
-	            shadingAmt = EvaluateLightingPerVertexFP(IN, IN.WorldPositionDepth.xyz, glossValue, shadowValue, ambient, diffuse, specular, subLight);
+	            shadingAmt = EvaluateLightingPerVertexFP(i, i.WorldPositionDepth.xyz, glossValue, shadowValue, ambient, diffuse, specular, subLight);
 	        #endif
         #endif // !defined(USE_PER_VERTEX_LIGHTING) && defined(USE_LIGHTING)
-
-        #if defined(CUSTOM_DIFFUSE_ENABLED)
-            float grayscale = dot(resultColor.rgb, float3(0.299f, 0.587f, 0.114f));
-
-            UNITY_BRANCH
-            if (_WorldSpaceLightPos0.w == 0.0) {
-                #if defined(LIGHT_DIRECTION_FOR_CHARACTER_ENABLED)
-                    float ldotn = (float)dot(normalize(_LightDirForChar), worldSpaceNormal);
-                    resultColor.rgb = calcCustomDiffuse(grayscale * (ldotn * 0.5f + 0.5f) * shadowValue);
-                #else // LIGHT_DIRECTION_FOR_CHARACTER_ENABLED
-                    float ldotn = (float)dot(_WorldSpaceLightPos0.xyz, worldSpaceNormal);
-                    resultColor.rgb = calcCustomDiffuse(grayscale * (ldotn * 0.5f + 0.5f) * shadowValue);
-                #endif // LIGHT_DIRECTION_FOR_CHARACTER_ENABLED
-            }
-            else {
-                resultColor.rgb = float3(grayscale, grayscale, grayscale);
-            }
-        #endif // CUSTOM_DIFFUSE_ENABLED
 
         #if defined(FP_NEED_AFTER_MAX_AMBIENT)
             #if defined(FP_PORTRAIT)
                 shadingAmt = max(shadingAmt, PortraitEvaluateAmbient());
             #else // FP_PORTRAIT
                 #if defined(USE_PER_VERTEX_LIGHTING) && defined(PRECALC_EVALUATE_AMBIENT)
-                    shadingAmt = max(shadingAmt, IN.Color1.rgb);
+                    shadingAmt = max(shadingAmt, i.Color1.rgb);
                 #else
                     shadingAmt = max(shadingAmt, EvaluateAmbient(worldSpaceNormal));
                 #endif
@@ -584,7 +542,7 @@ fixed4 DefaultFPShader (DefaultVPOutput IN) : SV_TARGET {
         #if defined(DUDV_MAPPING_ENABLED) || defined(WATER_SURFACE_ENABLED)
             #if defined(WATER_SURFACE_ENABLED)
                 #if !defined(FP_WS_EYEDIR_EXIST)
-                    float3 worldSpaceEyeDirection = normalize(getEyePosition() - IN.WorldPositionDepth.xyz);
+                    float3 worldSpaceEyeDirection = normalize(getEyePosition() - i.WorldPositionDepth.xyz);
                 #endif // FP_WS_EYEDIR_EXIST
 
                 float water_ndote = dot(normalize(_UserClipPlane.xyz), worldSpaceEyeDirection);
@@ -599,7 +557,7 @@ fixed4 DefaultFPShader (DefaultVPOutput IN) : SV_TARGET {
         #if defined(CARTOON_SHADING_ENABLED)
 		    #if !defined(CUBE_MAPPING_ENABLED) && !defined(SPHERE_MAPPING_ENABLED)
 			    #if defined(CARTOON_HILIGHT_ENABLED)
-	                float hilightValue = tex2D(_HighlightMapSampler, IN.CartoonMap.xy).r;
+	                float hilightValue = tex2D(_HighlightMapSampler, i.CartoonMap.xy).r;
 	                float3 hilightAmt = hilightValue * _HighlightIntensity * _HighlightColor * subLightColor;
                     #define FP_HAS_HILIGHT
 			    #endif // CARTOON_HILIGHT_ENABLED
@@ -641,7 +599,7 @@ fixed4 DefaultFPShader (DefaultVPOutput IN) : SV_TARGET {
 	    shadingAmt += sublightAmount;
 
         #if defined(EMISSION_MAPPING_ENABLED)
-	        float4 emiTex = tex2D(_EmissionMapSampler, IN.TexCoord.xy);
+	        float4 emiTex = tex2D(_EmissionMapSampler, i.uv.xy);
 	        shadingAmt.rgb = lerp(shadingAmt.rgb, float3(1.0f, 1.0f, 1.0f), float3(emiTex.r, emiTex.r, emiTex.r));
         #endif // EMISSION_MAPPING_ENABLED
 
@@ -652,7 +610,7 @@ fixed4 DefaultFPShader (DefaultVPOutput IN) : SV_TARGET {
         #endif
 
         #if defined(FOG_ENABLED)
-            EvaluateFogFP(resultColor.rgb, _FogColor.rgb, IN.Color1.a);
+            EvaluateFogFP(resultColor.rgb, _FogColor.rgb, i.Color1.a);
         #endif // FOG_ENABLED
 
         #if defined(SUBTRACT_BLENDING_ENABLED)
@@ -669,11 +627,11 @@ fixed4 DefaultFPShader (DefaultVPOutput IN) : SV_TARGET {
                     float glowValue = 0.0f;
 
                     #if defined(GLARE_MAP_ENABLED)
-                        glowValue += tex2D(_GlareMapSampler, IN.TexCoord.xy).x;
+                        glowValue += tex2D(_GlareMapSampler, i.uv.xy).x;
                     #endif
 
                     #if defined(MULTI_UV_ENANLED) && defined(MULTI_UV_GLARE_MAP_ENABLED)
-                        float glowValue2 = tex2D(_GlareMap2Sampler, IN.TexCoord.xy).x;
+                        float glowValue2 = tex2D(_GlareMap2Sampler, i.uv.xy).x;
                         glowValue = lerp(glowValue, glowValue2, multi_uv_alpha);
                     #endif
 
@@ -691,13 +649,16 @@ fixed4 DefaultFPShader (DefaultVPOutput IN) : SV_TARGET {
                         glowValue += waterGlowValue;
                         return float4(resultColor.rgb, glowValue * _GlareIntensity);
                     #else 
-                        return float4(resultColor.rgb, glowValue * _GlareIntensity * resultColor.a);
+                        //return float4(resultColor.rgb * glowValue * _GlareIntensity, resultColor.a);
+                        return float4(resultColor.rgb + (resultColor.rgb * glowValue * _GlareIntensity), glowValue * _GlareIntensity * resultColor.a);
                     #endif
                 #else // defined(GLARE_MAP_ENABLED) || defined(GLARE_OVERFLOW_ENABLED) || defined(GLARE_HIGHTPASS_ENABLED)
-                    return float4(resultColor.rgb, 0.0f);
+                    //return float4(resultColor.rgb, 0.0f);
+                    return float4(resultColor.rgb + (resultColor.rgb * _GlareIntensity), 0.0f);
                 #endif // defined(GLARE_MAP_ENABLED) || defined(GLARE_OVERFLOW_ENABLED) || defined(GLARE_HIGHTPASS_ENABLED)
             #else // !defined(ALPHA_BLENDING_ENABLED)
-                return resultColor;
+                //return resultColor;
+                return float4(resultColor.rgb + (resultColor.rgb * _GlareIntensity), resultColor.a);
             #endif // !defined(ALPHA_BLENDING_ENABLED)
         #endif // FP_DEFAULT || FP_DEFAULTRT
     #endif // NOTHING_ENABLED

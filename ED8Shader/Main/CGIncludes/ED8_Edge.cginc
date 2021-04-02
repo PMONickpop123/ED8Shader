@@ -16,7 +16,7 @@
 
     float4 EdgeFPShader(EdgeFPInput IN) : COLOR0 {
         float4 resultColor = (float4)IN.Color0;
-        resultColor.a *= tex2D(_DiffuseMapSampler, IN.TexCoord.xy).a;
+        resultColor.a *= tex2D(_MainTex, IN.TexCoord.xy).a;
 
         #if defined(ALPHA_BLENDING_ENABLED) || defined(ALPHA_TESTING_ENABLED)
             clip(resultColor.a - _AlphaThreshold);

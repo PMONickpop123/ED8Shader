@@ -35,16 +35,6 @@
         [HideInInspector] m_end_PortraitLight ("Enable Light Direction (Characters)", Float) = 0
         // #endif (LIGHT_DIRECTION_FOR_CHARACTER_ENABLED)
 
-        // #if defined(CUSTOM_DIFFUSE_SUPPORT)
-        [HideInInspector] m_start_CustomDiffuse ("Enable Custom Diffuse", Float) = 0
-        [HideInInspector][Toggle(CUSTOM_DIFFUSE_SUPPORT)]_CustomDiffuseEnabled ("Enable Custom Diffuse", Float) = 0
-        _CustomDiffuse_Hilight("CustomDiffuse_Hilight", Vector) = (1.0, 1.0, 1.0, 0.0)
-        _CustomDiffuse_Base("CustomDiffuse_Base", Vector) = (0.8, 0.8, 0.8, 0.0)
-        _CustomDiffuse_Middle("CustomDiffuse_Middle", Vector) = (0.6, 0.6, 0.6, 0.0)
-        _CustomDiffuse_Shadow("CustomDiffuse_Shadow", Vector) = (0.4, 0.4, 0.4, 0.0)
-        [HideInInspector] m_end_CustomDiffuse ("Enable Custom Diffuse", Float) = 0
-        // #endif (CUSTOM_DIFFUSE_SUPPORT)
-
         _GameMaterialID("Game Material ID", Range(0, 100)) = 0
 
         [HideInInspector] m_start_GameMaterial ("Game Material", Float) = 0
@@ -126,7 +116,7 @@
         _TexCoordOffset3("TexCoordOffset3", Vector) = (0.0, 0.0, 0.0, 0.0)
 
         // #if !defined(NOTHING_ENABLED)
-        _DiffuseMapSampler("Diffuse Map", 2D) = "white" {}
+        _MainTex("Diffuse Map", 2D) = "white" {}
         // #endif (!NOTHING_ENABLED)
 
         [Toggle(NORMAL_MAPP_DXT5_NM_ENABLED)]_NormalMapDXT5NMEnabled ("Enable Normal Map DXT5 NM", Float) = 0
@@ -134,7 +124,7 @@
         // #if defined(NORMAL_MAPPING_ENABLED)
         [HideInInspector] m_start_NormalMap ("Enable Normal Mapping", Float) = 0
         [HideInInspector][Toggle(NORMAL_MAPPING_ENABLED)]_NormalMappingEnabled ("Enable Normal Mapping", Float) = 0
-        _NormalMapSampler("Normal Map", 2D) = "bump" {}
+        _BumpMap("Normal Map", 2D) = "bump" {}
         [HideInInspector] m_end_NormalMap ("Enable Normal Mapping", Float) = 0
         // #endif (NORMAL_MAPPING_ENABLED)
 
@@ -158,15 +148,6 @@
         _EmissionMapSampler("Emission Map", 2D) = "white" {}
         [HideInInspector] m_end_EmissionMap ("Enable Emission Mapping", Float) = 0
         // #endif (EMISSION_MAPPING_ENABLED)
-
-        // #if defined(DIFFUSEMAP_CHANGING_ENABLED)
-        [HideInInspector] m_start_DiffuseMapChanging ("Enable Diffuse Map Changing", Float) = 0
-        [HideInInspector][Toggle(DIFFUSEMAP_CHANGING_ENABLED)]_DiffuseMapChangingEnabled ("Enable Diffuse Map Changing", Float) = 0
-        _DiffuseMapTrans1Sampler("Diffuse Map Trans 1", 2D) = "white" {}
-        _DiffuseMapTrans2Sampler("Diffuse Map Trans 2", 2D) = "white" {}
-        _DiffuseMapTransRatio("Diffuse Map Trans Ratio", Range(0.0, 3.0)) = 0.0
-        [HideInInspector] m_end_DiffuseMapChanging ("Enable Diffuse Map Changing", Float) = 0
-        // #endif (DIFFUSEMAP_CHANGING_ENABLED)
 
         // #if defined(MULTI_UV_ENANLED)
         //#if !defined(MULTI_UV_NO_DIFFUSE_MAPPING_ENANLED)
@@ -250,12 +231,12 @@
         // #if defined(CARTOON_SHADING_ENABLED)
         [HideInInspector] m_start_CartoonShading ("Enable Cartoon Shading", Float) = 0
         [HideInInspector][Toggle(CARTOON_SHADING_ENABLED)]_CartoonShadingEnabled ("Enable Cartoon Shading", Float) = 0
-        _CartoonMapSampler("Cartoon Map", 2D) = "white" {}
+        _CartoonMapSampler("Cartoon Map", 2D) = "gray" {}
 
         // #if defined(CARTOON_HILIGHT_ENABLED)
         [HideInInspector] m_start_CartoonHilight ("Enable Cartoon Hilight", Float) = 0
         [HideInInspector][Toggle(CARTOON_HILIGHT_ENABLED)]_CartoonHilightEnabled ("Enable Cartoon Hilight", Float) = 0
-        _HighlightMapSampler("Hilight Map", 2D) = "white" {}
+        _HighlightMapSampler("Hilight Map", 2D) = "gray" {}
         _HighlightColor("Hilight Color", Color) = (1.0, 1.0, 1.0, 0.0)
         _HighlightIntensity("Hilight Intensity", Range(0.001, 10.0)) = 2.0
         [HideInInspector] m_end_CartoonHilight ("Enable Cartoon Hilight", Float) = 0
@@ -345,7 +326,7 @@
 
         [Toggle(GLARE_HIGHTPASS_ENABLED)]_GlareHilightPassEnabled ("Enable Glare HilightPass", Float) = 0
         //[Toggle(GLARE_EMISSION_ENABLED)]_GlareEmissionEnabled ("Enable Glare Emission", Float) = 0
-        _GlareIntensity("Glare Intensity", Range(0.004, 5.0)) = 1.0
+        _GlareIntensity("Glare Intensity", Range(0.0, 20.0)) = 0.0
 
         [HideInInspector] m_start_StencilOptions ("Stencil", Float) = 0
         [IntRange] _Stencil ("Stencil ID [0;255]", Range(0,255)) = 0
@@ -359,6 +340,8 @@
         [HideInInspector]_GlobalMainLightClampFactorAnimated("Global MainLight Clamp", Int) = 0
         [HideInInspector]_PortraitLightColorAnimated("PortraitLightColor", Int) = 0
         [HideInInspector]_PortraitAmbientColorAnimated("PortraitAmbientColor", Int) = 0
+        [HideInInspector]_GameMaterialDiffuseAnimated("Game Material Diffuse", Int) = 0
+        [HideInInspector]_GameMaterialEmissionAnimated("Game Material Emission", Int) = 0
         [HideInInspector]_UVaMUvColorAnimated("UVaMUVColor", Int) = 0
         [HideInInspector]_UVaProjTexcoordAnimated("UVaProjTexcoord", Int) = 0
         [HideInInspector]_UVaMUvTexcoordAnimated("UVaMUvTexcoord", Int) = 0
@@ -399,7 +382,6 @@
             #pragma shader_feature NO_MAIN_LIGHT_SHADING_ENABLED
             #pragma shader_feature HALF_LAMBERT_LIGHTING_ENABLED
             #pragma shader_feature LIGHT_DIRECTION_FOR_CHARACTER_ENABLED
-            #pragma shader_feature CUSTOM_DIFFUSE_SUPPORT
             #pragma shader_feature UVA_SCRIPT_ENABLED
             #pragma shader_feature FOG_ENABLED
             #pragma shader_feature FOG_RATIO_ENABLED
@@ -416,7 +398,6 @@
             #pragma shader_feature SPECULAR_MAPPING_ENABLED
             #pragma shader_feature OCCULUSION_MAPPING_ENABLED
             #pragma shader_feature EMISSION_MAPPING_ENABLED
-            #pragma shader_feature DIFFUSEMAP_CHANGING_ENABLED
             #pragma shader_feature MULTI_UV_ENANLED
             #pragma shader_feature MULTI_UV_ADDITIVE_BLENDING_ENANLED
             #pragma shader_feature MULTI_UV_MULTIPLICATIVE_BLENDING_ENANLED
@@ -486,7 +467,6 @@
             #pragma shader_feature NO_MAIN_LIGHT_SHADING_ENABLED
             #pragma shader_feature HALF_LAMBERT_LIGHTING_ENABLED
             #pragma shader_feature LIGHT_DIRECTION_FOR_CHARACTER_ENABLED
-            #pragma shader_feature CUSTOM_DIFFUSE_SUPPORT
             #pragma shader_feature UVA_SCRIPT_ENABLED
             #pragma shader_feature FOG_ENABLED
             #pragma shader_feature FOG_RATIO_ENABLED
@@ -503,7 +483,6 @@
             #pragma shader_feature SPECULAR_MAPPING_ENABLED
             #pragma shader_feature OCCULUSION_MAPPING_ENABLED
             #pragma shader_feature EMISSION_MAPPING_ENABLED
-            #pragma shader_feature DIFFUSEMAP_CHANGING_ENABLED
             #pragma shader_feature MULTI_UV_ENANLED
             #pragma shader_feature MULTI_UV_ADDITIVE_BLENDING_ENANLED
             #pragma shader_feature MULTI_UV_MULTIPLICATIVE_BLENDING_ENANLED

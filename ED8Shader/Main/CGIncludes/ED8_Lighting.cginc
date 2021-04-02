@@ -18,7 +18,7 @@ float calcSpecularLightAmt(float3 normal, float3 lightDir, float3 eyeDirection, 
 	return specularLightAmount;
 }
 
-#if defined(FAKE_CONSTANT_SPECULAR_ENABLED)
+#if defined(FAKE_CONSTANT_SPECULAR_ENABLED) && defined(SPECULAR_ENABLED)
     float3 getFakeSpecularLightDir(float3 trueLightDir) {
         float3 v0 = mul(float4(0, 0, 0, 1), unity_CameraToWorld).xyz;
 	    float3 v1 = mul(float4(0, 0, -1, 1), unity_CameraToWorld).xyz;
@@ -53,27 +53,6 @@ float3 EvaluateAmbient(float3 normal) {
     }
 #endif // defined(LIGHT_DIRECTION_FOR_CHARACTER_ENABLED)
 
-#if defined(CUSTOM_DIFFUSE_ENABLED)
-    float3 calcCustomDiffuse(float value) {
-        UNITY_BRANCH
-        if (value >= 0.60f) {
-            value = min(1.0f, value);
-            return lerp(_CustomDiffuse_Base, _CustomDiffuse_Hilight, (value - 0.60f) * (1.f / (1.0f - 0.60f)));
-        }
-        else
-        {
-            value = max(0.0f, value);
-            UNITY_BRANCH
-            if (value >= CDE_F2) {
-                return lerp(_CustomDiffuse_Middle, _CustomDiffuse_Base, (value - 0.30f) * (1.f / (0.60f - 0.30f)));
-            }
-            else {
-                return lerp(_CustomDiffuse_Shadow, _CustomDiffuse_Middle, value * (1.f / 0.30f) );
-            }
-        }
-    }
-#endif // CUSTOM_DIFFUSE_ENABLED
-
 #if !defined(USE_PER_VERTEX_LIGHTING) && defined(USE_LIGHTING)
     float3 EvaluateLightingPerPixelFP(inout float3 sublightAmount, float3 worldSpacePosition, float3 normal, float glossValue, float shadowValue, float3 ambientAmount, float3 eyeDirection) {
         #if defined(ALPHA_BLENDING_ENABLED) && defined(USE_EXTRA_BLENDING)
@@ -103,7 +82,7 @@ float3 EvaluateAmbient(float3 normal) {
                     lightDir = normalize(_WorldSpaceLightPos0.xyz);
                 #endif // LIGHT_DIRECTION_FOR_CHARACTER_ENABLED
 
-                ldotn = dot(lightDir, normal);
+                ldotn = dot(normal, lightDir);
 
                 #if defined(CARTOON_SHADING_ENABLED)
                     diffuseValue = _LightColor0.rgb;
@@ -233,13 +212,6 @@ float3 EvaluateAmbient(float3 normal) {
                 UNITY_BRANCH
                 if (_WorldSpaceLightPos0.w == 0.0) {
                     lightDir = normalize(_LightDirForChar);
-
-                    #ifdef FAKE_CONSTANT_SPECULAR_ENABLED
-                        specularLightDir = getFakeSpecularLightDir(lightDir);
-                    #else // FAKE_CONSTANT_SPECULAR_ENABLED
-                        specularLightDir = lightDir;
-                    #endif // FAKE_CONSTANT_SPECULAR_ENABLED
-
                     ldotn = dot(lightDir, normal);
 
                     #if defined(CARTOON_SHADING_ENABLED)
