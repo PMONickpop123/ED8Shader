@@ -1,21 +1,20 @@
 float3 EvaluateNormalMapNormal(float3 inNormal, float2 inUv, float3 inTangent, uniform sampler2D normalMap) {
     float4 normalMapData = tex2D(normalMap, inUv).xyzw;
+    //normalMapData.rgb = GammaToLinearSpace(normalMapData.rgb);
     float3 normalMapNormal = float3(0.0f, 0.0f, 0.0f);
 
     #if defined(NORMAL_MAPP_DXT5_NM_ENABLED)
         normalMapNormal.x = normalMapData.a * 2.0 - 1.0;
         normalMapNormal.y = normalMapData.r * 2.0 - 1.0;
-        normalMapNormal.z = sqrt(1 - saturate(normalMapNormal.x * normalMapNormal.x - normalMapNormal.y * normalMapNormal.y));
+        normalMapNormal.z = sqrt(1 - saturate(dot(normalMapNormal.xy, normalMapNormal.xy)));
     #elif defined(NORMAL_MAPP_DXT5_LP_ENABLED)
         normalMapData = normalMapData * 2.0 - 1.0;
         normalMapNormal.x = normalMapData.r * normalMapData.a;
         normalMapNormal.y = normalMapData.g;
-        normalMapNormal.z = sqrt(1 - saturate(normalMapNormal.x * normalMapNormal.x - normalMapNormal.y * normalMapNormal.y));
+        normalMapNormal.z = sqrt(1 - saturate(dot(normalMapNormal.xy, normalMapNormal.xy)));
     #else // NORMAL_MAPP_DXT5_NM_ENABLED
-        normalMapNormal = normalMapData.xyz * 2.0 - 1.0;
-        //normalMapNormal.xy = normalMapData.xy * 2.0 - 1.0;
-        //normalMapNormal.z = sqrt(1 - saturate(normalMapNormal.x * normalMapNormal.x - normalMapNormal.y * normalMapNormal.y));
-        //normalMapNormal.z = sqrt(1 - saturate(dot(normalMapData.xy, normalMapData.xy)));
+        normalMapNormal.xy = normalMapData.xy * 2 - 1;
+        normalMapNormal.z = sqrt(1 - saturate(dot(normalMapNormal.xy, normalMapNormal.xy)));
     #endif // NORMAL_MAPP_DXT5_NM_ENABLED
 
 	inTangent = normalize(inTangent);
@@ -37,7 +36,7 @@ float3 getEyePosition() {
 //-----------------------------------------------------------------------------
 float2 getGlobalTextureFactor() {
 	//return (_GlobalTexcoordFactor + 0.001) * (float2)_Time * 0.25f;
-    return (float2)_Time.y * 0.60f;
+    return (float2)_Time.y * 0.30f;
 }
 
 float CalcMipLevel(float2 texcoord){
@@ -79,13 +78,15 @@ float CalcMipLevel(float2 texcoord){
 #endif // WINDY_GRASS_ENABLED
 
 #if defined(FOG_ENABLED)
-    float EvaluateFogVP(float3 viewPosition) {
-        float f = (-viewPosition.z - _FogRangeParameters.x) * (-1 / (_FogRangeParameters.y - _FogRangeParameters.x)); 
+    float EvaluateFogVP(float z) {
+        float f = (z - _FogRangeParameters.x / 1.0f) / ((_FogRangeParameters.y - _FogRangeParameters.x) * 1.0f);  // cm -> m
+        //float f = (z) * unity_FogParams.z + unity_FogParams.w;
 
         #ifdef FOG_RATIO_ENABLED
             f *= _FogRatio;
         #endif // FOG_RATIO_ENABLED
 
+        f = min(f, (float)_FogRateClamp);
         return saturate(f);
     }
 
@@ -93,7 +94,7 @@ float CalcMipLevel(float2 texcoord){
         #if defined(USE_EXTRA_BLENDING)
             fogColor = float3(0.0f, 0.0f, 0.0f);
         #endif // defined(USE_EXTRA_BLENDING)
-        
+
         resultColor.rgb = lerp(resultColor.rgb, fogColor.rgb, fogValue);
     }
 #endif // FOG_ENABLED
@@ -108,7 +109,7 @@ float CalcMipLevel(float2 texcoord){
 	#define EvaluateNormalFP(In) EvaluateStandardNormal(In.normal.xyz)
 #endif
 
-#if defined(NORMAL_MAPPING2_ENABLED)
+#if defined(MULTI_UV2_NORMAL_MAPPING_ENABLED)
 	#if defined(DUDV_MAPPING_ENABLED)
 		#define EvaluateNormal2FP(In) EvaluateNormalMapNormal(In.normal.xyz, In.DuDvTexCoord.xy, In.tangent, _NormalMap2Sampler)
 	#else // defined(DUDV_MAPPING_ENABLED)
@@ -137,6 +138,7 @@ float CalcMipLevel(float2 texcoord){
         #endif
 
         float r = tex2D(_CartoonMapSampler, float2(u, 0.0f)).r;
+        //r = GammaToLinearSpaceExact(r);
         return r;
     }
 #endif // CARTOON_SHADING_ENABLED

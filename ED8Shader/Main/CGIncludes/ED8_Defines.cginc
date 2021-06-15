@@ -96,12 +96,6 @@
 	#undef LIGHTING_ENABLED
 #endif
 
-//#if defined(CASTS_SHADOWS_ONLY)
-//	#if !defined(CASTS_SHADOWS)
-//		#define CASTS_SHADOWS
-//	#endif
-//#endif
-
 #if !defined(NO_ALL_LIGHTING_ENABLED) && defined(LIGHTING_ENABLED)
 	#define USE_LIGHTING
 #endif
@@ -111,10 +105,9 @@
 #define USE_EDGE_ADDUNSAT
 
 // 頂点タンジェント
-#if (defined(NORMAL_MAPPING_ENABLED) || defined(NORMAL_MAPPING2_ENABLED)) && !defined(USE_PER_VERTEX_LIGHTING)
+#if (defined(NORMAL_MAPPING_ENABLED) || defined(MULTI_UV_NORMAL_MAPPING_ENABLED)) && !defined(USE_PER_VERTEX_LIGHTING)
 	#define USE_TANGENTS
 #endif // (defined(NORMAL_MAPPING_ENABLED) || defined(NORMAL_MAPPING2_ENABLED)) && !defined(USE_PER_VERTEX_LIGHTING)
-
 
 // キューブマップまたはスフィアマップとトゥーン
 #if (defined(CUBE_MAPPING_ENABLED) || defined(SPHERE_MAPPING_ENABLED)) && defined(CARTOON_SHADING_ENABLED)
@@ -162,18 +155,14 @@
 	#undef WINDY_GRASS_ENABLED
 	#undef USE_PER_VERTEX_LIGHTING
 	#define CARTOON_AVOID_SELFSHADOW_OFFSET
-
-	//#if defined(CASTS_SHADOWS)
-	//	#if !defined(RECEIVE_SHADOWS)
-	//		#define RECEIVE_SHADOWS
-	//	#endif
-	//#endif
 #endif // defined(CARTOON_SHADING_ENABLED)
 
 // マルチUV
 #if !defined(MULTI_UV_ENANLED)
 	#undef MULTI_UV_ADDITIVE_BLENDING_ENANLED
 	#undef MULTI_UV_MULTIPLICATIVE_BLENDING_ENANLED
+    #undef MULTI_UV_MULTIPLICATIVE_BLENDING_EX_ENANLED
+    #undef MULTI_UV_MULTIPLICATIVE_BLENDING_LM_ENANLED
 	#undef MULTI_UV_SHADOW_ENANLED
 	#undef MULTI_UV_TEXCOORD_OFFSET_ENABLED
 	#undef MULTI_UV_NORMAL_MAPPING_ENABLED
@@ -183,6 +172,8 @@
 	#undef MULTI_UV2_ENANLED
 	#undef MULTI_UV2_ADDITIVE_BLENDING_ENANLED
 	#undef MULTI_UV2_MULTIPLICATIVE_BLENDING_ENANLED
+    #undef MULTI_UV2_MULTIPLICATIVE_BLENDING_EX_ENANLED
+    #undef MULTI_UV2_MULTIPLICATIVE_BLENDING_LM_ENANLED
 	#undef MULTI_UV2_SHADOW_ENANLED
 	#undef MULTI_UV2_TEXCOORD_OFFSET_ENABLED
 	#undef MULTI_UV2_NORMAL_MAPPING_ENABLED
@@ -194,12 +185,16 @@
 #if defined(MULTI_UV_NO_DIFFUSE_MAPPING_ENANLED)
 	#undef MULTI_UV_ADDITIVE_BLENDING_ENANLED
 	#undef MULTI_UV_MULTIPLICATIVE_BLENDING_ENANLED
+    #undef MULTI_UV_MULTIPLICATIVE_BLENDING_EX_ENANLED
+    #undef MULTI_UV_MULTIPLICATIVE_BLENDING_LM_ENANLED
 	#undef MULTI_UV_SHADOW_ENANLED
 #endif
 
 #if defined(MULTI_UV2_NO_DIFFUSE_MAPPING_ENANLED)
 	#undef MULTI_UV2_ADDITIVE_BLENDING_ENANLED
 	#undef MULTI_UV2_MULTIPLICATIVE_BLENDING_ENANLED
+    #undef MULTI_UV2_MULTIPLICATIVE_BLENDING_EX_ENANLED
+    #undef MULTI_UV2_MULTIPLICATIVE_BLENDING_LM_ENANLED
 	#undef MULTI_UV2_SHADOW_ENANLED
 #endif
 
@@ -240,7 +235,7 @@
 #endif
 
 #if defined(LIGHT_DIRECTION_FOR_CHARACTER_ENABLED)
-    half3 _LightDirForChar = half3(8.0f, 8.0f, 0.0f);
+    float3 _LightDirForChar;
 #endif // LIGHT_DIRECTION_FOR_CHARACTER_ENABLED
 
 half _PerMaterialMainLightClampFactor;
@@ -265,8 +260,8 @@ half _GlobalMainLightClampFactor;
 half _ReflectionIntensity;
 
 #if defined(LIGHT_DIRECTION_FOR_CHARACTER_ENABLED)
-    half3 _PortraitLightColor = half3(0.55f,0.55f,0.55f);
-    half3 _PortraitAmbientColor = half3(0.55f,0.55f,0.55f);
+    half3 _PortraitLightColor;
+    half3 _PortraitAmbientColor;
 #endif // defined(LIGHT_DIRECTION_FOR_CHARACTER_ENABLED)
 
 #if defined(SHINING_MODE_ENABLED)
@@ -294,6 +289,7 @@ half _AlphaThreshold;
 #if defined(FOG_ENABLED)
     half3 _FogColor;
     half2 _FogRangeParameters;
+    half _FogRateClamp;
 
     #if defined(FOG_RATIO_ENABLED)
         half _FogRatio;
@@ -330,6 +326,9 @@ half _AlphaThreshold;
 half2 _TexCoordOffset;
 half2 _TexCoordOffset2;
 half2 _TexCoordOffset3;
+half _UV1;
+half _UV2;
+half _UV3;
 
 #if !defined(NOTHING_ENABLED)
     sampler2D _MainTex;
@@ -353,6 +352,7 @@ half4 _MainTex_ST;
 #endif // EMISSION_MAPPING_ENABLED
 
 #if defined(MULTI_UV_ENANLED)
+    float _BlendMulScale2;
 	#if !defined(MULTI_UV_NO_DIFFUSE_MAPPING_ENANLED)
         sampler2D _DiffuseMap2Sampler;
 	#endif // !defined(MULTI_UV_NO_DIFFUSE_MAPPING_ENANLED)
@@ -375,6 +375,7 @@ half4 _MainTex_ST;
 #endif // MULTI_UV_ENANLED
 
 #if defined(MULTI_UV2_ENANLED)
+    float _BlendMulScale3;
 	#if !defined(MULTI_UV2_NO_DIFFUSE_MAPPING_ENANLED)
         sampler2D _DiffuseMap3Sampler;
 	#endif // !defined(MULTI_UV2_NO_DIFFUSE_MAPPING_ENANLED)
@@ -410,9 +411,16 @@ half4 _MainTex_ST;
 #endif // SPHERE_MAPPING_ENABLED
 
 #if defined(CUBE_MAPPING_ENABLED)
-    sampler2D _CubeMapSampler;
+    samplerCUBE _CubeMapSampler;
     half _CubeFresnelPower;
 #endif // CUBE_MAPPING_ENABLED
+
+#if defined(DUDV_MAPPING_ENABLED)
+    sampler2D _DuDvMapSampler;
+    half2 _DuDvMapImageSize;
+    half2 _DuDvScroll;
+    half2 _DuDvScale;
+#endif // DUDV_MAPPING_ENABLED
 
 #if !defined(CARTOON_SHADING_ENABLED)
 	#if defined(PROJECTION_MAP_ENABLED)
@@ -420,13 +428,6 @@ half4 _MainTex_ST;
         half2 _ProjectionScale;
         half2 _ProjectionScroll;
 	#endif // PROJECTION_MAP_ENABLED
-
-	#if defined(DUDV_MAPPING_ENABLED)
-        sampler2D _DuDvMapSampler;
-        half2 _DuDvMapImageSize;
-        half2 _DuDvScroll;
-        half2 _DuDvScale;
-	#endif // DUDV_MAPPING_ENABLED
 
     #if defined(WINDY_GRASS_ENABLED)
         half2 _WindyGrassDirection;
@@ -436,7 +437,12 @@ half4 _MainTex_ST;
 	#endif // WINDY_GRASS_ENABLED
 #endif // CARTOON_SHADING_ENABLED
 
-half4 _GameEdgeParameters;
+float4 _GameEdgeParameters;
+float4 _OutlineColorFactor;
+
+#if defined(USE_OUTLINE_COLOR)
+    float3 _OutlineColor;
+#endif
 
 #if defined(USE_SCREEN_UV)
 	sampler2D _ReflectionTexture;
@@ -450,7 +456,7 @@ half4 _GameEdgeParameters;
 half _GlareIntensity;
 half3 _GlobalAmbientColor;
 half _AdditionalShadowOffset;
-int _Culling;
+float _Culling;
 half _SrcBlend;
 half _DstBlend;
 
@@ -469,11 +475,11 @@ struct DefaultVPInput {
     #endif // USE_TANGENTS
 
     #if defined(MULTI_UV_ENANLED)
-        float2 uv2		: TEXCOORD3;
+        float2 uv2		: TEXCOORD1;
     #endif // MULTI_UV_ENANLED
 
     #if defined(MULTI_UV2_ENANLED)
-        float2 uv3		: TEXCOORD4;
+        float2 uv3		: TEXCOORD2;
     #endif // defined(MULTI_UV2_ENANLED)
     UNITY_VERTEX_INPUT_INSTANCE_ID
 };
@@ -485,13 +491,13 @@ struct DefaultVPOutput {
     float4 Color1			: COLOR1;		// [V] xyz:000 w:Fog
                                 // [P] xyz:SubLight w:Fog
     float2 uv			: TEXCOORD0;	// xy: UV
-    float4 WorldPositionDepth	: TEXCOORD1;	// xyz[World]: w[View]:z
+    float4 WorldPositionDepth	: TEXCOORD9;	// xyz[World]: w[View]:z
 
     // TexCoord2
     #if defined(DUDV_MAPPING_ENABLED)
-        float2 DuDvTexCoord	: TEXCOORD2;	// xy: DUDV
+        float2 DuDvTexCoord	: TEXCOORD1;	// xy: DUDV
     #elif defined(MULTI_UV_ENANLED)
-        float2 uv2		: TEXCOORD2;	// xy: UV Vertex Alpha Lerp
+        float2 uv2		: TEXCOORD1;	// xy: UV Vertex Alpha Lerp
     #endif // DUDV_MAPPING_ENABLED || MULTI_UV_ENANLED
 
     // Projection/Etc
@@ -518,7 +524,7 @@ struct DefaultVPOutput {
     #endif // !USE_PER_VERTEX_LIGHTING && USE_LIGHTING
 
     #if defined(MULTI_UV2_ENANLED)
-        float2 uv3		: TEXCOORD7;	// xy: UV2 Vertex Alpha Lerp
+        float2 uv3		: TEXCOORD2;	// xy: UV2 Vertex Alpha Lerp
     #endif // defined(MULTI_UV2_ENANLED)
 
     #if defined(USE_SCREEN_UV)
@@ -527,15 +533,15 @@ struct DefaultVPOutput {
 
     #if defined(FORCE_PER_VERTEX_ENVIRON_MAP) || !defined(USE_TANGENTS) || !defined(USE_LIGHTING)
         #if defined(CUBE_MAPPING_ENABLED)
-            float4 CubeMap			: TEXCOORD7;
+            float4 CubeMap			: TEXCOORD10;
         #elif defined(SPHERE_MAPPING_ENABLED)
-            float2 SphereMap			: TEXCOORD7;
+            float2 SphereMap			: TEXCOORD10;
         #endif // CUBE_MAPPING_ENABLED || SPHERE_MAPPING_ENABLED
     #endif // defined(FORCE_PER_VERTEX_ENVIRON_MAP) || !defined(USE_TANGENTS) || !defined(USE_LIGHTING)
 
     #if defined(CARTOON_SHADING_ENABLED)
         #if !defined(CUBE_MAPPING_ENABLED) && !defined(SPHERE_MAPPING_ENABLED)
-            float3 CartoonMap	: TEXCOORD7;	// xy: HiLight z:ldotn
+            float3 CartoonMap	: TEXCOORD11;	// xy: HiLight z:ldotn
         #endif // !defined(CUBE_MAPPING_ENABLED) && !defined(SPHERE_MAPPING_ENABLED)
     #endif // CUBE_MAPPING_ENABLED
 
@@ -545,8 +551,18 @@ struct DefaultVPOutput {
 };
 
 //-----------------------------------------------------------------------------
+struct EdgeVPInput {
+	float4 vertex			: POSITION;
+	float3 normal			: NORMAL;
+	float2 TexCoord			: TEXCOORD0;
+    UNITY_VERTEX_INPUT_INSTANCE_ID
+};
+
 struct EdgeVPOutput {
-    float4 Position			: SV_POSITION ;		// xyzw:[Proj] 
+    UNITY_POSITION(pos);		// xyzw:[Proj] 
     float4 Color0			: COLOR0;		// xyzw:EdgeColor + GameEmission
-    float3 TexCoord			: TEXCOORD0;	// xy: z:Fog
+    float4 Color1			: COLOR1;		// [V] xyz:000 w:Fog
+    float3 uv			: TEXCOORD0;	// xy: z:Fog
+    UNITY_VERTEX_INPUT_INSTANCE_ID
+    UNITY_VERTEX_OUTPUT_STEREO
 };

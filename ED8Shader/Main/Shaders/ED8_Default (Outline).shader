@@ -1,4 +1,4 @@
-﻿Shader "ED8/Cold Steel Shader/Transparent" {
+﻿Shader "ED8/Cold Steel Shader/Opaque (Outline)" {
     Properties {	
         [HideInInspector] shader_is_using_thry_editor("", Float)= 0
         [HideInInspector] shader_master_label ("<color=#000000ff>Trails of Cold Steel Shader</color>", Float) = 0
@@ -133,7 +133,7 @@
         // #if defined(NORMAL_MAPPING_ENABLED)
         [HideInInspector] m_start_NormalMap ("Enable Normal Mapping", Float) = 0
         [HideInInspector][Toggle(NORMAL_MAPPING_ENABLED)]_NormalMappingEnabled ("Enable Normal Mapping", Float) = 0
-        _BumpMap("Normal Map", 2D) = "bump" {}
+        _BumpMap("Normal Map", 2D) = "white" {}
         [HideInInspector] m_end_NormalMap ("Enable Normal Mapping", Float) = 0
         // #endif (NORMAL_MAPPING_ENABLED)
 
@@ -246,12 +246,12 @@
         // #if defined(CARTOON_SHADING_ENABLED)
         [HideInInspector] m_start_CartoonShading ("Enable Cartoon Shading", Float) = 0
         [HideInInspector][Toggle(CARTOON_SHADING_ENABLED)]_CartoonShadingEnabled ("Enable Cartoon Shading", Float) = 0
-        _CartoonMapSampler("Cartoon Map", 2D) = "white" {}
+        _CartoonMapSampler("Cartoon Map", 2D) = "gray" {}
 
         // #if defined(CARTOON_HILIGHT_ENABLED)
         [HideInInspector] m_start_CartoonHilight ("Enable Cartoon Hilight", Float) = 0
         [HideInInspector][Toggle(CARTOON_HILIGHT_ENABLED)]_CartoonHilightEnabled ("Enable Cartoon Hilight", Float) = 0
-        _HighlightMapSampler("Hilight Map", 2D) = "white" {}
+        _HighlightMapSampler("Hilight Map", 2D) = "gray" {}
         _HighlightColor("Hilight Color", Color) = (1.0, 1.0, 1.0, 0.0)
         _HighlightIntensity("Hilight Intensity", Range(0.001, 10.0)) = 2.0
         [HideInInspector] m_end_CartoonHilight ("Enable Cartoon Hilight", Float) = 0
@@ -309,6 +309,20 @@
         [HideInInspector] m_end_WindyGrass ("Enable Windy Grass", Float) = 0
         // #endif (WINDY_GRASS_ENABLED)
 
+        // #if defined(USE_OUTLINE)
+        [HideInInspector] m_start_Outline ("Outline", Float) = 0
+        _GameEdgeParameters("Game Edge Params", Vector) = (1.0, 1.0, 1.0, 0.003)
+        _OutlineColorFactor("Outline Color Factor", Vector) = (1.0, 1.0, 1.0, 1.0)
+
+        // #if defined(USE_OUTLINE_COLOR)
+        [HideInInspector] m_start_OutlineColor ("Enable Outline Color", Float) = 0
+        [HideInInspector][Toggle(USE_OUTLINE_COLOR)]_OutlineColorEnabled ("Enable Outline Color", Float) = 0
+        _OutlineColor("Outline Color", Color) = (0.5, 0.5, 0.5, 0.0)
+        [HideInInspector] m_end_OutlineColor ("Enable Outline Color", Float) = 0
+        [HideInInspector] m_end_Outline ("Outline", Float) = 0
+        // #endif (USE_OUTLINE_COLOR)
+        // #endif (USE_OUTLINE)
+
         // #if defined(USE_SCREEN_UV)
         [HideInInspector] m_start_ScreenUV ("Enable Screen UVs", Float) = 0
         [HideInInspector][Toggle(USE_SCREEN_UV)]_ScreenUVEnabled ("Enable Screen UVs", Float) = 0
@@ -327,17 +341,6 @@
         [Toggle(GLARE_HIGHTPASS_ENABLED)]_GlareHilightPassEnabled ("Enable Glare HilightPass", Float) = 0
         //[Toggle(GLARE_EMISSION_ENABLED)]_GlareEmissionEnabled ("Enable Glare Emission", Float) = 0
         _GlareIntensity("Glare Intensity", Range(0.0, 20.0)) = 0.0
-
-        [HideInInspector] m_start_BlendOptions ("Blending", Float) = 0
-        [Toggle(ADDITIVE_BLENDING_ENABLED)]_AdditiveBlendEnabled ("Enable Additive Blending", Float) = 0
-        [Toggle(SUBTRACT_BLENDING_ENABLED)]_SubtractiveBlendEnabled ("Enable Subtract Blending", Float) = 0
-        [Toggle(MULTIPLICATIVE_BLENDING_ENABLED)]_MultiplicativeBlendEnabled ("Enable Multiplicative Blending", Float) = 0
-        [Enum(UnityEngine.Rendering.BlendMode)] _SrcBlend("Source Blend", Float) = 5
-        [Enum(UnityEngine.Rendering.BlendMode)] _DstBlend("Destination Blend", Float) = 10
-        [Enum(DepthWrite)] _ZWrite("Depth Write", Float) = 0
-        _Factor ("Z Factor", Float) = 0
-        _Units ("Z Units", Float) = 0
-        [HideInInspector] m_end_BlendOptions ("Blending", Float) = 0
 
         [HideInInspector] m_start_StencilOptions ("Stencil", Float) = 0
         [IntRange] _Stencil ("Stencil ID [0;255]", Range(0,255)) = 0
@@ -368,21 +371,43 @@
 
     CustomEditor "Thry.ShaderEditor"
     SubShader {
-        Tags { "RenderType"="Transparent" "Queue"="Transparent" "IgnoreProjector"="True"}
-        Cull [_Culling]
+        Tags { "RenderType"="Opaque" "Queue"="Geometry"}
         Stencil {
             Ref [_Stencil]
             Comp [_StencilComp]
             Pass [_StencilOp]
         }
 
-        ZWrite [_ZWrite]
-        Offset [_Factor], [_Units]
+        Pass {
+            Name "OUTLINE"
+            Tags { }
+            Cull Front
+            
+            CGPROGRAM
+
+            #pragma target 4.0
+
+            #pragma shader_feature NOTHING_ENABLED
+            #pragma shader_feature FOG_ENABLED
+            #pragma shader_feature FOG_RATIO_ENABLED
+            #pragma shader_feature USE_OUTLINE
+            #pragma shader_feature USE_OUTLINE_COLOR
+
+            #pragma vertex EdgeVPShader
+            #pragma fragment EdgeFPShader
+            #pragma multi_compile_instancing
+            
+            #include "../CGIncludes/ED8_Defines.cginc"
+            #include "../CGIncludes/ED8_HelperFunctions.cginc"
+            #include "../CGIncludes/ED8_Lighting.cginc"
+            #include "../CGIncludes/ED8_Edge.cginc"
+            ENDCG
+        }
 
         Pass {
             Name "FORWARD"
             Tags { "LightMode" = "ForwardBase" }
-            Blend [_SrcBlend] [_DstBlend]
+            Cull [_Culling]
             
             CGPROGRAM
 
@@ -391,8 +416,6 @@
             #ifndef UNITY_PASS_FORWARDBASE
                 #define UNITY_PASS_FORWARDBASE
             #endif
-
-            #define ALPHA_BLENDING_ENABLED
 
             #pragma shader_feature NOTHING_ENABLED
             #pragma shader_feature CASTS_SHADOWS_ONLY
@@ -457,15 +480,17 @@
             #pragma shader_feature DUDV_MAPPING_ENABLED
             #pragma shader_feature WINDY_GRASS_ENABLED
             #pragma shader_feature WINDY_GRASS_TEXV_WEIGHT_ENABLED
+            #pragma shader_feature USE_OUTLINE
+            #pragma shader_feature USE_OUTLINE_COLOR
             #pragma shader_feature USE_SCREEN_UV
             #pragma shader_feature GLARE_MAP_ENABLED
             #pragma shader_feature GLARE_HIGHTPASS_ENABLED
 
-            #pragma multi_compile_instancing
-            #pragma multi_compile_fwdbase
-            #pragma fragmentoption ARB_precision_hint_fastest
             #pragma vertex DefaultVPShader
             #pragma fragment DefaultFPShader
+            #pragma multi_compile_fwdbase
+            #pragma multi_compile_instancing
+            #pragma fragmentoption ARB_precision_hint_fastest
             
             #include "../CGIncludes/ED8_Defines.cginc"
             #include "../CGIncludes/ED8_HelperFunctions.cginc"
@@ -478,7 +503,10 @@
         Pass {
             Name "FWDADD"
             Tags { "LightMode" = "ForwardAdd" }
+            Cull [_Culling]
             Blend SrcAlpha One
+            ZWrite Off
+            ZTest LEqual
 
             CGPROGRAM
 
@@ -487,8 +515,6 @@
             #ifndef UNITY_PASS_FORWARDADD
                  #define UNITY_PASS_FORWARDADD
             #endif
-
-            #define ALPHA_BLENDING_ENABLED
 
             #pragma shader_feature NOTHING_ENABLED
             #pragma shader_feature CASTS_SHADOWS_ONLY
@@ -553,11 +579,12 @@
             #pragma shader_feature DUDV_MAPPING_ENABLED
             #pragma shader_feature WINDY_GRASS_ENABLED
             #pragma shader_feature WINDY_GRASS_TEXV_WEIGHT_ENABLED
+            #pragma shader_feature USE_OUTLINE
+            #pragma shader_feature USE_OUTLINE_COLOR
             #pragma shader_feature USE_SCREEN_UV
             #pragma shader_feature GLARE_MAP_ENABLED
             #pragma shader_feature GLARE_HIGHTPASS_ENABLED
 
-            #pragma multi_compile_instancing
             #pragma multi_compile_fwdadd_fullshadows
             #pragma vertex DefaultVPShader
             #pragma fragment DefaultFPShader
@@ -570,33 +597,36 @@
             ENDCG
         }
 
-        //Pass {
-        //    Name "ShadowCaster"
-        //    Tags{ "LightMode" = "ShadowCaster" }
-        //    ZWrite On ZTest LEqual
-        //    CGPROGRAM
+        Pass {
+            Name "ShadowCaster"
+            Tags{ "LightMode" = "ShadowCaster" }
+            Cull [_Culling]
+            ZWrite On ZTest LEqual
+            CGPROGRAM
 
-        //    #pragma target 4.0
+            #pragma target 4.0
 
-        //    #ifndef UNITY_PASS_SHADOWCASTER
-        //        #define UNITY_PASS_SHADOWCASTER
-        //    #endif
+            #ifndef UNITY_PASS_SHADOWCASTER
+                #define UNITY_PASS_SHADOWCASTER
+            #endif
 
-        //    #pragma skip_variants FOG_LINEAR FOG_EXP FOG_EXP2
-        //    #pragma shader_feature WINDY_GRASS_ENABLED
-        //    #pragma shader_feature WINDY_GRASS_TEXV_WEIGHT_ENABLED
+            #pragma skip_variants FOG_LINEAR FOG_EXP FOG_EXP2
+            #pragma shader_feature CASTS_SHADOWS_ONLY
+            #pragma shader_feature CASTS_SHADOWS
+            #pragma shader_feature WINDY_GRASS_ENABLED
+            #pragma shader_feature WINDY_GRASS_TEXV_WEIGHT_ENABLED
 
-        //    #pragma multi_compile_instancing
-        //    #pragma vertex ShadowVPShader
-        //    #pragma fragment ShadowFPShader
-        //    #pragma multi_compile_shadowcaster
+            #pragma vertex ShadowVPShader
+            #pragma fragment ShadowFPShader
+            #pragma multi_compile_shadowcaster
+            #pragma multi_compile_instancing
             
-        //    #include "../CGIncludes/ED8_Defines.cginc"
-        //    #include "../CGIncludes/ED8_HelperFunctions.cginc"
-        //    #include "../CGIncludes/ED8_ShadowCaster.cginc"
-        //    ENDCG
-        //}
+            #include "../CGIncludes/ED8_Defines.cginc"
+            #include "../CGIncludes/ED8_HelperFunctions.cginc"
+            #include "../CGIncludes/ED8_ShadowCaster.cginc"
+            ENDCG
+        }
     }
 
-    Fallback "Transparent/Diffuse"
+    Fallback "Diffuse"
 }

@@ -1,4 +1,4 @@
-﻿Shader "ED8/Cold Steel Shader/Transparent" {
+﻿Shader "ED8/Cold Steel Shader/Transparent (Outline)" {
     Properties {	
         [HideInInspector] shader_is_using_thry_editor("", Float)= 0
         [HideInInspector] shader_master_label ("<color=#000000ff>Trails of Cold Steel Shader</color>", Float) = 0
@@ -309,6 +309,20 @@
         [HideInInspector] m_end_WindyGrass ("Enable Windy Grass", Float) = 0
         // #endif (WINDY_GRASS_ENABLED)
 
+        // #if defined(USE_OUTLINE)
+        [HideInInspector] m_start_Outline ("Outline", Float) = 0
+        _GameEdgeParameters("Game Edge Params", Vector) = (1.0, 1.0, 1.0, 0.003)
+        _OutlineColorFactor("Outline Color Factor", Vector) = (1.0, 1.0, 1.0, 1.0)
+
+        // #if defined(USE_OUTLINE_COLOR)
+        [HideInInspector] m_start_OutlineColor ("Enable Outline Color", Float) = 0
+        [HideInInspector][Toggle(USE_OUTLINE_COLOR)]_OutlineColorEnabled ("Enable Outline Color", Float) = 0
+        _OutlineColor("Outline Color", Color) = (0.5, 0.5, 0.5, 0.0)
+        [HideInInspector] m_end_OutlineColor ("Enable Outline Color", Float) = 0
+        [HideInInspector] m_end_Outline ("Outline", Float) = 0
+        // #endif (USE_OUTLINE_COLOR)
+        // #endif (USE_OUTLINE)
+
         // #if defined(USE_SCREEN_UV)
         [HideInInspector] m_start_ScreenUV ("Enable Screen UVs", Float) = 0
         [HideInInspector][Toggle(USE_SCREEN_UV)]_ScreenUVEnabled ("Enable Screen UVs", Float) = 0
@@ -380,8 +394,37 @@
         Offset [_Factor], [_Units]
 
         Pass {
+            Name "OUTLINE"
+            Tags { }
+            Cull Front
+            
+            CGPROGRAM
+
+            #pragma target 4.0
+
+            #define ALPHA_BLENDING_ENABLED
+
+            #pragma shader_feature NOTHING_ENABLED
+            #pragma shader_feature FOG_ENABLED
+            #pragma shader_feature FOG_RATIO_ENABLED
+            #pragma shader_feature USE_OUTLINE
+            #pragma shader_feature USE_OUTLINE_COLOR
+
+            #pragma vertex EdgeVPShader
+            #pragma fragment EdgeFPShader
+            #pragma multi_compile_instancing
+            
+            #include "../CGIncludes/ED8_Defines.cginc"
+            #include "../CGIncludes/ED8_HelperFunctions.cginc"
+            #include "../CGIncludes/ED8_Lighting.cginc"
+            #include "../CGIncludes/ED8_Edge.cginc"
+            ENDCG
+        }
+
+        Pass {
             Name "FORWARD"
             Tags { "LightMode" = "ForwardBase" }
+            Cull [_Culling]
             Blend [_SrcBlend] [_DstBlend]
             
             CGPROGRAM
@@ -457,6 +500,8 @@
             #pragma shader_feature DUDV_MAPPING_ENABLED
             #pragma shader_feature WINDY_GRASS_ENABLED
             #pragma shader_feature WINDY_GRASS_TEXV_WEIGHT_ENABLED
+            #pragma shader_feature USE_OUTLINE
+            #pragma shader_feature USE_OUTLINE_COLOR
             #pragma shader_feature USE_SCREEN_UV
             #pragma shader_feature GLARE_MAP_ENABLED
             #pragma shader_feature GLARE_HIGHTPASS_ENABLED
@@ -478,6 +523,7 @@
         Pass {
             Name "FWDADD"
             Tags { "LightMode" = "ForwardAdd" }
+            Cull [_Culling]
             Blend SrcAlpha One
 
             CGPROGRAM
@@ -553,6 +599,8 @@
             #pragma shader_feature DUDV_MAPPING_ENABLED
             #pragma shader_feature WINDY_GRASS_ENABLED
             #pragma shader_feature WINDY_GRASS_TEXV_WEIGHT_ENABLED
+            #pragma shader_feature USE_OUTLINE
+            #pragma shader_feature USE_OUTLINE_COLOR
             #pragma shader_feature USE_SCREEN_UV
             #pragma shader_feature GLARE_MAP_ENABLED
             #pragma shader_feature GLARE_HIGHTPASS_ENABLED

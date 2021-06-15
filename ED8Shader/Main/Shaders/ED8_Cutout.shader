@@ -5,10 +5,13 @@
         [HideInInspector] shader_properties_label_file ("ed8Labels", Float) = 0
         [ThryShaderOptimizerLockButton] _ShaderOptimizerEnabled ("", Int) = 0
 
-        [Enum(Off,0,Front,1,Back,2)] _Culling ("Culling Mode", Int) = 2
+        [Enum(Off,0,Front,1,Back,2)] _Culling ("Culling Mode", Float) = 2
         [Toggle(NOTHING_ENABLED)]_NothingEnabled ("Nothing Enabled (No Lighting)", Float) = 0
-        _GlobalAmbientColor("Global Ambient Color", Color) = (0.50, 0.50, 0.50, 1)
+        [Toggle(CASTS_SHADOWS_ONLY)]_CastShadowsOnlyEnabled ("Casts Shadows Only", Float) = 0
+        [Toggle(CASTS_SHADOWS)]_CastShadowsEnabled ("Casts Shadows", Float) = 0
+        [Toggle(RECEIVE_SHADOWS)]_ReceiveShadowsEnabled ("Receive Shadows", Float) = 0
 
+        _GlobalAmbientColor("Global Ambient Color", Color) = (0.50, 0.50, 0.50, 1)
         _PerMaterialMainLightClampFactor("Per Material MainLight Clamp", Range(0.0, 2.0)) = 1.50
 
         // #if defined (MAINLIGHT_CLAMP_FACTOR_ENABLED)
@@ -32,6 +35,7 @@
         [HideInInspector][Toggle(LIGHT_DIRECTION_FOR_CHARACTER_ENABLED)]_PortraitLightEnabled ("Enable Light Direction (Characters)", Float) = 0
         _PortraitLightColor("PortraitLightColor", Color) = (0.55, 0.55, 0.55, 0.0)
         _PortraitAmbientColor("PortraitAmbientColor", Color) = (0.55, 0.55, 0.55, 0.0)
+        _LightDirForChar("PortraitLightDir", Vector) = (0, 1, 0, 0)
         [HideInInspector] m_end_PortraitLight ("Enable Light Direction (Characters)", Float) = 0
         // #endif (LIGHT_DIRECTION_FOR_CHARACTER_ENABLED)
 
@@ -61,6 +65,7 @@
         [HideInInspector][Toggle(FOG_ENABLED)]_FogEnabled ("Enable Fog", Float) = 0
         _FogColor("Fog Color", Color) = (0.5, 0.5, 0.5, 0.0)
         _FogRangeParameters("Fog Range Params", Vector) = (10.0, 500.0, 0.0, 0.0)
+        _FogRateClamp("Fog Rate", Float) = 1
         [Toggle(FOG_RATIO_ENABLED)]_FogRatioEnabled ("Enable Fog Ratio", Float) = 0
         _FogRatio("Fog Ratio", Range(0.0, 1.0)) = 0.5
         [HideInInspector] m_end_Fog ("Enable Fog", Float) = 1
@@ -77,6 +82,7 @@
         _HemiSphereAmbientSkyColor("HSA Sky Color", Color) = (0.667, 0.667, 0.667, 0.0)
         _HemiSphereAmbientGndColor("HSA Ground Color", Color) = (0.333, 0.333, 0.333, 0.0)
         _HemiSphereAmbientAxis("HSA Axis", Vector) = (0.0, 1.0, 0.0, 0.0)
+        [Toggle(FLAT_AMBIENT_ENABLED)]_FlatAmbientEnabled ("Enable Flat Ambient (CS3+)", Float) = 0
         [HideInInspector] m_end_HSA ("Hemisphere Ambient", Float) = 0
 
         // #if defined(SPECULAR_ENABLED)
@@ -104,9 +110,12 @@
         [HideInInspector][Toggle(RIM_LIGHTING_ENABLED)]_RimLightingEnabled ("Enable Rim Lighting", Float) = 0
         [Toggle(RIM_TRANSPARENCY_ENABLED)]_RimTransparencyEnabled ("Enable Rim Transparency", Float) = 0
         _RimLitColor("Rim Lit Color", Color) = (1.0, 1.0, 1.0, 0.0)
-        _RimLitIntensity("Rim Lit Intensity", Range(0.001, 10.0)) = 4.0
-        _RimLitPower("Rim Lit Power", Range(0.001, 20.0)) = 2.0
-        _RimLightClampFactor("Rim Light Clamp", Range(0.001, 5.0)) = 1.0
+        _RimLitIntensity("Rim Lit Intensity", Range(0.001, 100.0)) = 4.0
+        _RimLitPower("Rim Lit Power", Range(0.001, 50.0)) = 2.0
+        [HideInInspector] m_start_RimClamp ("Enable Rim Clamp", Float) = 0
+        [Toggle(RIM_CLAMP_ENABLED)]_RimClampEnabled ("Enable Rim Clamp", Float) = 0
+        _RimLightClampFactor("Rim Light Clamp", Range(0.001, 10.0)) = 1.0
+        [HideInInspector] m_end_RimClamp ("Enable Rim Clamp", Float) = 0
         [HideInInspector] m_end_RimLighting ("Enable Rim Lighting", Float) = 0
         // #endif (RIM_LIGHTING_ENABLED)
 
@@ -155,10 +164,13 @@
         [HideInInspector][Toggle(MULTI_UV_ENANLED)]_MultiUVEnabled ("Enable Multi UV", Float) = 0
         [Toggle(MULTI_UV_ADDITIVE_BLENDING_ENANLED)]_MultiUVAdditiveBlendingEnabled ("Multi UV Additive Blending", Float) = 0
         [Toggle(MULTI_UV_MULTIPLICATIVE_BLENDING_ENANLED)]_MultiUVMultiplicativeBlendingEnabled ("Multi UV Multiplicative Blending", Float) = 0
+        [Toggle(MULTI_UV_MULTIPLICATIVE_BLENDING_LM_ENANLED)]_MultiUVMultiplicativeBlendingLMEnabled ("Multi UV Multiplicative Blending LM", Float) = 0
+        [Toggle(MULTI_UV_MULTIPLICATIVE_BLENDING_EX_ENANLED)]_MultiUVMultiplicativeBlendingEXEnabled ("Multi UV Multiplicative Blending EX", Float) = 0
         [Toggle(MULTI_UV_SHADOW_ENANLED)]_MultiUVShadowEnabled ("Multi UV Shadow", Float) = 0
         [Toggle(MULTI_UV_FACE_ENANLED)]_MultiUVFaceEnabled ("Multi UV Face", Float) = 0
         [Toggle(MULTI_UV_TEXCOORD_OFFSET_ENABLED)]_MultiUVTexCoordOffsetEnabled ("Multi UV Texcoord Offset", Float) = 0
         [Toggle(MULTI_UV_NO_DIFFUSE_MAPPING_ENANLED)]_MultiUVNoDiffuseEnabled ("Multi UV No Diffuse Map", Float) = 0
+        _BlendMulScale2("Multiplicative Blend Scale", Range(0.001, 10.0)) = 0.001
         _DiffuseMap2Sampler("Diffuse Map 2", 2D) = "white" {}
         // #endif (!MULTI_UV_NO_DIFFUSE_MAPPING_ENANLED)
 
@@ -198,10 +210,13 @@
         [HideInInspector][Toggle(MULTI_UV2_ENANLED)]_MultiUV2Enabled ("Enable Multi UV 2", Float) = 0
         [Toggle(MULTI_UV2_ADDITIVE_BLENDING_ENANLED)]_MultiUV2AdditiveBlendingEnabled ("Multi UV2 Additive Blending", Float) = 0
         [Toggle(MULTI_UV2_MULTIPLICATIVE_BLENDING_ENANLED)]_MultiUV2MultiplicativeBlendingEnabled ("Multi UV2 Multiplicative Blending", Float) = 0
+        [Toggle(MULTI_UV2_MULTIPLICATIVE_BLENDING_LM_ENANLED)]_MultiUV2MultiplicativeBlendingLMEnabled ("Multi UV2 Multiplicative Blending LM", Float) = 0
+        [Toggle(MULTI_UV2_MULTIPLICATIVE_BLENDING_EX_ENANLED)]_MultiUV2MultiplicativeBlendingEXEnabled ("Multi UV2 Multiplicative Blending EX", Float) = 0
         [Toggle(MULTI_UV2_SHADOW_ENANLED)]_MultiUV2ShadowEnabled ("Multi UV2 Shadow", Float) = 0
         [Toggle(MULTI_UV2_FACE_ENANLED)]_MultiUV2FaceEnabled ("Multi UV2 Face", Float) = 0
         [Toggle(MULTI_UV2_TEXCOORD_OFFSET_ENABLED)]_MultiUV2TexCoordOffsetEnabled ("Multi UV2 Texcoord Offset", Float) = 0
         [Toggle(MULTI_UV2_NO_DIFFUSE_MAPPING_ENANLED)]_MultiUV2NoDiffuseEnabled ("Multi UV2 No Diffuse Map", Float) = 0
+        _BlendMulScale3("Multiplicative Blend Scale", Range(0.001, 10.0)) = 0.001
         _DiffuseMap3Sampler("Diffuse Map 3", 2D) = "white" {}
         // #endif (!MULTI_UV2_NO_DIFFUSE_MAPPING_ENANLED)
 
@@ -259,7 +274,7 @@
         // #if defined(CUBE_MAPPING_ENABLED)
         [HideInInspector] m_start_CubeMap ("Enable Cube Mapping", Float) = 0
         [HideInInspector][Toggle(CUBE_MAPPING_ENABLED)]_CubeMappingEnabled ("Enable Cube Mapping", Float) = 0
-        _CubeMapSampler("Cube Map", 2D) = "white" {}
+        _CubeMapSampler("Cube Map", CUBE) = "white" {}
         _CubeFresnelPower("Cube Fresnel Power", Range(0.0, 1.0)) = 0.0
         [HideInInspector] m_end_CubeMap ("Enable Cube Mapping", Float) = 0
         // #endif (CUBE_MAPPING_ENABLED)
@@ -294,21 +309,6 @@
         [HideInInspector] m_end_WindyGrass ("Enable Windy Grass", Float) = 0
         // #endif (WINDY_GRASS_ENABLED)
 
-        // #if defined(USE_OUTLINE)
-        [HideInInspector] m_start_Outline ("Enable Outline", Float) = 0
-        [HideInInspector][Toggle(USE_OUTLINE)]_OutlineEnabled ("Enable Outline", Float) = 0
-        _GameEdgeParameters("Game Edge Params", Vector) = (0.00, 0.00, 1.00, 0.004)
-
-        // #if defined(USE_OUTLINE_COLOR)
-        [HideInInspector] m_start_OutlineColor ("Enable Outline Color", Float) = 0
-        [HideInInspector][Toggle(USE_OUTLINE_COLOR)]_OutlineColorEnabled ("Enable Outline Color", Float) = 0
-        _OutlineColor("Outline Color", Color) = (0.5, 0.5, 0.5, 0.0)
-        _OutlineColorFactor("Outline Color Factor", Vector) = (1.0, 1.0, 1.0, 1.0)
-        [HideInInspector] m_end_OutlineColor ("Enable Outline Color", Float) = 0
-        [HideInInspector] m_end_Outline ("Enable Outline", Float) = 0
-        // #endif (USE_OUTLINE_COLOR)
-        // #endif (USE_OUTLINE)
-
         // #if defined(USE_SCREEN_UV)
         [HideInInspector] m_start_ScreenUV ("Enable Screen UVs", Float) = 0
         [HideInInspector][Toggle(USE_SCREEN_UV)]_ScreenUVEnabled ("Enable Screen UVs", Float) = 0
@@ -327,12 +327,15 @@
         [Toggle(GLARE_HIGHTPASS_ENABLED)]_GlareHilightPassEnabled ("Enable Glare HilightPass", Float) = 0
         //[Toggle(GLARE_EMISSION_ENABLED)]_GlareEmissionEnabled ("Enable Glare Emission", Float) = 0
         _GlareIntensity("Glare Intensity", Range(0.0, 20.0)) = 0.0
+        _Factor ("Z Factor", Float) = 0
+        _Units ("Z Units", Float) = 0
 
         [HideInInspector] m_start_StencilOptions ("Stencil", Float) = 0
         [IntRange] _Stencil ("Stencil ID [0;255]", Range(0,255)) = 0
         [Enum(UnityEngine.Rendering.CompareFunction)] _StencilComp ("Stencil Comparison", Int) = 0
         [Enum(UnityEngine.Rendering.StencilOp)] _StencilOp ("Stencil Operation", Int) = 0
         [HideInInspector] m_end_StencilOptions ("Stencil", Float) = 0
+        [HideInInspector] Instancing ("Instancing", Float) = 0 //add this property for instancing variants settings to be shown
 
         //[HideInInspector] m_animationToggles ("Animation Support Toggles", Float) = 0
         //[HelpBox(1)] _AnimationToggleHelp ("You don't need to search through this list. You can enable animation support on any property by right clicking it", Int) = 0
@@ -364,6 +367,8 @@
             Pass [_StencilOp]
         }
 
+        Offset [_Factor], [_Units]
+
         Pass {
             Name "FORWARD"
             Tags { "LightMode" = "ForwardBase" }
@@ -379,10 +384,17 @@
             #define ALPHA_TESTING_ENABLED
 
             #pragma shader_feature NOTHING_ENABLED
+            #pragma shader_feature CASTS_SHADOWS_ONLY
+            #pragma shader_feature CASTS_SHADOWS
+            #pragma shader_feature RECEIVE_SHADOWS
+            #pragma shader_feature ADDITIVE_BLENDING_ENABLED
+            #pragma shader_feature SUBTRACT_BLENDING_ENABLED
+            #pragma shader_feature MULTIPLICATIVE_BLENDING_ENABLED
             #pragma shader_feature VERTEX_COLOR_ENABLED
             #pragma shader_feature NO_ALL_LIGHTING_ENABLED
             #pragma shader_feature NO_MAIN_LIGHT_SHADING_ENABLED
             #pragma shader_feature HALF_LAMBERT_LIGHTING_ENABLED
+            #pragma shader_feature FLAT_AMBIENT_ENABLED
             #pragma shader_feature LIGHT_DIRECTION_FOR_CHARACTER_ENABLED
             #pragma shader_feature UVA_SCRIPT_ENABLED
             #pragma shader_feature FOG_ENABLED
@@ -403,6 +415,8 @@
             #pragma shader_feature MULTI_UV_ENANLED
             #pragma shader_feature MULTI_UV_ADDITIVE_BLENDING_ENANLED
             #pragma shader_feature MULTI_UV_MULTIPLICATIVE_BLENDING_ENANLED
+            #pragma shader_feature MULTI_UV_MULTIPLICATIVE_BLENDING_LM_ENANLED
+            #pragma shader_feature MULTI_UV_MULTIPLICATIVE_BLENDING_EX_ENANLED
             #pragma shader_feature MULTI_UV_SHADOW_ENANLED
             #pragma shader_feature MULTI_UV_FACE_ENANLED
             #pragma shader_feature MULTI_UV_TEXCOORD_OFFSET_ENABLED
@@ -414,6 +428,8 @@
             #pragma shader_feature MULTI_UV2_ENANLED
             #pragma shader_feature MULTI_UV2_ADDITIVE_BLENDING_ENANLED
             #pragma shader_feature MULTI_UV2_MULTIPLICATIVE_BLENDING_ENANLED
+            #pragma shader_feature MULTI_UV2_MULTIPLICATIVE_BLENDING_LM_ENANLED
+            #pragma shader_feature MULTI_UV2_MULTIPLICATIVE_BLENDING_EX_ENANLED
             #pragma shader_feature MULTI_UV2_SHADOW_ENANLED
             #pragma shader_feature MULTI_UV2_FACE_ENANLED
             #pragma shader_feature MULTI_UV2_TEXCOORD_OFFSET_ENABLED
@@ -430,8 +446,6 @@
             #pragma shader_feature DUDV_MAPPING_ENABLED
             #pragma shader_feature WINDY_GRASS_ENABLED
             #pragma shader_feature WINDY_GRASS_TEXV_WEIGHT_ENABLED
-            #pragma shader_feature USE_OUTLINE
-            #pragma shader_feature USE_OUTLINE_COLOR
             #pragma shader_feature USE_SCREEN_UV
             #pragma shader_feature GLARE_MAP_ENABLED
             #pragma shader_feature GLARE_HIGHTPASS_ENABLED
@@ -466,10 +480,17 @@
             #define ALPHA_TESTING_ENABLED
 
             #pragma shader_feature NOTHING_ENABLED
+            #pragma shader_feature CASTS_SHADOWS_ONLY
+            #pragma shader_feature CASTS_SHADOWS
+            #pragma shader_feature RECEIVE_SHADOWS
+            #pragma shader_feature ADDITIVE_BLENDING_ENABLED
+            #pragma shader_feature SUBTRACT_BLENDING_ENABLED
+            #pragma shader_feature MULTIPLICATIVE_BLENDING_ENABLED
             #pragma shader_feature VERTEX_COLOR_ENABLED
             #pragma shader_feature NO_ALL_LIGHTING_ENABLED
             #pragma shader_feature NO_MAIN_LIGHT_SHADING_ENABLED
             #pragma shader_feature HALF_LAMBERT_LIGHTING_ENABLED
+            #pragma shader_feature FLAT_AMBIENT_ENABLED
             #pragma shader_feature LIGHT_DIRECTION_FOR_CHARACTER_ENABLED
             #pragma shader_feature UVA_SCRIPT_ENABLED
             #pragma shader_feature FOG_ENABLED
@@ -490,6 +511,8 @@
             #pragma shader_feature MULTI_UV_ENANLED
             #pragma shader_feature MULTI_UV_ADDITIVE_BLENDING_ENANLED
             #pragma shader_feature MULTI_UV_MULTIPLICATIVE_BLENDING_ENANLED
+            #pragma shader_feature MULTI_UV_MULTIPLICATIVE_BLENDING_LM_ENANLED
+            #pragma shader_feature MULTI_UV_MULTIPLICATIVE_BLENDING_EX_ENANLED
             #pragma shader_feature MULTI_UV_SHADOW_ENANLED
             #pragma shader_feature MULTI_UV_FACE_ENANLED
             #pragma shader_feature MULTI_UV_TEXCOORD_OFFSET_ENABLED
@@ -501,6 +524,8 @@
             #pragma shader_feature MULTI_UV2_ENANLED
             #pragma shader_feature MULTI_UV2_ADDITIVE_BLENDING_ENANLED
             #pragma shader_feature MULTI_UV2_MULTIPLICATIVE_BLENDING_ENANLED
+            #pragma shader_feature MULTI_UV2_MULTIPLICATIVE_BLENDING_LM_ENANLED
+            #pragma shader_feature MULTI_UV2_MULTIPLICATIVE_BLENDING_EX_ENANLED
             #pragma shader_feature MULTI_UV2_SHADOW_ENANLED
             #pragma shader_feature MULTI_UV2_FACE_ENANLED
             #pragma shader_feature MULTI_UV2_TEXCOORD_OFFSET_ENABLED
@@ -517,8 +542,6 @@
             #pragma shader_feature DUDV_MAPPING_ENABLED
             #pragma shader_feature WINDY_GRASS_ENABLED
             #pragma shader_feature WINDY_GRASS_TEXV_WEIGHT_ENABLED
-            #pragma shader_feature USE_OUTLINE
-            #pragma shader_feature USE_OUTLINE_COLOR
             #pragma shader_feature USE_SCREEN_UV
             #pragma shader_feature GLARE_MAP_ENABLED
             #pragma shader_feature GLARE_HIGHTPASS_ENABLED
@@ -550,6 +573,8 @@
 
             #pragma skip_variants FOG_LINEAR FOG_EXP FOG_EXP2
             #define ALPHA_TESTING_ENABLED
+            #pragma shader_feature CASTS_SHADOWS_ONLY
+            #pragma shader_feature CASTS_SHADOWS
             #pragma shader_feature WINDY_GRASS_ENABLED
             #pragma shader_feature WINDY_GRASS_TEXV_WEIGHT_ENABLED
 
