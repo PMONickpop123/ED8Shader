@@ -12,7 +12,6 @@
         [Toggle(RECEIVE_SHADOWS)]_ReceiveShadowsEnabled ("Receive Shadows", Float) = 0
 
         _GlobalAmbientColor("Global Ambient Color", Color) = (0.50, 0.50, 0.50, 1)
-        _PerMaterialMainLightClampFactor("Per Material MainLight Clamp", Range(0.0, 2.0)) = 1.50
 
         // #if defined (MAINLIGHT_CLAMP_FACTOR_ENABLED)
         // #if !defined(PER_MATERIAL_MAIN_LIGHT_CLAMP_ENABLED)
@@ -22,10 +21,17 @@
 
         // #if defined(GENERATE_RELFECTION_ENABLED) || defined(WATER_SURFACE_ENABLED)
         _UserClipPlane("User Clip Plane", Vector) = (0.0, 1.0, 0.0, 0.0)
+        [HideInInspector] m_start_WaterSurface ("Enable Water Surface", Float) = 0
+        [HideInInspector][Toggle(WATER_SURFACE_ENABLED)]_WaterSurfaceEnabled ("Enable Water Surface", Float) = 0
         // #endif GENERATE_RELFECTION_ENABLED) || (WATER_SURFACE_ENABLED)
 
-        _ReflectionIntensity("Reflection Intensity", Range(0.0, 1.0)) = 0.75
+        _ReflectionFresnel("Reflection Fresnel", Range(0.0, 10.0)) = 0.5
+        _ReflectionIntensity("Reflection Intensity", Range(0.0, 10.0)) = 0.75
+        [HideInInspector] m_end_WaterSurface ("Enable Water Surface", Float) = 0
+        
+        [Toggle(TRANSPARENT_DELAY_ENABLED)]_TransparentDelayEnabled ("Enable Transparent Delay", Float) = 0
         [Toggle(VERTEX_COLOR_ENABLED)]_VertexColorEnabled ("Enable Vertex Color", Float) = 0
+        [Toggle(BLEND_VERTEX_COLOR_BY_ALPHA_ENABLED)]_BlendVertexColorAlphaEnabled ("Blend Vertex Color Alpha", Float) = 0
         [Toggle(NO_ALL_LIGHTING_ENABLED)]_NoAllLightingEnabled ("Enable No All Lighting", Float) = 0
         [Toggle(NO_MAIN_LIGHT_SHADING_ENABLED)]_NoMainLightShadingEnabled ("Enable No Main Light Shading", Float) = 0
         [Toggle(HALF_LAMBERT_LIGHTING_ENABLED)]_HalfLambertLightingEnabled ("Enable Half Lambert Lighting", Float) = 0
@@ -58,6 +64,7 @@
         // #endif (UVA_SCRIPT_ENABLED)
         [HideInInspector] m_end_GameMaterial ("Game Material", Float) = 0
 
+        [Toggle(FAR_CLIP_BY_DITHER_ENABLED)]_FarClipDitherEnabled ("Enable Far Clip by Dither", Float) = 0
         _AlphaThreshold("Alpha Threshold", Range(0.004, 1.0)) = 0.5
 
         // #if defined(FOG_ENABLED)
@@ -90,11 +97,7 @@
         [HideInInspector][Toggle(SPECULAR_ENABLED)]_SpecularEnabled ("Enable Specular", Float) = 0
         _Shininess("Shininess", Range(0.0, 10.0)) = 0.5
         _SpecularPower("Specular Power", Range(0.001, 100.0)) = 50.0
-
-        [HideInInspector] m_start_FakeConstantSpec ("Enable Fake Constant Specular", Float) = 0
-        [HideInInspector][Toggle(FAKE_CONSTANT_SPECULAR_ENABLED)]_FakeConstantSpecularEnabled ("Enable Fake Constant Specular", Float) = 0
-        _FakeSpecularDir("Fake Specular Direction", Vector) = (0, 2, 0, 0)
-        [HideInInspector] m_end_FakeConstantSpec ("Enable Fake Constant Specular", Float) = 0
+        [Toggle(FAKE_CONSTANT_SPECULAR_ENABLED)]_FakeConstantSpecularEnabled ("Enable Fake Constant Specular", Float) = 0
 
         // #if defined(SPECULAR_COLOR_ENABLED)
         [HideInInspector] m_start_SpecColor ("Enable Specular Color", Float) = 0
@@ -274,8 +277,9 @@
         // #if defined(CUBE_MAPPING_ENABLED)
         [HideInInspector] m_start_CubeMap ("Enable Cube Mapping", Float) = 0
         [HideInInspector][Toggle(CUBE_MAPPING_ENABLED)]_CubeMappingEnabled ("Enable Cube Mapping", Float) = 0
-        _CubeMapSampler("Cube Map", CUBE) = "white" {}
-        _CubeFresnelPower("Cube Fresnel Power", Range(0.0, 1.0)) = 0.0
+        _CubeMapSampler("Cube Map", CUBE) = "" {}
+        _CubeMapFresnel("Cube Map Fresnel", Range(0.0, 10.0)) = 0.0
+        _CubeMapIntensity("Cube Map Intensity", Range(0.0, 10.0)) = 0.0
         [HideInInspector] m_end_CubeMap ("Enable Cube Mapping", Float) = 0
         // #endif (CUBE_MAPPING_ENABLED)
 
@@ -308,14 +312,6 @@
         _WindyGrassScale("Windy Grass Scale", Range(1.0, 10.0)) = 1.0
         [HideInInspector] m_end_WindyGrass ("Enable Windy Grass", Float) = 0
         // #endif (WINDY_GRASS_ENABLED)
-
-        // #if defined(USE_SCREEN_UV)
-        [HideInInspector] m_start_ScreenUV ("Enable Screen UVs", Float) = 0
-        [HideInInspector][Toggle(USE_SCREEN_UV)]_ScreenUVEnabled ("Enable Screen UVs", Float) = 0
-        _ReflectionTexture("Reflection Map", 2D) = "white" {}
-        _RefractionTexture("Refraction Map", 2D) = "white" {}
-        [HideInInspector] m_end_ScreenUV ("Enable Screen UVs", Float) = 0
-        // #endif (USE_SCREEN_UV)
 
         // #if defined(GLARE_MAP_ENABLED)
         [HideInInspector] m_start_GlareMap ("Enable Glare Mapping", Float) = 0
@@ -376,13 +372,17 @@
             Pass [_StencilOp]
         }
 
-        ZWrite [_ZWrite]
-        Offset [_Factor], [_Units]
+        //Pass {
+        //    ZWrite On
+        //    ColorMask 0
+        //}
 
         Pass {
             Name "FORWARD"
             Tags { "LightMode" = "ForwardBase" }
             Blend [_SrcBlend] [_DstBlend]
+            ZWrite [_ZWrite]
+            Offset [_Factor], [_Units]
             
             CGPROGRAM
 
@@ -401,7 +401,11 @@
             #pragma shader_feature ADDITIVE_BLENDING_ENABLED
             #pragma shader_feature SUBTRACT_BLENDING_ENABLED
             #pragma shader_feature MULTIPLICATIVE_BLENDING_ENABLED
+            #pragma shader_feature WATER_SURFACE_ENABLED
+            #pragma shader_feature TRANSPARENT_DELAY_ENABLED
             #pragma shader_feature VERTEX_COLOR_ENABLED
+            #pragma shader_feature BLEND_VERTEX_COLOR_BY_ALPHA_ENABLED
+            #pragma shader_feature FAR_CLIP_BY_DITHER_ENABLED
             #pragma shader_feature NO_ALL_LIGHTING_ENABLED
             #pragma shader_feature NO_MAIN_LIGHT_SHADING_ENABLED
             #pragma shader_feature HALF_LAMBERT_LIGHTING_ENABLED
@@ -479,6 +483,8 @@
             Name "FWDADD"
             Tags { "LightMode" = "ForwardAdd" }
             Blend SrcAlpha One
+            ZWrite [_ZWrite]
+            Offset [_Factor], [_Units]
 
             CGPROGRAM
 
@@ -497,7 +503,11 @@
             #pragma shader_feature ADDITIVE_BLENDING_ENABLED
             #pragma shader_feature SUBTRACT_BLENDING_ENABLED
             #pragma shader_feature MULTIPLICATIVE_BLENDING_ENABLED
+             #pragma shader_feature WATER_SURFACE_ENABLED
+            #pragma shader_feature TRANSPARENT_DELAY_ENABLED
             #pragma shader_feature VERTEX_COLOR_ENABLED
+            #pragma shader_feature BLEND_VERTEX_COLOR_BY_ALPHA_ENABLED
+            #pragma shader_feature FAR_CLIP_BY_DITHER_ENABLED
             #pragma shader_feature NO_ALL_LIGHTING_ENABLED
             #pragma shader_feature NO_MAIN_LIGHT_SHADING_ENABLED
             #pragma shader_feature HALF_LAMBERT_LIGHTING_ENABLED
@@ -576,7 +586,7 @@
         //    ZWrite On ZTest LEqual
         //    CGPROGRAM
 
-        //    #pragma target 4.0
+        //    #pragma target 5.0
 
         //    #ifndef UNITY_PASS_SHADOWCASTER
         //        #define UNITY_PASS_SHADOWCASTER

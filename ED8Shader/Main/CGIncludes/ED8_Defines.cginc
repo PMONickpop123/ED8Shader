@@ -238,26 +238,21 @@
     float3 _LightDirForChar;
 #endif // LIGHT_DIRECTION_FOR_CHARACTER_ENABLED
 
-half _PerMaterialMainLightClampFactor;
 half _GlobalMainLightClampFactor;
-#if defined(MAINLIGHT_CLAMP_FACTOR_ENABLED)
-	#if defined(PER_MATERIAL_MAIN_LIGHT_CLAMP_ENABLED)
-		#define _MainLightClampFactor _PerMaterialMainLightClampFactor
-	#else // PER_MATERIAL_MAIN_LIGHT_CLAMP_ENABLED
-		#define _MainLightClampFactor 1.5
-	#endif // PER_MATERIAL_MAIN_LIGHT_CLAMP_ENABLED
-#endif // MAINLIGHT_CLAMP_FACTOR_ENABLED
 
 #if defined(USE_SCREEN_UV)
 	#define _ScreenWidth _ScreenParams.x
 	#define _ScreenHeight _ScreenParams.y
 #endif // defined(USE_SCREEN_UV)
 
-#if defined(GENERATE_RELFECTION_ENABLED) || defined(WATER_SURFACE_ENABLED)
-    half4 UserClipPlane = {0.0, 1.0, 0.0, 0.0}; // xyzw (nx,ny,nz,height)
-#endif // defined(GENERATE_RELFECTION_ENABLED) || defined(WATER_SURFACE_ENABLED)
+//#if defined(GENERATE_RELFECTION_ENABLED) || defined(WATER_SURFACE_ENABLED)
+half4 _UserClipPlane; //= {0.0, 1.0, 0.0, 0.0}; // xyzw (nx,ny,nz,height)
+//#endif // defined(GENERATE_RELFECTION_ENABLED) || defined(WATER_SURFACE_ENABLED)
 
-half _ReflectionIntensity;
+#if defined(WATER_SURFACE_ENABLED)
+    half _ReflectionFresnel;    
+    half _ReflectionIntensity;
+#endif
 
 #if defined(LIGHT_DIRECTION_FOR_CHARACTER_ENABLED)
     half3 _PortraitLightColor;
@@ -412,7 +407,8 @@ half4 _MainTex_ST;
 
 #if defined(CUBE_MAPPING_ENABLED)
     samplerCUBE _CubeMapSampler;
-    half _CubeFresnelPower;
+    half _CubeMapFresnel;
+    half _CubeMapIntensity;
 #endif // CUBE_MAPPING_ENABLED
 
 #if defined(DUDV_MAPPING_ENABLED)
@@ -447,6 +443,7 @@ float4 _OutlineColorFactor;
 #if defined(USE_SCREEN_UV)
 	sampler2D _ReflectionTexture;
 	sampler2D _RefractionTexture;
+    float4 _RefractionTexture_TexelSize;
 #endif // defined(USE_SCREEN_UV)
 
 #if defined(GLARE_MAP_ENABLED)
@@ -509,7 +506,8 @@ struct DefaultVPOutput {
 
     #if !defined(USE_PER_VERTEX_LIGHTING) && defined(USE_LIGHTING)
         #if defined(USE_TANGENTS)
-            float3 tangent			: TEXCOORD6;		// xyz[World]: Tangents
+            float3 tangent	: TEXCOORD6;		// xyz[World]: Tangents
+            float3 binormal : TEXCOORD12;
         #endif // USE_TANGENTS
     #else // !USE_PER_VERTEX_LIGHTING && USE_LIGHTING
         #if defined(USE_LIGHTING)

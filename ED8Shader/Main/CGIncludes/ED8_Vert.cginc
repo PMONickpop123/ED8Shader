@@ -6,6 +6,10 @@
 	#define VP_PORTRAIT
 #endif
 
+float3 CreateBinormal(float3 normal, float3 tangent, float binormalSign) {
+    return cross(normal, tangent.xyz) * (binormalSign * unity_WorldTransformParams.w);
+}
+
 //-----------------------------------------------------------------------------
 // vertex shader
 DefaultVPOutput DefaultVPShader (DefaultVPInput v) {
@@ -23,9 +27,11 @@ DefaultVPOutput DefaultVPShader (DefaultVPInput v) {
 
     #if !defined(USE_PER_VERTEX_LIGHTING) && defined(USE_LIGHTING)
         #if defined(USE_TANGENTS)
-            //float3 tangent = normalize(mul(unity_ObjectToWorld, float4(v.tangent.xyz, 0.0f)).xyz);
+            //float3 tangent = normalize(mul(float4(v.tangent.xyz, 0.0f), unity_ObjectToWorld).xyz);
             float3 tangent = UnityObjectToWorldDir(v.tangent.xyz);
-            o.tangent = (float3)tangent;
+            float3 binormal = CreateBinormal(normal, v.tangent.xyz, v.tangent.w);
+            o.tangent = tangent;
+            o.binormal = binormal;
         #endif // USE_TANGENTS
     #endif // !USE_PER_VERTEX_LIGHTING && USE_LIGHTING
 
@@ -40,7 +46,7 @@ DefaultVPOutput DefaultVPShader (DefaultVPInput v) {
     o.pos = UnityWorldToClipPos(worldSpacePosition);
     o.WorldPositionDepth = float4(worldSpacePosition.xyz, -mul(float4(UnityWorldSpaceViewDir(worldSpacePosition), 1.0f), UNITY_MATRIX_V).z);
     o.normal = (float3)worldSpaceNormal;
-    float3 viewSpacePosition = mul(float4(UnityWorldSpaceViewDir(worldSpacePosition), 1.0f), UNITY_MATRIX_V).xyz;
+    float3 viewSpacePosition = UnityWorldToViewPos(worldSpacePosition);
     o.uv.xy = (float2)v.uv.xy * (float2)_GameMaterialTexcoord.zw + (float2)_GameMaterialTexcoord.xy;
 
     #if !defined(UVA_SCRIPT_ENABLED)
@@ -112,7 +118,7 @@ DefaultVPOutput DefaultVPShader (DefaultVPInput v) {
     o.Color1.rgb = float3(1.0f, 1.0f, 1.0f);
 
     #if defined(FOG_ENABLED)
-        o.Color1.a = EvaluateFogVP(viewSpacePosition.z);
+        o.Color1.a = EvaluateFogVP(length(viewSpacePosition));
     #else // FOG_ENABLED
         o.Color1.a = 0.0f;
     #endif // FOG_ENABLED
@@ -183,14 +189,14 @@ DefaultVPOutput DefaultVPShader (DefaultVPInput v) {
     #endif // !USE_PER_VERTEX_LIGHTING && USE_LIGHTING
 
     #if defined(USE_SCREEN_UV)
-        o.ReflectionMap = GenerateScreenProjectedUv(o.pos);
+        o.ReflectionMap = ComputeGrabScreenPos(o.pos); //GenerateScreenProjectedUv(o.pos);
     #endif // defined(USE_SCREEN_UV)
 
     #if defined(FORCE_PER_VERTEX_ENVIRON_MAP) || !defined(USE_TANGENTS) || !defined(USE_LIGHTING)
         #if defined(CUBE_MAPPING_ENABLED)
-            o.CubeMap = float4(reflect(-worldSpaceEyeDirection, worldSpaceNormal), 1.0f - max(0.0f, ndote) * (float)_CubeFresnelPower);
+            o.CubeMap = float4(reflect(worldSpacePosition - getEyePosition(), worldSpaceNormal), (1.0f - max(0.0f, ndote) * _CubeMapFresnel) * _CubeMapIntensity);
         #elif defined(SPHERE_MAPPING_ENABLED)
-            float3 viewSpaceNormal = (float3)mul((float3x3)UNITY_MATRIX_V, worldSpaceNormal.xyz);
+            float3 viewSpaceNormal = normalize(mul((float3x3)UNITY_MATRIX_V, worldSpaceNormal));
             o.SphereMap = viewSpaceNormal.xy * 0.5f + 0.5f; //float2(0.5f, 0.5f);
         #endif // defined(CUBE_MAPPING_ENABLED) || defined(SPHERE_MAPPING_ENABLED)
     #endif // defined(FORCE_PER_VERTEX_ENVIRON_MAP) || !defined(USE_TANGENTS) || !defined(USE_LIGHTING)

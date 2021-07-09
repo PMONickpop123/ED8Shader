@@ -1,6 +1,7 @@
 float3 EvaluateNormalMapNormal(float3 inNormal, float2 inUv, float3 inTangent, uniform sampler2D normalMap) {
     float4 normalMapData = tex2D(normalMap, inUv).xyzw;
-    //normalMapData.rgb = GammaToLinearSpace(normalMapData.rgb);
+    normalMapData.rgb = LinearToGammaSpace(normalMapData.rgb);
+
     float3 normalMapNormal = float3(0.0f, 0.0f, 0.0f);
 
     #if defined(NORMAL_MAPP_DXT5_NM_ENABLED)
@@ -14,7 +15,7 @@ float3 EvaluateNormalMapNormal(float3 inNormal, float2 inUv, float3 inTangent, u
         normalMapNormal.z = sqrt(1 - saturate(dot(normalMapNormal.xy, normalMapNormal.xy)));
     #else // NORMAL_MAPP_DXT5_NM_ENABLED
         normalMapNormal.xy = normalMapData.xy * 2 - 1;
-        normalMapNormal.z = sqrt(1 - saturate(dot(normalMapNormal.xy, normalMapNormal.xy)));
+        normalMapNormal.z = sqrt(1 - saturate(dot(normalMapNormal.xyz, normalMapNormal.xyz)));
     #endif // NORMAL_MAPP_DXT5_NM_ENABLED
 
 	inTangent = normalize(inTangent);
@@ -80,7 +81,6 @@ float CalcMipLevel(float2 texcoord){
 #if defined(FOG_ENABLED)
     float EvaluateFogVP(float z) {
         float f = (z - _FogRangeParameters.x / 1.0f) / ((_FogRangeParameters.y - _FogRangeParameters.x) * 1.0f);  // cm -> m
-        //float f = (z) * unity_FogParams.z + unity_FogParams.w;
 
         #ifdef FOG_RATIO_ENABLED
             f *= _FogRatio;
@@ -109,7 +109,7 @@ float CalcMipLevel(float2 texcoord){
 	#define EvaluateNormalFP(In) EvaluateStandardNormal(In.normal.xyz)
 #endif
 
-#if defined(MULTI_UV2_NORMAL_MAPPING_ENABLED)
+#if defined(MULTI_UV_NORMAL_MAPPING_ENABLED)
 	#if defined(DUDV_MAPPING_ENABLED)
 		#define EvaluateNormal2FP(In) EvaluateNormalMapNormal(In.normal.xyz, In.DuDvTexCoord.xy, In.tangent, _NormalMap2Sampler)
 	#else // defined(DUDV_MAPPING_ENABLED)
@@ -152,4 +152,12 @@ float4 EvaluateAddUnsaturation(float4 color) {
 	float r1a = min(t0.b + 0.75f, 1.0f);
 	r0.a = r1a + 1.0f * -0.75f;
 	return r0;
+}
+
+half2 SampleSphereMap(half3 viewDirection, half3 normalDirection) {
+    half3 worldUp = half3(0, 1, 0);
+    half3 worldViewUp = normalize(worldUp - viewDirection * dot(viewDirection, worldUp));
+    half3 worldViewRight = normalize(cross(viewDirection, worldViewUp));
+    half2 SphereUV = half2(dot(worldViewRight, normalDirection), dot(worldViewUp, normalDirection)) * 0.5 + 0.5;
+    return SphereUV;
 }

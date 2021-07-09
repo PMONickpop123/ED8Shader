@@ -4,7 +4,7 @@
 #undef FP_PORTRAIT
 #undef FP_SHINING
 
-#if defined(GENERATE_RELFECTION_ENABLED)
+#if defined(GENERATE_RELFECTION_ENABLED) //|| defined(WATER_SURFACE_ENABLED)
 	#undef FP_DEFAULT
 	#define FP_DEFAULTRT
 	#undef FP_FORCETRANSPARENT
@@ -16,12 +16,12 @@
 	#undef FP_FORCETRANSPARENT
 	#define FP_PORTRAIT
 	#undef FP_SHINING
-#elif defined(SHINING_MODE_ENABLED)
-	#undef FP_DEFAULT
-	#undef FP_DEFAULTRT
-	#undef FP_FORCETRANSPARENT
-	#undef FP_PORTRAIT
-	#define FP_SHINING
+//#elif defined(SHINING_MODE_ENABLED)
+//	#undef FP_DEFAULT
+//	#undef FP_DEFAULTRT
+//	#undef FP_FORCETRANSPARENT
+//	#undef FP_PORTRAIT
+//	#define FP_SHINING
 #endif
 
 //-----------------------------------------------------------------------------
@@ -352,7 +352,7 @@ fixed4 DefaultFPShader (DefaultVPOutput i) : SV_TARGET {
             float3 worldSpaceNormal = EvaluateNormalFP(i);
 
             #if defined(MULTI_UV_ENANLED) && defined(MULTI_UV_NORMAL_MAPPING_ENABLED)
-                worldSpaceNormal = lerp(worldSpaceNormal, EvaluateNormal2FP(i), i.Color0.a);
+                worldSpaceNormal = lerp(worldSpaceNormal, BlendNormals(worldSpaceNormal, EvaluateNormal2FP(i)), i.Color0.a);
             #endif
 
 	        float3 ambient = float3(0.0f, 0.0f, 0.0f);
@@ -423,12 +423,12 @@ fixed4 DefaultFPShader (DefaultVPOutput i) : SV_TARGET {
 	        #if !(defined(FORCE_PER_VERTEX_ENVIRON_MAP) || !defined(USE_TANGENTS))
 		        // キューブマップ/スフィアマップ-PerPixel
 		        #if defined(CUBE_MAPPING_ENABLED)
-	                float3 cubeMapParams = reflect(-worldSpaceEyeDirection, worldSpaceNormal);
-	                float cubeMapIntensity = 1.0f - max(0.0f, ndote) * (float)_CubeFresnelPower;
+                    float3 cubeMapParams = reflect(i.WorldPositionDepth.xyz - getEyePosition(), worldSpaceNormal);
+	                float cubeMapIntensity = (1.0f - max(0.0f, ndote) * _CubeMapFresnel) * _CubeMapIntensity;
 	                float4 cubeMapColor = texCUBE(_CubeMapSampler, normalize(cubeMapParams.xyz)).rgba;
 		        #elif defined(SPHERE_MAPPING_ENABLED)
-                    float3 viewSpaceNormal = (float3)mul((float3x3)UNITY_MATRIX_V, worldSpaceNormal.xyz);
-                    float2 sphereMapParams = viewSpaceNormal.xy * 0.5f + 0.5f; //float2(0.5f, 0.5f);
+                    float3 viewSpaceNormal = normalize(mul((float3x3)UNITY_MATRIX_V, worldSpaceNormal));
+                    float2 sphereMapParams = viewSpaceNormal.xy * 0.5f + 0.5f;
                     float4 sphereMapColor = tex2D(_SphereMapSampler, sphereMapParams.xy).rgba;
 		        #endif // CUBE_MAPPING_ENABLED || SPHERE_MAPPING_ENABLED
 	        #endif // !(defined(FORCE_PER_VERTEX_ENVIRON_MAP) || !defined(USE_TANGENTS))
@@ -560,10 +560,10 @@ fixed4 DefaultFPShader (DefaultVPOutput i) : SV_TARGET {
                 #if defined(MULTI_UV_MULTIPLICATIVE_BLENDING_LM_ENANLED)
                     diffuseAmt.rgb *= diffuse2Amt.rgb * multi_uv_alpha;
                     diffuseAmt.rgb = (diffuseAmt.rgb * _BlendMulScale2);
-                    diffuse2Amt.rgb = max(float3(1,1,1), EvaluateAmbient(worldSpaceNormal));
-                    diffuse2Amt.rgb = min(float3(1.5,1.5,1.5), diffuse2Amt.rgb);
-                    diffuse2Amt.rgb = (i.Color0.rgb * diffuse2Amt.rgb);
-                    diffuseAmt.rgb = (diffuseAmt.rgb * diffuse2Amt.rgb);
+
+                    //diffuse2Amt.rgb *= shadingAmt.rgb;
+                    diffuseAmt.rgb = (diffuseAmt.rgb * shadingAmt.rgb);
+                    resultColor.rgb = diffuseAmt.rgb;
                 #else
 
                 #endif
@@ -575,6 +575,7 @@ fixed4 DefaultFPShader (DefaultVPOutput i) : SV_TARGET {
                     diffuse3Amt.rgb = min(float3(1.5,1.5,1.5), diffuse3Amt.rgb);
                     diffuse3Amt.rgb = (i.Color0.rgb * diffuse3Amt.rgb);
                     diffuseAmt.rgb = (diffuseAmt.rgb * diffuse3Amt.rgb);
+                    resultColor.rgb = diffuseAmt.rgb;
                 #else
                 
                 #endif
@@ -590,10 +591,12 @@ fixed4 DefaultFPShader (DefaultVPOutput i) : SV_TARGET {
                 #endif // FP_WS_EYEDIR_EXIST
 
                 float water_ndote = dot(normalize(_UserClipPlane.xyz), worldSpaceEyeDirection);
-                float waterAlpha = pow(1.0f - abs(water_ndote), 4.0f);
-                resultColor.rgb = lerp(refrColor.rgb, resultColor.rgb, resultColor.a) + reflColor.rgb * waterAlpha * _ReflectionIntensity;
+                float waterAlpha = (pow(1.0f - abs(water_ndote), 4.0f) * _ReflectionFresnel) * _ReflectionIntensity;
+                //float waterAlpha = (1.0f - max(0.0f, water_ndote) * _ReflectionFresnel) * _ReflectionIntensity;
+                resultColor.rgb = lerp(refrColor.rgb, resultColor.rgb, resultColor.a) + reflColor.rgb * waterAlpha; //* _ReflectionIntensity;
                 float waterGlowValue = reflColor.a + refrColor.a;
             #else // defined(WATER_SURFACE_ENABLED)
+                // We need to figure out how to get the refraction texture.
                 resultColor.rgb = lerp(refrColor.rgb, resultColor.rgb, resultColor.a);
             #endif // defined(WATER_SURFACE_ENABLED)
         #endif // defined(DUDV_MAPPING_ENABLED) || defined(WATER_SURFACE_ENABLED)
@@ -673,46 +676,50 @@ fixed4 DefaultFPShader (DefaultVPOutput i) : SV_TARGET {
         #if defined(FP_FORCETRANSPARENT) || defined(FP_SHINING)
             return resultColor;
         #elif defined(FP_DEFAULT) || defined(FP_DEFAULTRT) || defined(FP_PORTRAIT)
-            #if !defined(ALPHA_BLENDING_ENABLED)
-                #if defined(GLARE_MAP_ENABLED) || defined(GLARE_OVERFLOW_ENABLED) || defined(GLARE_HIGHTPASS_ENABLED)
-                    float glowValue = 0.0f;
+            #if defined(GLARE_MAP_ENABLED) || defined(GLARE_OVERFLOW_ENABLED) || defined(GLARE_HIGHTPASS_ENABLED)
+                float glowValue = 0.0f;
 
-                    #if defined(GLARE_MAP_ENABLED)
-                        glowValue = tex2D(_GlareMapSampler, i.uv.xy).x;
-                        //glowValue.x = GammaToLinearSpaceExact(glowValue.x);
-                    #endif
+                #if defined(GLARE_MAP_ENABLED)
+                    glowValue = tex2D(_GlareMapSampler, i.uv.xy).x;
+                    //glowValue.x = GammaToLinearSpaceExact(glowValue.x);
+                #endif
 
-                    #if defined(MULTI_UV_ENANLED) && defined(MULTI_UV_GLARE_MAP_ENABLED)
-                        float glowValue2 = tex2D(_GlareMap2Sampler, i.uv.xy).x;
-                        //glowValue2.x = GammaToLinearSpaceExact(glowValue2.x);
-                        glowValue = lerp(glowValue, glowValue2, multi_uv_alpha);
-                    #endif
+                #if defined(MULTI_UV_ENANLED) && defined(MULTI_UV_GLARE_MAP_ENABLED)
+                    float glowValue2 = tex2D(_GlareMap2Sampler, i.uv.xy).x;
+                    //glowValue2.x = GammaToLinearSpaceExact(glowValue2.x);
+                    glowValue = lerp(glowValue, glowValue2, multi_uv_alpha);
+                #endif
 
-                    #if defined(GLARE_HIGHTPASS_ENABLED)
-                        float lumi = dot(resultColor.rgb, float3(1.0f,1.0f,1.0f));
-                        glowValue += max(lumi - 1.0f, 0.0f);
-                    #endif
+                #if defined(GLARE_HIGHTPASS_ENABLED)
+                    float lumi = dot(resultColor.rgb, float3(1.0f,1.0f,1.0f));
+                    glowValue += max(lumi - 1.0f, 0.0f);
+                #endif
 
-                    #if defined(GLARE_OVERFLOW_ENABLED)
-                        float3 glowof = max(float3(0.0f, 0.0f, 0.0f), resultColor.rgb - _GlowThreshold);
-                        glowValue += dot(glowof, 1.0f);
-                    #endif
+                #if defined(GLARE_OVERFLOW_ENABLED)
+                    float3 glowof = max(float3(0.0f, 0.0f, 0.0f), resultColor.rgb - _GlowThreshold);
+                    glowValue += dot(glowof, 1.0f);
+                #endif
 
-                    #if defined(WATER_SURFACE_ENABLED)
-                        glowValue += waterGlowValue;
-                        return float4(resultColor.rgb, glowValue * _GlareIntensity);
-                    #else 
-                        //return float4(resultColor.rgb * glowValue * _GlareIntensity, resultColor.a);
-                        return float4(resultColor.rgb + (resultColor.rgb * glowValue * _GlareIntensity), glowValue * _GlareIntensity * resultColor.a);
-                    #endif
-                #else // defined(GLARE_MAP_ENABLED) || defined(GLARE_OVERFLOW_ENABLED) || defined(GLARE_HIGHTPASS_ENABLED)
-                    //return float4(resultColor.rgb, 0.0f);
+                #if defined(WATER_SURFACE_ENABLED)
+                    glowValue += waterGlowValue;
+                    //return float4(resultColor.rgb, glowValue * _GlareIntensity);
+                //#else 
+                    //return float4(resultColor.rgb * glowValue * _GlareIntensity, resultColor.a);
+                    //return float4(resultColor.rgb + (resultColor.rgb * glowValue * _GlareIntensity), glowValue * _GlareIntensity * resultColor.a);
+                #endif
+
+                #if !defined(ALPHA_BLENDING_ENABLED)
+                    return float4(resultColor.rgb + (resultColor.rgb * glowValue * _GlareIntensity), 1.0f);
+                #else
+                    return float4(resultColor.rgb + (resultColor.rgb * glowValue * _GlareIntensity), resultColor.a);
+                #endif
+            #else // defined(GLARE_MAP_ENABLED) || defined(GLARE_OVERFLOW_ENABLED) || defined(GLARE_HIGHTPASS_ENABLED)
+                #if !defined(ALPHA_BLENDING_ENABLED)
                     return float4(resultColor.rgb + (resultColor.rgb * _GlareIntensity), 1.0f);
-                #endif // defined(GLARE_MAP_ENABLED) || defined(GLARE_OVERFLOW_ENABLED) || defined(GLARE_HIGHTPASS_ENABLED)
-            #else // !defined(ALPHA_BLENDING_ENABLED)
-                //return resultColor;
-                return float4(resultColor.rgb + (resultColor.rgb * _GlareIntensity), resultColor.a);
-            #endif // !defined(ALPHA_BLENDING_ENABLED)
+                #else
+                    return float4(resultColor.rgb + (resultColor.rgb * _GlareIntensity), resultColor.a);
+                #endif
+            #endif // defined(GLARE_MAP_ENABLED) || defined(GLARE_OVERFLOW_ENABLED) || defined(GLARE_HIGHTPASS_ENABLED)
         #endif // FP_DEFAULT || FP_DEFAULTRT
     #endif // NOTHING_ENABLED
 }
