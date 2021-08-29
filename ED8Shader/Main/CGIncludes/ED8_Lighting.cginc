@@ -20,11 +20,11 @@ float calcSpecularLightAmt(float3 normal, float3 lightDir, float3 eyeDirection, 
 
 #if defined(FAKE_CONSTANT_SPECULAR_ENABLED) && defined(SPECULAR_ENABLED)
     float3 getFakeSpecularLightDir(float3 trueLightDir) {
-        float3 v0 = mul(unity_CameraToWorld, float4(0, 0, 0, 1));
-        float3 v1 = mul(unity_CameraToWorld, float4(0, 0, 1, 1));
+        float3 v0 = mul(unity_CameraToWorld, float4(0, 0, 0, 1)).xyz;
+        float3 v1 = mul(unity_CameraToWorld, float4(0, 0, 1, 1)).xyz;
 	    float3 cameraEyeDir = normalize(v1 - v0);
         float3 lightDir = normalize(trueLightDir);
-	    return normalize(lightDir + 2 * (cameraEyeDir * 1.5f + normalize(float3(0, 1, 0))));
+	    return normalize(lightDir + 2 * (cameraEyeDir * 1.5f + float3(0, 1, 0)));
     }   
 #endif // FAKE_CONSTANT_SPECULAR_ENABLED
 
@@ -46,10 +46,25 @@ float3 EvaluateAmbient(float3 normal) {
 	#endif // HEMISPHERE_AMBIENT_ENABLED
 }
 
+float calculateAttenuationQuadratic(float distanceToLightSqr, float4 attenuationProperties) {
+	// attenuationProperties contains:
+	// innerRange, outerRange, 1.0f/(outerRange/innerRange), (-innerRange / (outerRange/innerRange)
+	float rd = (attenuationProperties.y * attenuationProperties.y) - (attenuationProperties.x * attenuationProperties.x);
+	float b = 1.0f / rd;
+	float a = attenuationProperties.x * attenuationProperties.x;
+	float c = a * b + 1.0f;
+
+	float coeff0 = (float)(-b);
+	float coeff1 = (float)(c);
+	float attenValuef = saturate(distanceToLightSqr * coeff0 + coeff1);
+	float attenValue = (float)attenValuef;
+	return attenValue;
+}
+
 //-----------------------------------------------------------------------------
 #if defined(LIGHT_DIRECTION_FOR_CHARACTER_ENABLED)
     float3 PortraitEvaluateAmbient() {
-        return _PortraitAmbientColor.rgb;
+        return _GlobalAmbientColor.rgb; //_PortraitAmbientColor.rgb;
     }
 #endif // defined(LIGHT_DIRECTION_FOR_CHARACTER_ENABLED)
 
@@ -77,12 +92,7 @@ float3 EvaluateAmbient(float3 normal) {
         #if defined(UNITY_PASS_FORWARDBASE)
             UNITY_BRANCH
             if (_WorldSpaceLightPos0.w == 0) {
-                #if defined(LIGHT_DIRECTION_FOR_CHARACTER_ENABLED)
-                    lightDir = normalize(_LightDirForChar);
-                #else // LIGHT_DIRECTION_FOR_CHARACTER_ENABLED
-                    lightDir = normalize(_WorldSpaceLightPos0.xyz);
-                #endif // LIGHT_DIRECTION_FOR_CHARACTER_ENABLED
-
+                lightDir = normalize(_WorldSpaceLightPos0.xyz);
                 ldotn = dot(normal, lightDir);
 
                 #if defined(CARTOON_SHADING_ENABLED)
@@ -105,6 +115,10 @@ float3 EvaluateAmbient(float3 normal) {
                     #if defined(SPECULAR_COLOR_ENABLED)
                         specularValue *= _SpecularColor.rgb;
                     #endif
+
+                    #if !defined(UNITY_COLORSPACE_GAMMA)
+                        specularValue = GammaToLinearSpace(specularValue.rgb);
+                    #endif
                 #endif // SPECULAR_ENABLED
 
                 #if defined(CARTOON_SHADING_ENABLED)
@@ -117,6 +131,10 @@ float3 EvaluateAmbient(float3 normal) {
                     lightingAmount += specularValue;
                     lightingAmount *= shadowValue;
                 #endif // SPECULAR_ENABLED
+
+                #if !defined(UNITY_COLORSPACE_GAMMA)
+                    diffuseValue = LinearToGammaSpace(diffuseValue.rgb);
+                #endif
 
                 shadingAmount += diffuseValue;
                 lightingResult += shadingAmount;
@@ -187,7 +205,7 @@ float3 EvaluateAmbient(float3 normal) {
     }
 
 	#if defined(LIGHT_DIRECTION_FOR_CHARACTER_ENABLED)
-        float3 PortraitEvaluateLightingPerPixelFP(inout float3 sublightAmount, float3 worldSpacePosition, float3 normal, float glossValue, float shadowValue, float3 ambientAmount, float3 eyeDirection) {
+        float3 PortraitEvaluateLightingPerPixelFP(inout float3 sublightAmount, float3 worldSpacePosition, float3 normal, float glossValue, float shadowValue, float3 ambientAmount, float3 eyeDirection, float atten) {
 	        #if defined(ALPHA_BLENDING_ENABLED) && defined(USE_EXTRA_BLENDING)
 	            float3 lightingResult = float3(0.0f, 0.0f, 0.0f);
 	        #else // defined(ALPHA_BLENDING_ENABLED) && defined(USE_EXTRA_BLENDING)
@@ -209,15 +227,15 @@ float3 EvaluateAmbient(float3 normal) {
             #if defined(UNITY_PASS_FORWARDBASE)
                 UNITY_BRANCH
                 if (_WorldSpaceLightPos0.w == 0.0) {
-                    lightDir = normalize(_LightDirForChar);
+                    lightDir = normalize(_WorldSpaceLightPos0.xyz);
                     ldotn = dot(lightDir, normal);
 
                     #if defined(CARTOON_SHADING_ENABLED)
-                        diffuseValue = _PortraitLightColor.rgb;
+                        diffuseValue = _LightColor0.rgb;
                     #elif defined(NO_MAIN_LIGHT_SHADING_ENABLED)
-                        diffuseValue = _PortraitLightColor.rgb / max(max(_PortraitLightColor.r, _PortraitLightColor.g), max(_PortraitLightColor.b, 0.001f));
+                        diffuseValue = _LightColor0.rgb / max(max(_LightColor0.r, _LightColor0.g), max(_LightColor0.b, 0.001f));
                     #else
-                        diffuseValue = _PortraitLightColor.rgb * calcDiffuseLightAmtLdotN(ldotn);
+                        diffuseValue = _LightColor0.rgb * calcDiffuseLightAmtLdotN(ldotn);
                     #endif
 
                     #if defined(SPECULAR_ENABLED)
@@ -227,7 +245,7 @@ float3 EvaluateAmbient(float3 normal) {
                             specularLightDir = lightDir;
                         #endif // FAKE_CONSTANT_SPECULAR_ENABLED
 
-                        specularValue = _PortraitLightColor.rgb * calcSpecularLightAmt(normal, specularLightDir, eyeDirection, shininess, _SpecularPower);
+                        specularValue = _LightColor0.rgb * calcSpecularLightAmt(normal, specularLightDir, eyeDirection, shininess, _SpecularPower);
 
                         #if defined(SPECULAR_COLOR_ENABLED)
                             specularValue *= _SpecularColor.rgb;
@@ -255,6 +273,59 @@ float3 EvaluateAmbient(float3 normal) {
                     #if defined(SPECULAR_ENABLED)
                         lightingResult += lightingAmount;
                     #endif // SPECULAR_ENABLED
+                }
+            #elif defined(UNITY_PASS_FORWARDADD)
+                UNITY_BRANCH
+                if (_WorldSpaceLightPos0.w > 0.0) {
+                    lightDir = normalize(_WorldSpaceLightPos0.xyz - worldSpacePosition);
+                    ldotn = dot(lightDir, normal);
+                    diffuseValue = _LightColor0.rgb * atten * calcDiffuseLightAmtLdotN(ldotn);
+
+                    #if defined(SPECULAR_ENABLED)
+                        #if defined(FAKE_CONSTANT_SPECULAR_ENABLED)
+                            specularLightDir = getFakeSpecularLightDir(lightDir);
+                        #else // FAKE_CONSTANT_SPECULAR_ENABLED
+                            specularLightDir = lightDir;
+                        #endif // FAKE_CONSTANT_SPECULAR_ENABLED
+
+                        specularValue = _LightColor0.rgb * calcSpecularLightAmt(normal, specularLightDir, eyeDirection, shininess, _SpecularPower);
+                    #endif // SPECULAR_ENABLED
+
+                    #if defined(CARTOON_SHADING_ENABLED) && !defined(TOON_FIRST_LIGHT_ONLY_ENABLED)
+                        diffuseValue *= calcToonShadingValueFP(ldotn, shadowValue);
+                    #endif // CARTOON_SHADING_ENABLED && !TOON_FIRST_LIGHT_ONLY_ENABLED
+
+                    sublightAmount += diffuseValue;
+
+                    #if defined(SPECULAR_ENABLED)
+                        lightingAmount += specularValue;
+                        sublightAmount += specularValue;
+                    #endif // SPECULAR_ENABLED
+
+                    UNITY_BRANCH
+                    if (_WorldSpaceLightPos0.w > 1.0) {
+                        diffuseValue = _LightColor0.rgb * atten * calcDiffuseLightAmtLdotN(ldotn);
+
+                        #if defined(SPECULAR_ENABLED)
+                            #if defined(FAKE_CONSTANT_SPECULAR_ENABLED)
+                                specularLightDir = getFakeSpecularLightDir(lightDir);
+                            #else // FAKE_CONSTANT_SPECULAR_ENABLED
+                                specularLightDir = lightDir;
+                            #endif // FAKE_CONSTANT_SPECULAR_ENABLED
+
+                            specularValue = lightingAmount * calcSpecularLightAmt(normal, specularLightDir, eyeDirection, shininess, _SpecularPower);
+                        #endif // SPECULAR_ENABLED
+
+                        #if defined(CARTOON_SHADING_ENABLED) && !defined(TOON_FIRST_LIGHT_ONLY_ENABLED)
+                            diffuseValue *= calcToonShadingValueFP(ldotn, shadowValue);
+                        #endif // CARTOON_SHADING_ENABLED && !TOON_FIRST_LIGHT_ONLY_ENABLED
+
+                        sublightAmount += diffuseValue;
+
+                        #if defined(SPECULAR_ENABLED)
+                            sublightAmount += specularValue;
+                        #endif // SPECULAR_ENABLED
+                    }
                 }
             #endif
 
@@ -285,12 +356,7 @@ float3 EvaluateAmbient(float3 normal) {
             #if defined(UNITY_PASS_FORWARDBASE)
                 UNITY_BRANCH
                 if (_WorldSpaceLightPos0.w == 0.0) {
-                    #if defined(LIGHT_DIRECTION_FOR_CHARACTER_ENABLED)
-                        lightDir = normalize(_LightDirForChar);
-                    #else // LIGHT_DIRECTION_FOR_CHARACTER_ENABLED
-                        lightDir = normalize(_WorldSpaceLightPos0.xyz);
-                    #endif // LIGHT_DIRECTION_FOR_CHARACTER_ENABLED
-
+                    lightDir = normalize(_WorldSpaceLightPos0.xyz);
                     ldotn = dot(lightDir, normal);
 
                     #if defined(CARTOON_SHADING_ENABLED)

@@ -1,4 +1,4 @@
-﻿Shader "ED8/Cold Steel Shader/Cutout" {
+﻿Shader "ED8/Cold Steel Shader/Opaque (Grabpass)" {
     Properties {	
         [HideInInspector] shader_is_using_thry_editor("", Float)= 0
         [HideInInspector] shader_master_label ("<color=#000000ff>Trails of Cold Steel Shader</color>", Float) = 0
@@ -21,6 +21,7 @@
 
         // #if defined(GENERATE_RELFECTION_ENABLED) || defined(WATER_SURFACE_ENABLED)
         _UserClipPlane("User Clip Plane", Vector) = (0.0, 1.0, 0.0, 0.0)
+        
         [HideInInspector] m_start_WaterSurface ("Enable Water Surface", Float) = 0
         [HideInInspector][Toggle(WATER_SURFACE_ENABLED)]_WaterSurfaceEnabled ("Enable Water Surface", Float) = 0
         // #endif GENERATE_RELFECTION_ENABLED) || (WATER_SURFACE_ENABLED)
@@ -28,7 +29,7 @@
         _ReflectionFresnel("Reflection Fresnel", Range(0.0, 10.0)) = 0.5
         _ReflectionIntensity("Reflection Intensity", Range(0.0, 10.0)) = 0.75
         [HideInInspector] m_end_WaterSurface ("Enable Water Surface", Float) = 0
-        
+
         [Toggle(VERTEX_COLOR_ENABLED)]_VertexColorEnabled ("Enable Vertex Color", Float) = 0
         [Toggle(BLEND_VERTEX_COLOR_BY_ALPHA_ENABLED)]_BlendVertexColorAlphaEnabled ("Blend Vertex Color Alpha", Float) = 0
         [Toggle(NO_ALL_LIGHTING_ENABLED)]_NoAllLightingEnabled ("Enable No All Lighting", Float) = 0
@@ -135,7 +136,7 @@
         // #if defined(NORMAL_MAPPING_ENABLED)
         [HideInInspector] m_start_NormalMap ("Enable Normal Mapping", Float) = 0
         [HideInInspector][Toggle(NORMAL_MAPPING_ENABLED)]_NormalMappingEnabled ("Enable Normal Mapping", Float) = 0
-        _BumpMap("Normal Map", 2D) = "bump" {}
+        _BumpMap("Normal Map", 2D) = "white" {}
         [HideInInspector] m_end_NormalMap ("Enable Normal Mapping", Float) = 0
         // #endif (NORMAL_MAPPING_ENABLED)
 
@@ -248,12 +249,12 @@
         // #if defined(CARTOON_SHADING_ENABLED)
         [HideInInspector] m_start_CartoonShading ("Enable Cartoon Shading", Float) = 0
         [HideInInspector][Toggle(CARTOON_SHADING_ENABLED)]_CartoonShadingEnabled ("Enable Cartoon Shading", Float) = 0
-        _CartoonMapSampler("Cartoon Map", 2D) = "white" {}
+        _CartoonMapSampler("Cartoon Map", 2D) = "gray" {}
 
         // #if defined(CARTOON_HILIGHT_ENABLED)
         [HideInInspector] m_start_CartoonHilight ("Enable Cartoon Hilight", Float) = 0
         [HideInInspector][Toggle(CARTOON_HILIGHT_ENABLED)]_CartoonHilightEnabled ("Enable Cartoon Hilight", Float) = 0
-        _HighlightMapSampler("Hilight Map", 2D) = "white" {}
+        _HighlightMapSampler("Hilight Map", 2D) = "gray" {}
         _HighlightColor("Hilight Color", Color) = (1.0, 1.0, 1.0, 0.0)
         _HighlightIntensity("Hilight Intensity", Range(0.001, 10.0)) = 2.0
         [HideInInspector] m_end_CartoonHilight ("Enable Cartoon Hilight", Float) = 0
@@ -322,8 +323,6 @@
         [Toggle(GLARE_HIGHTPASS_ENABLED)]_GlareHilightPassEnabled ("Enable Glare HilightPass", Float) = 0
         //[Toggle(GLARE_EMISSION_ENABLED)]_GlareEmissionEnabled ("Enable Glare Emission", Float) = 0
         _GlareIntensity("Glare Intensity", Range(0.0, 20.0)) = 0.0
-        _Factor ("Z Factor", Float) = 0
-        _Units ("Z Units", Float) = 0
 
         [HideInInspector] m_start_StencilOptions ("Stencil", Float) = 0
         [IntRange] _StencilRef ("Stencil Reference Value", Range(0, 255)) = 0
@@ -356,8 +355,9 @@
 
     CustomEditor "Thry.ShaderEditor"
     SubShader {
-        Tags { "RenderType"="TransparentCutout" "Queue"="AlphaTest"}
+        Tags { "RenderType" = "Opaque" "Queue" = "Transparent" "IgnoreProjector" = "True"}
         Cull [_Culling]
+        LOD 200
         ZTest[_ZTest]
         Stencil {
             Ref [_StencilRef]
@@ -369,7 +369,7 @@
             ZFail [_StencilZFailOp]
         }
 
-        Offset [_Factor], [_Units]
+        GrabPass { "_RefractionTexture" }
 
         Pass {
             Name "FORWARD"
@@ -383,7 +383,7 @@
                 #define UNITY_PASS_FORWARDBASE
             #endif
 
-            #define ALPHA_TESTING_ENABLED
+            #define ED8_GRABPASS
 
             #pragma shader_feature NOTHING_ENABLED
             #pragma shader_feature CASTS_SHADOWS_ONLY
@@ -456,12 +456,11 @@
             #pragma shader_feature GLARE_MAP_ENABLED
             #pragma shader_feature GLARE_HIGHTPASS_ENABLED
 
-            #pragma multi_compile_instancing
-            #pragma multi_compile_fwdbase
-            #pragma fragmentoption ARB_precision_hint_fastest
             #pragma vertex DefaultVPShader
             #pragma fragment DefaultFPShader
-
+            #pragma multi_compile_fwdbase
+            #pragma multi_compile_instancing
+            
             #include "../CGIncludes/ED8_Defines.cginc"
             #include "../CGIncludes/ED8_HelperFunctions.cginc"
             #include "../CGIncludes/ED8_Lighting.cginc"
@@ -474,6 +473,8 @@
             Name "FWDADD"
             Tags { "LightMode" = "ForwardAdd" }
             Blend One One
+            ZWrite Off
+            ZTest LEqual
 
             CGPROGRAM
 
@@ -483,7 +484,7 @@
                  #define UNITY_PASS_FORWARDADD
             #endif
 
-            #define ALPHA_TESTING_ENABLED
+            #define ED8_GRABPASS
 
             #pragma shader_feature NOTHING_ENABLED
             #pragma shader_feature CASTS_SHADOWS_ONLY
@@ -556,7 +557,6 @@
             #pragma shader_feature GLARE_MAP_ENABLED
             #pragma shader_feature GLARE_HIGHTPASS_ENABLED
 
-            #pragma multi_compile_instancing
             #pragma multi_compile_fwdadd_fullshadows
             #pragma vertex DefaultVPShader
             #pragma fragment DefaultFPShader
@@ -582,16 +582,16 @@
             #endif
 
             #pragma skip_variants FOG_LINEAR FOG_EXP FOG_EXP2
-            #define ALPHA_TESTING_ENABLED
             #pragma shader_feature CASTS_SHADOWS_ONLY
             #pragma shader_feature CASTS_SHADOWS
             #pragma shader_feature WINDY_GRASS_ENABLED
             #pragma shader_feature WINDY_GRASS_TEXV_WEIGHT_ENABLED
 
-            #pragma multi_compile_instancing
             #pragma vertex ShadowVPShader
             #pragma fragment ShadowFPShader
             #pragma multi_compile_shadowcaster
+            #pragma multi_compile_instancing
+            
             #include "../CGIncludes/ED8_Defines.cginc"
             #include "../CGIncludes/ED8_HelperFunctions.cginc"
             #include "../CGIncludes/ED8_ShadowCaster.cginc"
@@ -599,5 +599,5 @@
         }
     }
 
-    Fallback "Transparent/Cutout/Diffuse"
+    Fallback "Diffuse"
 }

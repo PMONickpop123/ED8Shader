@@ -340,10 +340,16 @@
         _Units ("Z Units", Float) = 0
 
         [HideInInspector] m_start_StencilOptions ("Stencil", Float) = 0
-        [IntRange] _Stencil ("Stencil ID [0;255]", Range(0,255)) = 0
-        [Enum(UnityEngine.Rendering.CompareFunction)] _StencilComp ("Stencil Comparison", Int) = 0
-        [Enum(UnityEngine.Rendering.StencilOp)] _StencilOp ("Stencil Operation", Int) = 0
+        [IntRange] _StencilRef ("Stencil Reference Value", Range(0, 255)) = 0
+        [IntRange] _StencilReadMask ("Stencil ReadMask Value", Range(0, 255)) = 255
+        [IntRange] _StencilWriteMask ("Stencil WriteMask Value", Range(0, 255)) = 255
+        [Enum(UnityEngine.Rendering.StencilOp)] _StencilPassOp ("Stencil Pass Op", Float) = 0
+        [Enum(UnityEngine.Rendering.StencilOp)] _StencilFailOp ("Stencil Fail Op", Float) = 0
+        [Enum(UnityEngine.Rendering.StencilOp)] _StencilZFailOp ("Stencil ZFail Op", Float) = 0
+        [Enum(UnityEngine.Rendering.CompareFunction)] _StencilCompareFunction ("Stencil Compare Function", Float) = 8
         [HideInInspector] m_end_StencilOptions ("Stencil", Float) = 0
+        [Enum(UnityEngine.Rendering.CompareFunction)] _ZTest("Depth Test", Float) = 4
+        [Enum(DepthWrite)] _ZWrite("Depth Write", Float) = 1
         [HideInInspector] Instancing ("Instancing", Float) = 0 //add this property for instancing variants settings to be shown
 
         //[HideInInspector] m_animationToggles ("Animation Support Toggles", Float) = 0
@@ -354,13 +360,9 @@
         [HideInInspector]_PortraitAmbientColorAnimated("PortraitAmbientColor", Int) = 0
         [HideInInspector]_GameMaterialDiffuseAnimated("Game Material Diffuse", Int) = 0
         [HideInInspector]_GameMaterialEmissionAnimated("Game Material Emission", Int) = 0
-        [HideInInspector]_UVaMUvColorAnimated("UVaMUVColor", Int) = 0
-        [HideInInspector]_UVaProjTexcoordAnimated("UVaProjTexcoord", Int) = 0
-        [HideInInspector]_UVaMUvTexcoordAnimated("UVaMUvTexcoord", Int) = 0
-        [HideInInspector]_UVaMUv2TexcoordAnimated("UVaMUv2Texcoord", Int) = 0
-        [HideInInspector]_UVaDuDvTexcoordAnimated("UVaDuDvTexcoord", Int) = 0
         [HideInInspector]_FogColorAnimated("Fog Color", Int) = 0
         [HideInInspector]_FogRangeParametersAnimated("Fog Range Params", Int) = 0
+        [HideInInspector]_FogRateClampAnimated("Fog Rate", Int) = 0
         [HideInInspector]_HemiSphereAmbientSkyColorAnimated("HSA Sky Color", Int) = 0
         [HideInInspector]_HemiSphereAmbientGndColorAnimated("HSA Ground Color", Int) = 0
         [HideInInspector]_HemiSphereAmbientAxisAnimated("HSA Axis", Int) = 0
@@ -370,10 +372,15 @@
     SubShader {
         Tags { "RenderType"="TransparentCutout" "Queue"="AlphaTest"}
         Cull [_Culling]
+        ZTest[_ZTest]
         Stencil {
-            Ref [_Stencil]
-            Comp [_StencilComp]
-            Pass [_StencilOp]
+            Ref [_StencilRef]
+            ReadMask [_StencilReadMask]
+            WriteMask [_StencilWriteMask]
+            Comp [_StencilCompareFunction]
+            Pass [_StencilPassOp]
+            Fail [_StencilFailOp]
+            ZFail [_StencilZFailOp]
         }
 
         Offset [_Factor], [_Units]
@@ -445,6 +452,7 @@
             #pragma shader_feature FAKE_CONSTANT_SPECULAR_ENABLED
             #pragma shader_feature SPECULAR_COLOR_ENABLED
             #pragma shader_feature RIM_LIGHTING_ENABLED
+            #pragma shader_feature RIM_CLAMP_ENABLED
             #pragma shader_feature RIM_TRANSPARENCY_ENABLED
             #pragma shader_feature TEXCOORD_OFFSET_ENABLED
             #pragma shader_feature NORMAL_MAPP_DXT5_NM_ENABLED
@@ -547,6 +555,7 @@
             #pragma shader_feature FAKE_CONSTANT_SPECULAR_ENABLED
             #pragma shader_feature SPECULAR_COLOR_ENABLED
             #pragma shader_feature RIM_LIGHTING_ENABLED
+            #pragma shader_feature RIM_CLAMP_ENABLED
             #pragma shader_feature RIM_TRANSPARENCY_ENABLED
             #pragma shader_feature TEXCOORD_OFFSET_ENABLED
             #pragma shader_feature NORMAL_MAPP_DXT5_NM_ENABLED

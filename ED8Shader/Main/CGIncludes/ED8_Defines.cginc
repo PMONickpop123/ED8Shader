@@ -203,19 +203,19 @@
 	#undef CUBE_MAPPING_ENABLED
 	#undef SPHERE_MAPPING_ENABLED
 	#undef CARTOON_SHADING_ENABLED
-#else
-	#if defined(WATER_SURFACE_ENABLED)
-		#undef ALPHA_BLENDING_ENABLED
-		#undef ADDITIVE_BLENDING_ENABLED
-		#undef SUBTRACT_BLENDING_ENABLED
-		#undef MULTIPLICATIVE_BLENDING_ENABLED
-		#undef USE_EXTRA_BLENDING
-	#endif // defined(WATER_SURFACE_ENABLED)
-
-	#if defined(WATER_SURFACE_ENABLED) || defined(DUDV_MAPPING_ENABLED)
-		#define USE_SCREEN_UV
-	#endif // defined(WATER_SURFACE_ENABLED) || defined(DUDV_MAPPING_ENABLED)
 #endif // MULTI_UV2_ENANLED
+
+#if defined(WATER_SURFACE_ENABLED)
+    #undef ALPHA_BLENDING_ENABLED
+    #undef ADDITIVE_BLENDING_ENABLED
+    #undef SUBTRACT_BLENDING_ENABLED
+    #undef MULTIPLICATIVE_BLENDING_ENABLED
+    #undef USE_EXTRA_BLENDING
+#endif // defined(WATER_SURFACE_ENABLED)
+
+#if defined(WATER_SURFACE_ENABLED) || defined(DUDV_MAPPING_ENABLED)
+    #define USE_SCREEN_UV
+#endif // defined(WATER_SURFACE_ENABLED) || defined(DUDV_MAPPING_ENABLED)
 
 #if defined(CUBE_MAPPING_ENABLED)
 	#undef SPHERE_MAPPING_ENABLED
@@ -241,9 +241,8 @@
 half _GlobalMainLightClampFactor;
 
 #if defined(USE_SCREEN_UV)
-	#define _ScreenWidth _ScreenParams.x
-	#define _ScreenHeight _ScreenParams.y
-#endif // defined(USE_SCREEN_UV)
+    uniform UNITY_DECLARE_DEPTH_TEXTURE(_CameraDepthTexture); uniform float4 _CameraDepthTexture_TexelSize;
+#endif
 
 //#if defined(GENERATE_RELFECTION_ENABLED) || defined(WATER_SURFACE_ENABLED)
 half4 _UserClipPlane; //= {0.0, 1.0, 0.0, 0.0}; // xyzw (nx,ny,nz,height)
@@ -441,9 +440,9 @@ float4 _OutlineColorFactor;
 #endif
 
 #if defined(USE_SCREEN_UV)
-	sampler2D _ReflectionTexture;
-	sampler2D _RefractionTexture;
-    float4 _RefractionTexture_TexelSize;
+	uniform sampler2D _RefractionTexture; uniform float4 _RefractionTexture_TexelSize;
+    uniform sampler2D _ReflectionTex0; uniform float4 _ReflectionTex0_TexelSize;
+    uniform sampler2D _ReflectionTex1; uniform float4 _ReflectionTex1_TexelSize;
 #endif // defined(USE_SCREEN_UV)
 
 #if defined(GLARE_MAP_ENABLED)

@@ -118,7 +118,8 @@ DefaultVPOutput DefaultVPShader (DefaultVPInput v) {
     o.Color1.rgb = float3(1.0f, 1.0f, 1.0f);
 
     #if defined(FOG_ENABLED)
-        o.Color1.a = EvaluateFogVP(length(viewSpacePosition));
+        //o.Color1.a = EvaluateFogVP(length(viewSpacePosition.z));
+        o.Color1.a = EvaluateFogVP((UNITY_Z_0_FAR_FROM_CLIPSPACE(o.pos.z)));
     #else // FOG_ENABLED
         o.Color1.a = 0.0f;
     #endif // FOG_ENABLED
@@ -189,7 +190,8 @@ DefaultVPOutput DefaultVPShader (DefaultVPInput v) {
     #endif // !USE_PER_VERTEX_LIGHTING && USE_LIGHTING
 
     #if defined(USE_SCREEN_UV)
-        o.ReflectionMap = ComputeGrabScreenPos(o.pos); //GenerateScreenProjectedUv(o.pos);
+        o.ReflectionMap = ComputeGrabScreenPos(o.pos);
+        //o.ReflectionMap = GenerateScreenProjectedUv(o.pos);
     #endif // defined(USE_SCREEN_UV)
 
     #if defined(FORCE_PER_VERTEX_ENVIRON_MAP) || !defined(USE_TANGENTS) || !defined(USE_LIGHTING)

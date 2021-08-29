@@ -1,6 +1,10 @@
-float3 EvaluateNormalMapNormal(float3 inNormal, float2 inUv, float3 inTangent, uniform sampler2D normalMap) {
+float3 EvaluateNormalMapNormal(float3 inNormal, float2 inUv, float3 inTangent, float3 inBiTangent, uniform sampler2D normalMap) {
     float4 normalMapData = tex2D(normalMap, inUv).xyzw;
-    normalMapData.rgb = LinearToGammaSpace(normalMapData.rgb);
+
+    #if !defined(UNITY_COLORSPACE_GAMMA)
+        normalMapData.rgb = LinearToGammaSpace(normalMapData.rgb);
+    #endif
+    //normalMapData.a = GammaToLinearSpaceExact(normalMapData.a);
 
     float3 normalMapNormal = float3(0.0f, 0.0f, 0.0f);
 
@@ -14,10 +18,14 @@ float3 EvaluateNormalMapNormal(float3 inNormal, float2 inUv, float3 inTangent, u
         normalMapNormal.y = normalMapData.g;
         normalMapNormal.z = sqrt(1 - saturate(dot(normalMapNormal.xy, normalMapNormal.xy)));
     #else // NORMAL_MAPP_DXT5_NM_ENABLED
-        normalMapNormal.xy = normalMapData.xy * 2 - 1;
-        normalMapNormal.z = sqrt(1 - saturate(dot(normalMapNormal.xyz, normalMapNormal.xyz)));
+        //normalMapData.x *= normalMapData.w;
+        //normalMapNormal.xy =  normalMapData.wy * 2 - 1;
+        normalMapNormal.xyz = normalMapData.xyz * 2 - 1;
+        //normalMapNormal.z = sqrt(1 - saturate(dot(normalMapNormal.xy, normalMapNormal.xy)));
+        //normalMapNormal.z = sqrt(1 - saturate(normalMapNormal.x * normalMapNormal.x - normalMapNormal.y * normalMapNormal.y));
     #endif // NORMAL_MAPP_DXT5_NM_ENABLED
 
+    //normalMapNormal.xyz = LinearToGammaSpace(normalMapNormal.xyz);
 	inTangent = normalize(inTangent);
 	inNormal = normalize(inNormal);
 	float3 biTangent = cross(inNormal, inTangent);
@@ -80,14 +88,15 @@ float CalcMipLevel(float2 texcoord){
 
 #if defined(FOG_ENABLED)
     float EvaluateFogVP(float z) {
-        float f = (z - _FogRangeParameters.x / 1.0f) / ((_FogRangeParameters.y - _FogRangeParameters.x) * 1.0f);  // cm -> m
+        float f = saturate((z - _FogRangeParameters.x / 1.0f) / ((_FogRangeParameters.y - _FogRangeParameters.x) * 1.0f));  // cm -> m
 
         #ifdef FOG_RATIO_ENABLED
             f *= _FogRatio;
         #endif // FOG_RATIO_ENABLED
 
-        f = min(f, (float)_FogRateClamp);
-        return saturate(f);
+        f *= _FogRateClamp;
+        //f = min(f, (float)_FogRateClamp);
+        return f;
     }
 
     void EvaluateFogFP(inout float3 resultColor, float3 fogColor, float fogValue) {
@@ -95,15 +104,19 @@ float CalcMipLevel(float2 texcoord){
             fogColor = float3(0.0f, 0.0f, 0.0f);
         #endif // defined(USE_EXTRA_BLENDING)
 
-        resultColor.rgb = lerp(resultColor.rgb, fogColor.rgb, fogValue);
+        #if !defined(UNITY_COLORSPACE_GAMMA)
+            resultColor.rgb = lerp(resultColor.rgb, fogColor.rgb, GammaToLinearSpaceExact(fogValue));
+        #else
+            resultColor.rgb = lerp(resultColor.rgb, fogColor.rgb, fogValue);
+        #endif
     }
 #endif // FOG_ENABLED
 
 #if defined(NORMAL_MAPPING_ENABLED)
 	#if defined(DUDV_MAPPING_ENABLED)
-		#define EvaluateNormalFP(In) EvaluateNormalMapNormal(In.normal.xyz, In.DuDvTexCoord.xy, In.tangent, _BumpMap)
+		#define EvaluateNormalFP(In) EvaluateNormalMapNormal(In.normal.xyz, In.uv.xy + In.DuDvTexCoord.xy, In.tangent, In.binormal, _BumpMap)
 	#else // defined(DUDV_MAPPING_ENABLED)
-		#define EvaluateNormalFP(In) EvaluateNormalMapNormal(In.normal.xyz, In.uv.xy, In.tangent, _BumpMap)
+		#define EvaluateNormalFP(In) EvaluateNormalMapNormal(In.normal.xyz, In.uv.xy, In.tangent, In.binormal, _BumpMap)
 	#endif // defined(DUDV_MAPPING_ENABLED)
 #else
 	#define EvaluateNormalFP(In) EvaluateStandardNormal(In.normal.xyz)
@@ -111,9 +124,9 @@ float CalcMipLevel(float2 texcoord){
 
 #if defined(MULTI_UV_NORMAL_MAPPING_ENABLED)
 	#if defined(DUDV_MAPPING_ENABLED)
-		#define EvaluateNormal2FP(In) EvaluateNormalMapNormal(In.normal.xyz, In.DuDvTexCoord.xy, In.tangent, _NormalMap2Sampler)
+		#define EvaluateNormal2FP(In) EvaluateNormalMapNormal(In.normal.xyz, In.uv.xy + In.DuDvTexCoord.xy, In.tangent, In.binormal, _NormalMap2Sampler)
 	#else // defined(DUDV_MAPPING_ENABLED)
-		#define EvaluateNormal2FP(In) EvaluateNormalMapNormal(In.normal.xyz, In.uv.xy, In.tangent, _NormalMap2Sampler)
+		#define EvaluateNormal2FP(In) EvaluateNormalMapNormal(In.normal.xyz, In.uv.xy, In.tangent, In.binormal, _NormalMap2Sampler)
 	#endif // defined(DUDV_MAPPING_ENABLED)
 #else
 	#define EvaluateNormal2FP(In) EvaluateStandardNormal(In.normal.xyz)
@@ -122,7 +135,7 @@ float CalcMipLevel(float2 texcoord){
 //-----------------------------------------------------------------------------
 #if defined(RIM_LIGHTING_ENABLED)
     float EvaluateRimLightValue(float ndote) {
-        float rimLightvalue = pow(1.0f - abs(ndote), _RimLitPower);
+        float rimLightvalue = pow(saturate(1.0f - abs(ndote)), _RimLitPower);
         rimLightvalue *= _RimLitIntensity;
         return rimLightvalue;
     }

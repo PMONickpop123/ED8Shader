@@ -1,4 +1,4 @@
-﻿Shader "ED8/Cold Steel Shader/Cutout" {
+﻿Shader "ED8/Cold Steel Shader/Cutout (Grabpass)" {
     Properties {	
         [HideInInspector] shader_is_using_thry_editor("", Float)= 0
         [HideInInspector] shader_master_label ("<color=#000000ff>Trails of Cold Steel Shader</color>", Float) = 0
@@ -358,6 +358,7 @@
     SubShader {
         Tags { "RenderType"="TransparentCutout" "Queue"="AlphaTest"}
         Cull [_Culling]
+        LOD 200
         ZTest[_ZTest]
         Stencil {
             Ref [_StencilRef]
@@ -370,6 +371,7 @@
         }
 
         Offset [_Factor], [_Units]
+        GrabPass { "_RefractionTexture" }
 
         Pass {
             Name "FORWARD"
@@ -384,6 +386,7 @@
             #endif
 
             #define ALPHA_TESTING_ENABLED
+            #define ED8_GRABPASS
 
             #pragma shader_feature NOTHING_ENABLED
             #pragma shader_feature CASTS_SHADOWS_ONLY
@@ -484,6 +487,7 @@
             #endif
 
             #define ALPHA_TESTING_ENABLED
+            #define ED8_GRABPASS
 
             #pragma shader_feature NOTHING_ENABLED
             #pragma shader_feature CASTS_SHADOWS_ONLY
