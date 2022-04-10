@@ -12,6 +12,8 @@
         [Toggle(RECEIVE_SHADOWS)]_ReceiveShadowsEnabled ("Receive Shadows", Float) = 0
 
         _GlobalAmbientColor("Global Ambient Color", Color) = (0.50, 0.50, 0.50, 1)
+        [Toggle(USE_DIRECTIONAL_LIGHT_COLOR)]_UseDirectionalLightColorEnabled ("Use Directional Light Color", Float) = 0
+        [HDR]_MainLightColor("Main Light Color", Color) = (1, 0.9568, 0.8392, 1)
 
         // #if defined (MAINLIGHT_CLAMP_FACTOR_ENABLED)
         // #if !defined(PER_MATERIAL_MAIN_LIGHT_CLAMP_ENABLED)
@@ -34,15 +36,6 @@
         [Toggle(NO_ALL_LIGHTING_ENABLED)]_NoAllLightingEnabled ("Enable No All Lighting", Float) = 0
         [Toggle(NO_MAIN_LIGHT_SHADING_ENABLED)]_NoMainLightShadingEnabled ("Enable No Main Light Shading", Float) = 0
         [Toggle(HALF_LAMBERT_LIGHTING_ENABLED)]_HalfLambertLightingEnabled ("Enable Half Lambert Lighting", Float) = 0
-
-        // #if defined(LIGHT_DIRECTION_FOR_CHARACTER_ENABLED)
-        [HideInInspector] m_start_PortraitLight ("Enable Light Direction (Characters)", Float) = 0
-        [HideInInspector][Toggle(LIGHT_DIRECTION_FOR_CHARACTER_ENABLED)]_PortraitLightEnabled ("Enable Light Direction (Characters)", Float) = 0
-        _PortraitLightColor("PortraitLightColor", Color) = (0.55, 0.55, 0.55, 0.0)
-        _PortraitAmbientColor("PortraitAmbientColor", Color) = (0.55, 0.55, 0.55, 0.0)
-        _LightDirForChar("PortraitLightDir", Vector) = (0, 1, 0, 0)
-        [HideInInspector] m_end_PortraitLight ("Enable Light Direction (Characters)", Float) = 0
-        // #endif (LIGHT_DIRECTION_FOR_CHARACTER_ENABLED)
 
         _GameMaterialID("Game Material ID", Range(0, 100)) = 0
 
@@ -71,7 +64,10 @@
         [HideInInspector][Toggle(FOG_ENABLED)]_FogEnabled ("Enable Fog", Float) = 0
         _FogColor("Fog Color", Color) = (0.5, 0.5, 0.5, 0.0)
         _FogRangeParameters("Fog Range Params", Vector) = (10.0, 500.0, 0.0, 0.0)
+        _HeightFogRangeParameters("Height Fog Range Params", Vector) = (10.0, 500.0, 0.0, 0.0)
         _FogRateClamp("Fog Rate", Float) = 1
+        _HeightDepthBias("Height Fog Depth Bias", Float) = 1
+        _HeightCamRate("Height Fog Cam Rate", Float) = 1
         [Toggle(FOG_RATIO_ENABLED)]_FogRatioEnabled ("Enable Fog Ratio", Float) = 0
         _FogRatio("Fog Ratio", Range(0.0, 1.0)) = 0.5
         [HideInInspector] m_end_Fog ("Enable Fog", Float) = 1
@@ -116,7 +112,7 @@
         _RimLitPower("Rim Lit Power", Range(0.001, 50.0)) = 2.0
         [HideInInspector] m_start_RimClamp ("Enable Rim Clamp", Float) = 0
         [Toggle(RIM_CLAMP_ENABLED)]_RimClampEnabled ("Enable Rim Clamp", Float) = 0
-        _RimLightClampFactor("Rim Light Clamp", Range(0.001, 10.0)) = 1.0
+        _RimLightClampFactor("Rim Light Clamp", Range(0.001, 50.0)) = 1.0
         [HideInInspector] m_end_RimClamp ("Enable Rim Clamp", Float) = 0
         [HideInInspector] m_end_RimLighting ("Enable Rim Lighting", Float) = 0
         // #endif (RIM_LIGHTING_ENABLED)
@@ -306,7 +302,7 @@
         [HideInInspector][Toggle(WINDY_GRASS_ENABLED)]_WindyGrassEnabled ("Enable Windy Grass", Float) = 0
         [Toggle(WINDY_GRASS_TEXV_WEIGHT_ENABLED)]_WindyGrassTexVEnabled ("Enable Tex V Weight", Float) = 0
         _WindyGrassDirection("Windy Grass Direction", Vector) = (0.0, 0.0, 0.0, 0.0)
-        _WindyGrassSpeed("Windy Grass Speed", Range(0.01, 20.0)) = 2.0
+        _WindyGrassSpeed("Windy Grass Speed", Range(0.01, 100.0)) = 2.0
         _WindyGrassHomogenity("Windy Grass Homogenity", Range(1.0, 10.0)) = 2.0
         _WindyGrassScale("Windy Grass Scale", Range(1.0, 10.0)) = 1.0
         [HideInInspector] m_end_WindyGrass ("Enable Windy Grass", Float) = 0
@@ -314,7 +310,7 @@
 
         // #if defined(USE_OUTLINE)
         [HideInInspector] m_start_Outline ("Outline", Float) = 0
-        _GameEdgeParameters("Game Edge Params", Vector) = (1.0, 1.0, 1.0, 0.003)
+        _GameEdgeParameters("Game Edge Params", Vector) = (0.7, 0.5, 0.3, 0.001)
         _OutlineColorFactor("Outline Color Factor", Vector) = (1.0, 1.0, 1.0, 1.0)
 
         // #if defined(USE_OUTLINE_COLOR)
@@ -353,13 +349,15 @@
         //[HideInInspector] m_animationToggles ("Animation Support Toggles", Float) = 0
         //[HelpBox(1)] _AnimationToggleHelp ("You don't need to search through this list. You can enable animation support on any property by right clicking it", Int) = 0
         [HideInInspector]_GlobalAmbientColorAnimated("Global Ambient Color", Int) = 0
+        [HideInInspector]_MainLightColorAnimated("Main Light Color", Int) = 0
         [HideInInspector]_GlobalMainLightClampFactorAnimated("Global MainLight Clamp", Int) = 0
-        [HideInInspector]_PortraitLightColorAnimated("PortraitLightColor", Int) = 0
-        [HideInInspector]_PortraitAmbientColorAnimated("PortraitAmbientColor", Int) = 0
         [HideInInspector]_GameMaterialDiffuseAnimated("Game Material Diffuse", Int) = 0
         [HideInInspector]_GameMaterialEmissionAnimated("Game Material Emission", Int) = 0
         [HideInInspector]_FogColorAnimated("Fog Color", Int) = 0
         [HideInInspector]_FogRangeParametersAnimated("Fog Range Params", Int) = 0
+        [HideInInspector]_HeightFogRangeParametersAnimated("Height Fog Range Params", Int) = 0
+        [HideInInspector]_HeightDepthBiasAnimated("Height Fog Depth Bias", Int) = 0
+        [HideInInspector]_HeightCamRateAnimated("Height Fog Cam Rate", Int) = 0
         [HideInInspector]_FogRateClampAnimated("Fog Rate", Int) = 0
         [HideInInspector]_HemiSphereAmbientSkyColorAnimated("HSA Sky Color", Int) = 0
         [HideInInspector]_HemiSphereAmbientGndColorAnimated("HSA Ground Color", Int) = 0
@@ -381,32 +379,6 @@
         }
 
         Pass {
-            Name "OUTLINE"
-            Tags { }
-            Cull Front
-            
-            CGPROGRAM
-
-            #pragma target 5.0
-
-            #pragma shader_feature NOTHING_ENABLED
-            #pragma shader_feature FOG_ENABLED
-            #pragma shader_feature FOG_RATIO_ENABLED
-            #pragma shader_feature USE_OUTLINE
-            #pragma shader_feature USE_OUTLINE_COLOR
-
-            #pragma vertex EdgeVPShader
-            #pragma fragment EdgeFPShader
-            #pragma multi_compile_instancing
-            
-            #include "../CGIncludes/ED8_Defines.cginc"
-            #include "../CGIncludes/ED8_HelperFunctions.cginc"
-            #include "../CGIncludes/ED8_Lighting.cginc"
-            #include "../CGIncludes/ED8_Edge.cginc"
-            ENDCG
-        }
-
-        Pass {
             Name "FORWARD"
             Tags { "LightMode" = "ForwardBase" }
             
@@ -422,72 +394,75 @@
             #pragma shader_feature CASTS_SHADOWS_ONLY
             #pragma shader_feature CASTS_SHADOWS
             #pragma shader_feature RECEIVE_SHADOWS
+            #pragma shader_feature USE_DIRECTIONAL_LIGHT_COLOR
             #pragma shader_feature ADDITIVE_BLENDING_ENABLED
             #pragma shader_feature SUBTRACT_BLENDING_ENABLED
             #pragma shader_feature MULTIPLICATIVE_BLENDING_ENABLED
             #pragma shader_feature WATER_SURFACE_ENABLED
+            #pragma shader_feature_local TRANSPARENT_DELAY_ENABLED
             #pragma shader_feature VERTEX_COLOR_ENABLED
-            #pragma shader_feature BLEND_VERTEX_COLOR_BY_ALPHA_ENABLED
-            #pragma shader_feature FAR_CLIP_BY_DITHER_ENABLED
-            #pragma shader_feature NO_ALL_LIGHTING_ENABLED
-            #pragma shader_feature NO_MAIN_LIGHT_SHADING_ENABLED
-            #pragma shader_feature HALF_LAMBERT_LIGHTING_ENABLED
+            #pragma shader_feature_local BLEND_VERTEX_COLOR_BY_ALPHA_ENABLED
+            #pragma shader_feature_local FAR_CLIP_BY_DITHER_ENABLED
+            #pragma shader_feature_local NO_ALL_LIGHTING_ENABLED
+            #pragma shader_feature_local NO_MAIN_LIGHT_SHADING_ENABLED
+            #pragma shader_feature_local HALF_LAMBERT_LIGHTING_ENABLED
             #pragma shader_feature FLAT_AMBIENT_ENABLED
-            #pragma shader_feature LIGHT_DIRECTION_FOR_CHARACTER_ENABLED
-            #pragma shader_feature UVA_SCRIPT_ENABLED
+            #pragma shader_feature_local UVA_SCRIPT_ENABLED
             #pragma shader_feature FOG_ENABLED
-            #pragma shader_feature FOG_RATIO_ENABLED
-            #pragma shader_feature SHADOW_COLOR_SHIFT_ENABLED
+            #pragma shader_feature_local FOG_RATIO_ENABLED
+            #pragma shader_feature_local SHADOW_COLOR_SHIFT_ENABLED
             #pragma shader_feature SPECULAR_ENABLED
-            #pragma shader_feature FAKE_CONSTANT_SPECULAR_ENABLED
-            #pragma shader_feature SPECULAR_COLOR_ENABLED
-            #pragma shader_feature RIM_LIGHTING_ENABLED
+            #pragma shader_feature_local FAKE_CONSTANT_SPECULAR_ENABLED
+            #pragma shader_feature_local SPECULAR_COLOR_ENABLED
+            #pragma shader_feature_local RIM_LIGHTING_ENABLED
             #pragma shader_feature RIM_CLAMP_ENABLED
-            #pragma shader_feature RIM_TRANSPARENCY_ENABLED
-            #pragma shader_feature TEXCOORD_OFFSET_ENABLED
-            #pragma shader_feature NORMAL_MAPP_DXT5_NM_ENABLED
-            #pragma shader_feature NORMAL_MAPP_DXT5_LP_ENABLED
-            #pragma shader_feature NORMAL_MAPPING_ENABLED
-            #pragma shader_feature SPECULAR_MAPPING_ENABLED
-            #pragma shader_feature OCCULUSION_MAPPING_ENABLED
-            #pragma shader_feature EMISSION_MAPPING_ENABLED
-            #pragma shader_feature MULTI_UV_ENANLED
-            #pragma shader_feature MULTI_UV_ADDITIVE_BLENDING_ENANLED
-            #pragma shader_feature MULTI_UV_MULTIPLICATIVE_BLENDING_ENANLED
-            #pragma shader_feature MULTI_UV_MULTIPLICATIVE_BLENDING_LM_ENANLED
-            #pragma shader_feature MULTI_UV_MULTIPLICATIVE_BLENDING_EX_ENANLED
-            #pragma shader_feature MULTI_UV_SHADOW_ENANLED
-            #pragma shader_feature MULTI_UV_FACE_ENANLED
-            #pragma shader_feature MULTI_UV_TEXCOORD_OFFSET_ENABLED
-            #pragma shader_feature MULTI_UV_NO_DIFFUSE_MAPPING_ENANLED
-            #pragma shader_feature MULTI_UV_NORMAL_MAPPING_ENABLED
-            #pragma shader_feature MULTI_UV_SPECULAR_MAPPING_ENABLED
-            #pragma shader_feature MULTI_UV_OCCULUSION_MAPPING_ENABLED
-            #pragma shader_feature MULTI_UV_GLARE_MAP_ENABLED
-            #pragma shader_feature MULTI_UV2_ENANLED
-            #pragma shader_feature MULTI_UV2_ADDITIVE_BLENDING_ENANLED
-            #pragma shader_feature MULTI_UV2_MULTIPLICATIVE_BLENDING_ENANLED
-            #pragma shader_feature MULTI_UV2_MULTIPLICATIVE_BLENDING_LM_ENANLED
-            #pragma shader_feature MULTI_UV2_MULTIPLICATIVE_BLENDING_EX_ENANLED
-            #pragma shader_feature MULTI_UV2_SHADOW_ENANLED
-            #pragma shader_feature MULTI_UV2_FACE_ENANLED
-            #pragma shader_feature MULTI_UV2_TEXCOORD_OFFSET_ENABLED
-            #pragma shader_feature MULTI_UV2_NO_DIFFUSE_MAPPING_ENANLED
-            #pragma shader_feature MULTI_UV2_NORMAL_MAPPING_ENABLED
-            #pragma shader_feature MULTI_UV2_SPECULAR_MAPPING_ENABLED
-            #pragma shader_feature MULTI_UV2_OCCULUSION_MAPPING_ENABLED
-            #pragma shader_feature CARTOON_SHADING_ENABLED
-            #pragma shader_feature CARTOON_HILIGHT_ENABLED
-            #pragma shader_feature EMVMAP_AS_IBL_ENABLED
-            #pragma shader_feature SPHERE_MAPPING_ENABLED
-            #pragma shader_feature CUBE_MAPPING_ENABLED
-            #pragma shader_feature PROJECTION_MAP_ENABLED
-            #pragma shader_feature DUDV_MAPPING_ENABLED
-            #pragma shader_feature WINDY_GRASS_ENABLED
-            #pragma shader_feature WINDY_GRASS_TEXV_WEIGHT_ENABLED
+            #pragma shader_feature_local RIM_TRANSPARENCY_ENABLED
+            #pragma shader_feature_local TEXCOORD_OFFSET_ENABLED
+            #pragma shader_feature_local NORMAL_MAPP_DXT5_NM_ENABLED
+            #pragma shader_feature_local NORMAL_MAPP_DXT5_LP_ENABLED
+            #pragma shader_feature_local NORMAL_MAPPING_ENABLED
+            #pragma shader_feature_local SPECULAR_MAPPING_ENABLED
+            #pragma shader_feature_local OCCULUSION_MAPPING_ENABLED
+            #pragma shader_feature_local EMISSION_MAPPING_ENABLED
+            #pragma shader_feature_local MULTI_UV_ENANLED
+            #pragma shader_feature_local MULTI_UV_ADDITIVE_BLENDING_ENANLED
+            #pragma shader_feature_local MULTI_UV_MULTIPLICATIVE_BLENDING_ENANLED
+            #pragma shader_feature_local MULTI_UV_MULTIPLICATIVE_BLENDING_LM_ENANLED
+            #pragma shader_feature_local MULTI_UV_MULTIPLICATIVE_BLENDING_EX_ENANLED
+            #pragma shader_feature_local MULTI_UV_SHADOW_ENANLED
+            #pragma shader_feature_local MULTI_UV_FACE_ENANLED
+            #pragma shader_feature_local MULTI_UV_TEXCOORD_OFFSET_ENABLED
+            #pragma shader_feature_local MULTI_UV_NO_DIFFUSE_MAPPING_ENANLED
+            #pragma shader_feature_local MULTI_UV_NORMAL_MAPPING_ENABLED
+            #pragma shader_feature_local MULTI_UV_SPECULAR_MAPPING_ENABLED
+            #pragma shader_feature_local MULTI_UV_OCCULUSION_MAPPING_ENABLED
+            #pragma shader_feature_local MULTI_UV_GLARE_MAP_ENABLED
+            #pragma shader_feature_local MULTI_UV2_ENANLED
+            #pragma shader_feature_local MULTI_UV2_ADDITIVE_BLENDING_ENANLED
+            #pragma shader_feature_local MULTI_UV2_MULTIPLICATIVE_BLENDING_ENANLED
+            #pragma shader_feature_local MULTI_UV2_MULTIPLICATIVE_BLENDING_LM_ENANLED
+            #pragma shader_feature_local MULTI_UV2_MULTIPLICATIVE_BLENDING_EX_ENANLED
+            #pragma shader_feature_local MULTI_UV2_SHADOW_ENANLED
+            #pragma shader_feature_local MULTI_UV2_FACE_ENANLED
+            #pragma shader_feature_local MULTI_UV2_TEXCOORD_OFFSET_ENABLED
+            #pragma shader_feature_local MULTI_UV2_NO_DIFFUSE_MAPPING_ENANLED
+            #pragma shader_feature_local MULTI_UV2_NORMAL_MAPPING_ENABLED
+            #pragma shader_feature_local MULTI_UV2_SPECULAR_MAPPING_ENABLED
+            #pragma shader_feature_local MULTI_UV2_OCCULUSION_MAPPING_ENABLED
+            #pragma shader_feature_local CARTOON_SHADING_ENABLED
+            #pragma shader_feature_local CARTOON_HILIGHT_ENABLED
+            #pragma shader_feature_local EMVMAP_AS_IBL_ENABLED
+            #pragma shader_feature_local SPHERE_MAPPING_ENABLED
+            #pragma shader_feature_local CUBE_MAPPING_ENABLED
+            #pragma shader_feature_local PROJECTION_MAP_ENABLED
+            #pragma shader_feature_local DUDV_MAPPING_ENABLED
+            #pragma shader_feature_local WINDY_GRASS_ENABLED
+            #pragma shader_feature_local WINDY_GRASS_TEXV_WEIGHT_ENABLED
+            #pragma shader_feature USE_OUTLINE
+            #pragma shader_feature_local USE_OUTLINE_COLOR
             #pragma shader_feature USE_SCREEN_UV
-            #pragma shader_feature GLARE_MAP_ENABLED
-            #pragma shader_feature GLARE_HIGHTPASS_ENABLED
+            #pragma shader_feature_local GLARE_MAP_ENABLED
+            #pragma shader_feature_local GLARE_HIGHTPASS_ENABLED
 
             #pragma vertex DefaultVPShader
             #pragma fragment DefaultFPShader
@@ -521,72 +496,75 @@
             #pragma shader_feature CASTS_SHADOWS_ONLY
             #pragma shader_feature CASTS_SHADOWS
             #pragma shader_feature RECEIVE_SHADOWS
+            #pragma shader_feature USE_DIRECTIONAL_LIGHT_COLOR
             #pragma shader_feature ADDITIVE_BLENDING_ENABLED
             #pragma shader_feature SUBTRACT_BLENDING_ENABLED
             #pragma shader_feature MULTIPLICATIVE_BLENDING_ENABLED
             #pragma shader_feature WATER_SURFACE_ENABLED
+            #pragma shader_feature_local TRANSPARENT_DELAY_ENABLED
             #pragma shader_feature VERTEX_COLOR_ENABLED
-            #pragma shader_feature BLEND_VERTEX_COLOR_BY_ALPHA_ENABLED
-            #pragma shader_feature FAR_CLIP_BY_DITHER_ENABLED
-            #pragma shader_feature NO_ALL_LIGHTING_ENABLED
-            #pragma shader_feature NO_MAIN_LIGHT_SHADING_ENABLED
-            #pragma shader_feature HALF_LAMBERT_LIGHTING_ENABLED
+            #pragma shader_feature_local BLEND_VERTEX_COLOR_BY_ALPHA_ENABLED
+            #pragma shader_feature_local FAR_CLIP_BY_DITHER_ENABLED
+            #pragma shader_feature_local NO_ALL_LIGHTING_ENABLED
+            #pragma shader_feature_local NO_MAIN_LIGHT_SHADING_ENABLED
+            #pragma shader_feature_local HALF_LAMBERT_LIGHTING_ENABLED
             #pragma shader_feature FLAT_AMBIENT_ENABLED
-            #pragma shader_feature LIGHT_DIRECTION_FOR_CHARACTER_ENABLED
-            #pragma shader_feature UVA_SCRIPT_ENABLED
+            #pragma shader_feature_local UVA_SCRIPT_ENABLED
             #pragma shader_feature FOG_ENABLED
-            #pragma shader_feature FOG_RATIO_ENABLED
-            #pragma shader_feature SHADOW_COLOR_SHIFT_ENABLED
+            #pragma shader_feature_local FOG_RATIO_ENABLED
+            #pragma shader_feature_local SHADOW_COLOR_SHIFT_ENABLED
             #pragma shader_feature SPECULAR_ENABLED
-            #pragma shader_feature FAKE_CONSTANT_SPECULAR_ENABLED
-            #pragma shader_feature SPECULAR_COLOR_ENABLED
-            #pragma shader_feature RIM_LIGHTING_ENABLED
+            #pragma shader_feature_local FAKE_CONSTANT_SPECULAR_ENABLED
+            #pragma shader_feature_local SPECULAR_COLOR_ENABLED
+            #pragma shader_feature_local RIM_LIGHTING_ENABLED
             #pragma shader_feature RIM_CLAMP_ENABLED
-            #pragma shader_feature RIM_TRANSPARENCY_ENABLED
-            #pragma shader_feature TEXCOORD_OFFSET_ENABLED
-            #pragma shader_feature NORMAL_MAPP_DXT5_NM_ENABLED
-            #pragma shader_feature NORMAL_MAPP_DXT5_LP_ENABLED
-            #pragma shader_feature NORMAL_MAPPING_ENABLED
-            #pragma shader_feature SPECULAR_MAPPING_ENABLED
-            #pragma shader_feature OCCULUSION_MAPPING_ENABLED
-            #pragma shader_feature EMISSION_MAPPING_ENABLED
-            #pragma shader_feature MULTI_UV_ENANLED
-            #pragma shader_feature MULTI_UV_ADDITIVE_BLENDING_ENANLED
-            #pragma shader_feature MULTI_UV_MULTIPLICATIVE_BLENDING_ENANLED
-            #pragma shader_feature MULTI_UV_MULTIPLICATIVE_BLENDING_LM_ENANLED
-            #pragma shader_feature MULTI_UV_MULTIPLICATIVE_BLENDING_EX_ENANLED
-            #pragma shader_feature MULTI_UV_SHADOW_ENANLED
-            #pragma shader_feature MULTI_UV_FACE_ENANLED
-            #pragma shader_feature MULTI_UV_TEXCOORD_OFFSET_ENABLED
-            #pragma shader_feature MULTI_UV_NO_DIFFUSE_MAPPING_ENANLED
-            #pragma shader_feature MULTI_UV_NORMAL_MAPPING_ENABLED
-            #pragma shader_feature MULTI_UV_SPECULAR_MAPPING_ENABLED
-            #pragma shader_feature MULTI_UV_OCCULUSION_MAPPING_ENABLED
-            #pragma shader_feature MULTI_UV_GLARE_MAP_ENABLED
-            #pragma shader_feature MULTI_UV2_ENANLED
-            #pragma shader_feature MULTI_UV2_ADDITIVE_BLENDING_ENANLED
-            #pragma shader_feature MULTI_UV2_MULTIPLICATIVE_BLENDING_ENANLED
-            #pragma shader_feature MULTI_UV2_MULTIPLICATIVE_BLENDING_LM_ENANLED
-            #pragma shader_feature MULTI_UV2_MULTIPLICATIVE_BLENDING_EX_ENANLED
-            #pragma shader_feature MULTI_UV2_SHADOW_ENANLED
-            #pragma shader_feature MULTI_UV2_FACE_ENANLED
-            #pragma shader_feature MULTI_UV2_TEXCOORD_OFFSET_ENABLED
-            #pragma shader_feature MULTI_UV2_NO_DIFFUSE_MAPPING_ENANLED
-            #pragma shader_feature MULTI_UV2_NORMAL_MAPPING_ENABLED
-            #pragma shader_feature MULTI_UV2_SPECULAR_MAPPING_ENABLED
-            #pragma shader_feature MULTI_UV2_OCCULUSION_MAPPING_ENABLED
-            #pragma shader_feature CARTOON_SHADING_ENABLED
-            #pragma shader_feature CARTOON_HILIGHT_ENABLED
-            #pragma shader_feature EMVMAP_AS_IBL_ENABLED
-            #pragma shader_feature SPHERE_MAPPING_ENABLED
-            #pragma shader_feature CUBE_MAPPING_ENABLED
-            #pragma shader_feature PROJECTION_MAP_ENABLED
-            #pragma shader_feature DUDV_MAPPING_ENABLED
-            #pragma shader_feature WINDY_GRASS_ENABLED
-            #pragma shader_feature WINDY_GRASS_TEXV_WEIGHT_ENABLED
+            #pragma shader_feature_local RIM_TRANSPARENCY_ENABLED
+            #pragma shader_feature_local TEXCOORD_OFFSET_ENABLED
+            #pragma shader_feature_local NORMAL_MAPP_DXT5_NM_ENABLED
+            #pragma shader_feature_local NORMAL_MAPP_DXT5_LP_ENABLED
+            #pragma shader_feature_local NORMAL_MAPPING_ENABLED
+            #pragma shader_feature_local SPECULAR_MAPPING_ENABLED
+            #pragma shader_feature_local OCCULUSION_MAPPING_ENABLED
+            #pragma shader_feature_local EMISSION_MAPPING_ENABLED
+            #pragma shader_feature_local MULTI_UV_ENANLED
+            #pragma shader_feature_local MULTI_UV_ADDITIVE_BLENDING_ENANLED
+            #pragma shader_feature_local MULTI_UV_MULTIPLICATIVE_BLENDING_ENANLED
+            #pragma shader_feature_local MULTI_UV_MULTIPLICATIVE_BLENDING_LM_ENANLED
+            #pragma shader_feature_local MULTI_UV_MULTIPLICATIVE_BLENDING_EX_ENANLED
+            #pragma shader_feature_local MULTI_UV_SHADOW_ENANLED
+            #pragma shader_feature_local MULTI_UV_FACE_ENANLED
+            #pragma shader_feature_local MULTI_UV_TEXCOORD_OFFSET_ENABLED
+            #pragma shader_feature_local MULTI_UV_NO_DIFFUSE_MAPPING_ENANLED
+            #pragma shader_feature_local MULTI_UV_NORMAL_MAPPING_ENABLED
+            #pragma shader_feature_local MULTI_UV_SPECULAR_MAPPING_ENABLED
+            #pragma shader_feature_local MULTI_UV_OCCULUSION_MAPPING_ENABLED
+            #pragma shader_feature_local MULTI_UV_GLARE_MAP_ENABLED
+            #pragma shader_feature_local MULTI_UV2_ENANLED
+            #pragma shader_feature_local MULTI_UV2_ADDITIVE_BLENDING_ENANLED
+            #pragma shader_feature_local MULTI_UV2_MULTIPLICATIVE_BLENDING_ENANLED
+            #pragma shader_feature_local MULTI_UV2_MULTIPLICATIVE_BLENDING_LM_ENANLED
+            #pragma shader_feature_local MULTI_UV2_MULTIPLICATIVE_BLENDING_EX_ENANLED
+            #pragma shader_feature_local MULTI_UV2_SHADOW_ENANLED
+            #pragma shader_feature_local MULTI_UV2_FACE_ENANLED
+            #pragma shader_feature_local MULTI_UV2_TEXCOORD_OFFSET_ENABLED
+            #pragma shader_feature_local MULTI_UV2_NO_DIFFUSE_MAPPING_ENANLED
+            #pragma shader_feature_local MULTI_UV2_NORMAL_MAPPING_ENABLED
+            #pragma shader_feature_local MULTI_UV2_SPECULAR_MAPPING_ENABLED
+            #pragma shader_feature_local MULTI_UV2_OCCULUSION_MAPPING_ENABLED
+            #pragma shader_feature_local CARTOON_SHADING_ENABLED
+            #pragma shader_feature_local CARTOON_HILIGHT_ENABLED
+            #pragma shader_feature_local EMVMAP_AS_IBL_ENABLED
+            #pragma shader_feature_local SPHERE_MAPPING_ENABLED
+            #pragma shader_feature_local CUBE_MAPPING_ENABLED
+            #pragma shader_feature_local PROJECTION_MAP_ENABLED
+            #pragma shader_feature_local DUDV_MAPPING_ENABLED
+            #pragma shader_feature_local WINDY_GRASS_ENABLED
+            #pragma shader_feature_local WINDY_GRASS_TEXV_WEIGHT_ENABLED
+            #pragma shader_feature USE_OUTLINE
+            #pragma shader_feature_local USE_OUTLINE_COLOR
             #pragma shader_feature USE_SCREEN_UV
-            #pragma shader_feature GLARE_MAP_ENABLED
-            #pragma shader_feature GLARE_HIGHTPASS_ENABLED
+            #pragma shader_feature_local GLARE_MAP_ENABLED
+            #pragma shader_feature_local GLARE_HIGHTPASS_ENABLED
 
             #pragma multi_compile_fwdadd_fullshadows
             #pragma vertex DefaultVPShader
@@ -597,6 +575,32 @@
             #include "../CGIncludes/ED8_Lighting.cginc"
             #include "../CGIncludes/ED8_Vert.cginc"
             #include "../CGIncludes/ED8_Frag.cginc"
+            ENDCG
+        }
+
+        Pass {
+            Name "OUTLINE"
+            Tags { }
+            Cull Front
+            
+            CGPROGRAM
+
+            #pragma target 5.0
+
+            #pragma shader_feature NOTHING_ENABLED
+            #pragma shader_feature FOG_ENABLED
+            #pragma shader_feature_local FOG_RATIO_ENABLED
+            #pragma shader_feature USE_OUTLINE
+            #pragma shader_feature_local USE_OUTLINE_COLOR
+
+            #pragma vertex EdgeVPShader
+            #pragma fragment EdgeFPShader
+            #pragma multi_compile_instancing
+            
+            #include "../CGIncludes/ED8_Defines.cginc"
+            #include "../CGIncludes/ED8_HelperFunctions.cginc"
+            #include "../CGIncludes/ED8_Lighting.cginc"
+            #include "../CGIncludes/ED8_Edge.cginc"
             ENDCG
         }
 
@@ -616,8 +620,8 @@
             #pragma skip_variants FOG_LINEAR FOG_EXP FOG_EXP2
             #pragma shader_feature CASTS_SHADOWS_ONLY
             #pragma shader_feature CASTS_SHADOWS
-            #pragma shader_feature WINDY_GRASS_ENABLED
-            #pragma shader_feature WINDY_GRASS_TEXV_WEIGHT_ENABLED
+            #pragma shader_feature_local WINDY_GRASS_ENABLED
+            #pragma shader_feature_local WINDY_GRASS_TEXV_WEIGHT_ENABLED
 
             #pragma vertex ShadowVPShader
             #pragma fragment ShadowFPShader

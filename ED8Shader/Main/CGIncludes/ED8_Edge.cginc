@@ -1,12 +1,18 @@
 EdgeVPOutput EdgeVPShader(EdgeVPInput v) {
     EdgeVPOutput o = (EdgeVPOutput)0;
+    o.uv.xy = (float2)v.uv.xy * (float2)_GameMaterialTexcoord.zw + (float2)_GameMaterialTexcoord.xy;
 
     float3 worldSpacePosition = mul(unity_ObjectToWorld, float4(v.vertex.xyz, 1.0f));
-    float4 clipPosition = UnityObjectToClipPos(v.vertex);
-    float3 clipNormal = mul((float3x3)UNITY_MATRIX_VP, mul((float3x3)UNITY_MATRIX_M, v.normal));
-    float2 offset = normalize(clipNormal.xy) * (0.00100000005f + _GameEdgeParameters.w) * clipPosition.w;
-    clipPosition.xy += offset;
-    o.pos = clipPosition;
+    float3 clipNormal = normalize(mul((float3x3)UNITY_MATRIX_IT_MV, v.normal));
+    float2 offset = TransformViewToProjection(clipNormal.xy);
+    float distanceOffset = (distance(_WorldSpaceCameraPos, mul(unity_ObjectToWorld, float4(v.vertex.xyz, 1.0f)).xyz) < 4.0f) ? 1.0f : 0.0f;
+    o.pos = UnityObjectToClipPos(v.vertex);
+
+    #ifdef UNITY_Z_0_FAR_FROM_CLIPSPACE //to handle recent standard asset package on older version of unity (before 5.5)
+        o.pos.xy += offset * (0.00100000005f + _GameEdgeParameters.w) * min(1, max(0.300000012f, o.pos.w)) * distanceOffset;
+    #else
+        o.pos.xy += offset * (0.00100000005f + _GameEdgeParameters.w) * min(1, max(0.300000012f, o.pos.w)) * distanceOffset;
+    #endif
 
     #if defined(USE_OUTLINE_COLOR)
         o.Color0 = float4(_OutlineColor.rgb * _OutlineColorFactor.rgb + _GameMaterialEmission.rgb, 1.0f);
@@ -18,25 +24,32 @@ EdgeVPOutput EdgeVPShader(EdgeVPInput v) {
     o.Color1.rgb = float3(0.0f, 0.0f, 0.0f);
 
     #if defined(FOG_ENABLED)
-        float3 viewSpacePosition = mul(UNITY_MATRIX_V, float4(UnityWorldSpaceViewDir(worldSpacePosition), 1.0f)).xyz;
-        o.Color1.a = EvaluateFogVP(viewSpacePosition);
+        o.Color1.a = EvaluateFogVP(UNITY_Z_0_FAR_FROM_CLIPSPACE(o.pos.z), worldSpacePosition.y);
     #else // FOG_ENABLED
         o.Color1.a = 0.0f;
     #endif // FOG_ENABLED
     return o;
 }
 
-fixed4 EdgeFPShader(EdgeVPOutput v, uint facing : SV_IsFrontFace) : SV_TARGET {
+// 非飽和加算 - [シェーダモデル1.1シングルパスで醜い加算合成の飽和をなんとかする]のやつ
+fixed4 EdgeFPShader(EdgeVPOutput v) : SV_TARGET {
     #if defined(NOTHING_ENABLED)
         return float4(0.0, 0.0, 0.0, 1.0);
     #else
-        float4 diffuseAmt = tex2D(_MainTex, v.uv.xy);
-        float4 resultColor = v.Color0 * diffuseAmt;
-        resultColor.a *= diffuseAmt.a;
+        float4 diffuseAmt = float4(0.0f, 0.0f, 0.0f, 0.0f);
+        diffuseAmt = tex2D(_MainTex, v.uv.xy);
+        diffuseAmt = v.Color0 * diffuseAmt;
 
-        #if defined(ALPHA_BLENDING_ENABLED) || defined(ALPHA_TESTING_ENABLED)
-            clip(resultColor.a - _AlphaThreshold);
-        #endif // ALPHA_BLENDING_ENABLED || ALPHA_TESTING_ENABLED
+        //#if defined(ALPHA_TESTING_ENABLED)
+        //    clip(diffuseAmt.a - _AlphaThreshold * (float)v.Color0.a);
+        //#endif
+
+        float4 resultColor = diffuseAmt;
+
+        #if defined(ALPHA_TESTING_ENABLED)
+            resultColor.a *= 1 + max(0, CalcMipLevel(v.uv)) * 0.25;
+            resultColor.a = (resultColor.a - _AlphaThreshold) / max(fwidth(resultColor.a), 0.0001) + _AlphaThreshold;
+        #endif //ALPHA_TESTING_ENABLED
 
         #if defined(FOG_ENABLED)
             EvaluateFogFP(resultColor.rgb, _FogColor.rgb, v.Color1.a);

@@ -50,7 +50,7 @@ struct ShadowVPInput {
 
         #if !defined(UVA_SCRIPT_ENABLED)
             #if defined(TEXCOORD_OFFSET_ENABLED)
-                v.texcoord.xy += (float2)(_TexCoordOffset * getGlobalTextureFactor());
+                v.texcoord.xy += (float2)frac(_TexCoordOffset * getGlobalTextureFactor());
             #endif // TEXCOORD_OFFSET_ENABLED
 
             v.texcoord.xy += (float2)_GameMaterialTexcoord.xy;

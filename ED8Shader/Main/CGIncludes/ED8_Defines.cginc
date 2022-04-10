@@ -105,14 +105,9 @@
 #define USE_EDGE_ADDUNSAT
 
 // 頂点タンジェント
-#if (defined(NORMAL_MAPPING_ENABLED) || defined(MULTI_UV_NORMAL_MAPPING_ENABLED)) && !defined(USE_PER_VERTEX_LIGHTING)
+#if (defined(NORMAL_MAPPING_ENABLED) || defined(MULTI_UV_NORMAL_MAPPING_ENABLED))
 	#define USE_TANGENTS
 #endif // (defined(NORMAL_MAPPING_ENABLED) || defined(NORMAL_MAPPING2_ENABLED)) && !defined(USE_PER_VERTEX_LIGHTING)
-
-// キューブマップまたはスフィアマップとトゥーン
-#if (defined(CUBE_MAPPING_ENABLED) || defined(SPHERE_MAPPING_ENABLED)) && defined(CARTOON_SHADING_ENABLED)
-	#undef USE_PER_VERTEX_LIGHTING
-#endif
 
 // アルファブレンド
 #if !defined(ALPHA_BLENDING_ENABLED)
@@ -126,7 +121,7 @@
 #endif
 
 // 2パスアルファ
-#if !defined(ALPHA_BLENDING_ENABLED) || defined(USE_EXTRA_BLENDING) || defined(DCC_TOOL)
+#if !defined(ALPHA_BLENDING_ENABLED) || defined(USE_EXTRA_BLENDING)
 	#undef TWOPASS_ALPHA_BLENDING_ENABLED
 #endif //
 
@@ -139,21 +134,9 @@
 #endif
 
 // 背景の書割とか、どう考えても頂点単位のライトで十分な場所を明示的に指定することにする
-
-// フェイクでないスペキュラ持ちか、リムライト持ち
-#if (defined(SPECULAR_ENABLED) && !defined(FAKE_CONSTANT_SPECULAR_ENABLED)) || defined(RIM_LIGHTING_ENABLED)
-    #undef USE_PER_VERTEX_LIGHTING
-#endif //
-
-// リム透明度がある場合はvitaでもピクセル単位
-#if defined(RIM_LIGHTING_ENABLED) && defined(RIM_TRANSPARENCY_ENABLED) 
-	#undef USE_PER_VERTEX_LIGHTING
-#endif
-
 // トゥーン
 #if defined(CARTOON_SHADING_ENABLED)
 	#undef WINDY_GRASS_ENABLED
-	#undef USE_PER_VERTEX_LIGHTING
 	#define CARTOON_AVOID_SELFSHADOW_OFFSET
 #endif // defined(CARTOON_SHADING_ENABLED)
 
@@ -198,13 +181,6 @@
 	#undef MULTI_UV2_SHADOW_ENANLED
 #endif
 
-// マルチUV2
-#if defined(MULTI_UV2_ENANLED)
-	#undef CUBE_MAPPING_ENABLED
-	#undef SPHERE_MAPPING_ENABLED
-	#undef CARTOON_SHADING_ENABLED
-#endif // MULTI_UV2_ENANLED
-
 #if defined(WATER_SURFACE_ENABLED)
     #undef ALPHA_BLENDING_ENABLED
     #undef ADDITIVE_BLENDING_ENABLED
@@ -229,7 +205,7 @@
 
 #define MAINLIGHT_CLAMP_FACTOR_ENABLED // Global or Material
 
-#if defined(CARTOON_SHADING_ENABLED) || defined(FORCE_CHAR_LIGHT_DIRECTION_ENABLED) || defined(CHAR_EQUIP_ENABLED)
+#if defined(CARTOON_SHADING_ENABLED)
     #define LIGHT_DIRECTION_FOR_CHARACTER_ENABLED
     #define SHINING_MODE_ENABLED
 #endif
@@ -283,7 +259,10 @@ half _AlphaThreshold;
 #if defined(FOG_ENABLED)
     half3 _FogColor;
     half2 _FogRangeParameters;
+    half2 _HeightFogRangeParameters;
     half _FogRateClamp;
+    half _HeightDepthBias;
+    half _HeightCamRate;
 
     #if defined(FOG_RATIO_ENABLED)
         half _FogRatio;
@@ -451,6 +430,7 @@ float4 _OutlineColorFactor;
 
 half _GlareIntensity;
 half3 _GlobalAmbientColor;
+half3 _MainLightColor;
 half _AdditionalShadowOffset;
 float _Culling;
 half _SrcBlend;
@@ -458,42 +438,42 @@ half _DstBlend;
 
 //-----------------------------------------------------------------------------
 struct DefaultVPInput {
-    float4 vertex			: POSITION;
-    float3 normal			: NORMAL;
-    float2 uv			: TEXCOORD0;
+    float4 vertex			    : POSITION;
+    float3 normal			    : NORMAL;
+    float2 uv			        : TEXCOORD0;
 
     #if defined(VERTEX_COLOR_ENABLED)
-        float4 color			: COLOR0;
+        float4 color		    : COLOR0;
     #endif // VERTEX_COLOR_ENABLED
 
     #if defined(USE_TANGENTS)
-        float4 tangent			: TANGENT;
+        float4 tangent		    : TANGENT;
     #endif // USE_TANGENTS
 
     #if defined(MULTI_UV_ENANLED)
-        float2 uv2		: TEXCOORD1;
+        float2 uv2		        : TEXCOORD1;
     #endif // MULTI_UV_ENANLED
 
     #if defined(MULTI_UV2_ENANLED)
-        float2 uv3		: TEXCOORD2;
+        float2 uv3		        : TEXCOORD2;
     #endif // defined(MULTI_UV2_ENANLED)
     UNITY_VERTEX_INPUT_INSTANCE_ID
 };
 
 //-----------------------------------------------------------------------------
 struct DefaultVPOutput {
-    float4 pos			: SV_POSITION;		// xyzw:[Proj]
-    float4 Color0			: COLOR0;		// xyzw:VertexColor x GameDiffuse
-    float4 Color1			: COLOR1;		// [V] xyz:000 w:Fog
+    float4 pos			        : SV_POSITION;		// xyzw:[Proj]
+    centroid float4 Color0	    : COLOR0;		// xyzw:VertexColor x GameDiffuse
+    float4 Color1			    : COLOR1;		// [V] xyz:000 w:Fog
                                 // [P] xyz:SubLight w:Fog
-    float2 uv			: TEXCOORD0;	// xy: UV
-    float4 WorldPositionDepth	: TEXCOORD9;	// xyz[World]: w[View]:z
+    float2 uv			        : TEXCOORD0;	// xy: UV
+    float4 WorldPositionDepth   : TEXCOORD9;	// xyz[World]: w[View]:z
 
     // TexCoord2
     #if defined(DUDV_MAPPING_ENABLED)
-        float2 DuDvTexCoord	: TEXCOORD1;	// xy: DUDV
+        float2 DuDvTexCoord	    : TEXCOORD1;	// xy: DUDV
     #elif defined(MULTI_UV_ENANLED)
-        float2 uv2		: TEXCOORD1;	// xy: UV Vertex Alpha Lerp
+        float2 uv2		        : TEXCOORD1;	// xy: UV Vertex Alpha Lerp
     #endif // DUDV_MAPPING_ENABLED || MULTI_UV_ENANLED
 
     // Projection/Etc
@@ -501,40 +481,22 @@ struct DefaultVPOutput {
         float2 ProjMap			: TEXCOORD3;	// xy: Projection UV
     #endif // PROJECTION_MAP_ENABLED
 
-    float3 normal			: TEXCOORD4;		// xyz[World]: Normals
+    float3 normal			    : TEXCOORD4;		// xyz[World]: Normals
 
-    #if !defined(USE_PER_VERTEX_LIGHTING) && defined(USE_LIGHTING)
+    #if defined(USE_LIGHTING)
         #if defined(USE_TANGENTS)
-            float3 tangent	: TEXCOORD6;		// xyz[World]: Tangents
-            float3 binormal : TEXCOORD12;
+            float3 tangent	    : TEXCOORD6;		// xyz[World]: Tangents
+            float3 binormal     : TEXCOORD12;
         #endif // USE_TANGENTS
-    #else // !USE_PER_VERTEX_LIGHTING && USE_LIGHTING
-        #if defined(USE_LIGHTING)
-            float3 LightingAmount	: TEXCOORD5;		// Lighting+
-
-            #if defined(RIM_LIGHTING_ENABLED) && defined(USE_FORCE_VERTEX_RIM_LIGHTING)
-                float4 ShadingAmount	: TEXCOORD6;		// Shading+
-            #else // defined(USE_FORCE_VERTEX_RIM_LIGHTING)
-                float3 ShadingAmount	: TEXCOORD6;		// Shading+
-            #endif // defined(RIM_LIGHTING_ENABLED) && defined(USE_FORCE_VERTEX_RIM_LIGHTING)
-        #endif // USE_LIGHTING
     #endif // !USE_PER_VERTEX_LIGHTING && USE_LIGHTING
 
     #if defined(MULTI_UV2_ENANLED)
-        float2 uv3		: TEXCOORD2;	// xy: UV2 Vertex Alpha Lerp
+        float2 uv3		        : TEXCOORD2;	// xy: UV2 Vertex Alpha Lerp
     #endif // defined(MULTI_UV2_ENANLED)
 
     #if defined(USE_SCREEN_UV)
-        float4 ReflectionMap			: TEXCOORD7;
+        float4 ReflectionMap	: TEXCOORD7;
     #endif // defined(USE_SCREEN_UV)
-
-    #if defined(FORCE_PER_VERTEX_ENVIRON_MAP) || !defined(USE_TANGENTS) || !defined(USE_LIGHTING)
-        #if defined(CUBE_MAPPING_ENABLED)
-            float4 CubeMap			: TEXCOORD10;
-        #elif defined(SPHERE_MAPPING_ENABLED)
-            float2 SphereMap			: TEXCOORD10;
-        #endif // CUBE_MAPPING_ENABLED || SPHERE_MAPPING_ENABLED
-    #endif // defined(FORCE_PER_VERTEX_ENVIRON_MAP) || !defined(USE_TANGENTS) || !defined(USE_LIGHTING)
 
     #if defined(CARTOON_SHADING_ENABLED)
         #if !defined(CUBE_MAPPING_ENABLED) && !defined(SPHERE_MAPPING_ENABLED)
@@ -549,17 +511,17 @@ struct DefaultVPOutput {
 
 //-----------------------------------------------------------------------------
 struct EdgeVPInput {
-	float4 vertex			: POSITION;
-	float3 normal			: NORMAL;
-	float2 TexCoord			: TEXCOORD0;
+	float4 vertex			    : POSITION;
+	float3 normal			    : NORMAL;
+	float2 uv			        : TEXCOORD0;
     UNITY_VERTEX_INPUT_INSTANCE_ID
 };
 
 struct EdgeVPOutput {
     UNITY_POSITION(pos);		// xyzw:[Proj] 
-    float4 Color0			: COLOR0;		// xyzw:EdgeColor + GameEmission
-    float4 Color1			: COLOR1;		// [V] xyz:000 w:Fog
-    float3 uv			: TEXCOORD0;	// xy: z:Fog
+    centroid float4 Color0		: COLOR0;		// xyzw:EdgeColor + GameEmission
+    float4 Color1			    : COLOR1;		// [V] xyz:000 w:Fog
+    float3 uv			        : TEXCOORD0;	// xy: z:Fog
     UNITY_VERTEX_INPUT_INSTANCE_ID
     UNITY_VERTEX_OUTPUT_STEREO
 };
