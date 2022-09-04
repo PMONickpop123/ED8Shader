@@ -11,6 +11,7 @@
         [Toggle(CASTS_SHADOWS)]_CastShadowsEnabled ("Casts Shadows", Float) = 0
         [Toggle(RECEIVE_SHADOWS)]_ReceiveShadowsEnabled ("Receive Shadows", Float) = 0
 
+        _ShadowDensity("Shadow Density", Range(0.0, 1.0)) = 1.0
         _GlobalAmbientColor("Global Ambient Color", Color) = (0.50, 0.50, 0.50, 1)
         [Toggle(USE_DIRECTIONAL_LIGHT_COLOR)]_UseDirectionalLightColorEnabled ("Use Directional Light Color", Float) = 0
         [HDR]_MainLightColor("Main Light Color", Color) = (1, 0.9568, 0.8392, 1)
@@ -41,8 +42,12 @@
 
         [HideInInspector] m_start_GameMaterial ("Game Material", Float) = 0
         _GameMaterialDiffuse("Game Material Diffuse", Color) = (1, 1, 1, 1)
-        _GameMaterialEmission("Game Material Emission", Color) = (0, 0, 0, 0)
+        _GameMaterialEmission("Game Material Emission", Color) = (0, 0, 0, 1)
+        _GameMaterialMonotone("Game Material Monotone", Float) = 0
+        _MonotonoMul("Monotone Mul", Color) = (0.94118, 0.78431, 0.54902, 1)
+        _MonotonoAdd("Monotone Add", Color) = (0, 0, 0, 1)
         _GameMaterialTexcoord("Game Material Texcoord", Vector) = (0.0, 0.0, 1.0, 1.0)
+        _GameDitherParams("Game Dither Params", Vector) = (0.0, 0.0, 0.0, 0.0)
 
         // #if defined (UVA_SCRIPT_ENABLED)
         [HideInInspector] m_start_UVA ("Enable UV Animation", Float) = 0
@@ -64,7 +69,7 @@
         [HideInInspector][Toggle(FOG_ENABLED)]_FogEnabled ("Enable Fog", Float) = 0
         _FogColor("Fog Color", Color) = (0.5, 0.5, 0.5, 0.0)
         _FogRangeParameters("Fog Range Params", Vector) = (10.0, 500.0, 0.0, 0.0)
-        _HeightFogRangeParameters("Height Fog Range Params", Vector) = (10.0, 500.0, 0.0, 0.0)
+        _HeightFogRangeParameters("Height Fog Range Params", Vector) = (0.0, 0.0, 0.0, 0.0)
         _FogRateClamp("Fog Rate", Float) = 1
         _HeightDepthBias("Height Fog Depth Bias", Float) = 1
         _HeightCamRate("Height Fog Cam Rate", Float) = 1
@@ -93,6 +98,7 @@
         _Shininess("Shininess", Range(0.0, 10.0)) = 0.5
         _SpecularPower("Specular Power", Range(0.001, 100.0)) = 50.0
         [Toggle(FAKE_CONSTANT_SPECULAR_ENABLED)]_FakeConstantSpecularEnabled ("Enable Fake Constant Specular", Float) = 0
+        _AllowFakeSpecularDir("Allow Fake Specular Dir", Float) = 1
 
         // #if defined(SPECULAR_COLOR_ENABLED)
         [HideInInspector] m_start_SpecColor ("Enable Specular Color", Float) = 0
@@ -168,7 +174,7 @@
         [Toggle(MULTI_UV_FACE_ENANLED)]_MultiUVFaceEnabled ("Multi UV Face", Float) = 0
         [Toggle(MULTI_UV_TEXCOORD_OFFSET_ENABLED)]_MultiUVTexCoordOffsetEnabled ("Multi UV Texcoord Offset", Float) = 0
         [Toggle(MULTI_UV_NO_DIFFUSE_MAPPING_ENANLED)]_MultiUVNoDiffuseEnabled ("Multi UV No Diffuse Map", Float) = 0
-        _BlendMulScale2("Multiplicative Blend Scale", Range(0.001, 10.0)) = 0.001
+        _BlendMulScale2("Multiplicative Blend Scale", Range(0.001, 10.0)) = 1
         _DiffuseMap2Sampler("Diffuse Map 2", 2D) = "white" {}
         // #endif (!MULTI_UV_NO_DIFFUSE_MAPPING_ENANLED)
 
@@ -214,7 +220,7 @@
         [Toggle(MULTI_UV2_FACE_ENANLED)]_MultiUV2FaceEnabled ("Multi UV2 Face", Float) = 0
         [Toggle(MULTI_UV2_TEXCOORD_OFFSET_ENABLED)]_MultiUV2TexCoordOffsetEnabled ("Multi UV2 Texcoord Offset", Float) = 0
         [Toggle(MULTI_UV2_NO_DIFFUSE_MAPPING_ENANLED)]_MultiUV2NoDiffuseEnabled ("Multi UV2 No Diffuse Map", Float) = 0
-        _BlendMulScale3("Multiplicative Blend Scale", Range(0.001, 10.0)) = 0.001
+        _BlendMulScale3("Multiplicative Blend Scale", Range(0.001, 10.0)) = 1
         _DiffuseMap3Sampler("Diffuse Map 3", 2D) = "white" {}
         // #endif (!MULTI_UV2_NO_DIFFUSE_MAPPING_ENANLED)
 
@@ -310,8 +316,8 @@
 
         // #if defined(USE_OUTLINE)
         [HideInInspector] m_start_Outline ("Outline", Float) = 0
-        _GameEdgeParameters("Game Edge Params", Vector) = (1.0, 1.0, 1.0, 0.001)
-        _OutlineColorFactor("Outline Color Factor", Vector) = (1.0, 1.0, 1.0, 1.0)
+        _GameEdgeParameters("Game Edge Params", Vector) = (0.7, 0.5, 0.3, 0.001)
+        _OutlineColorFactor("Outline Color Factor", Vector) = (1.1, 1.1, 1.1, 1.1)
 
         // #if defined(USE_OUTLINE_COLOR)
         [HideInInspector] m_start_OutlineColor ("Enable Outline Color", Float) = 0

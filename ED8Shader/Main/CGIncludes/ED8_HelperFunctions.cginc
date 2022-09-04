@@ -1,12 +1,12 @@
 float3 EvaluateNormalMapNormal(float3 inNormal, float2 inUv, float3 inTangent, float3 inBiTangent, uniform sampler2D normalMap) {
     float4 normalMapData = tex2D(normalMap, inUv).xyzw;
+
     #if !defined(UNITY_COLORSPACE_GAMMA)
         normalMapData.rgb = LinearToGammaSpace(normalMapData.rgb);
         normalMapData.a = LinearToGammaSpaceExact(normalMapData.a);
     #endif
 
     normalMapData = normalMapData * float4(2.0f, 2.0f, 2.0f, 2.0f) - float4(1.0f, 1.0f, 1.0f, 1.0f);
-    normalMapData *= 3.0f;
     float3 normalMapNormal = float3(0.0f, 0.0f, 0.0f);
 
     #if defined(NORMAL_MAPP_DXT5_NM_ENABLED)
@@ -18,6 +18,7 @@ float3 EvaluateNormalMapNormal(float3 inNormal, float2 inUv, float3 inTangent, f
         normalMapNormal.y = normalMapData.g;
         normalMapNormal.z = sqrt(1 - saturate(dot(normalMapNormal.xy, normalMapNormal.xy)));
     #else // NORMAL_MAPP_DXT5_NM_ENABLED
+        normalMapData *= 3.0f;
         normalMapNormal.xyz = normalMapData.xyz;
         //normalMapNormal.xy = normalMapData.xy;
         //normalMapNormal.z = sqrt(1 - saturate(dot(normalMapNormal.xy, normalMapNormal.xy)));
@@ -104,17 +105,29 @@ float CalcMipLevel(float2 texcoord){
         r0.x = r0.x * r0.z + r0.y;
         r0.x = min(1, r0.x);
         o2.w = scene.FogRangeParameters.w * r0.x;
-
-        float3 MiscParameters3;
-        float HeightFogSubtraction = (_HeightFogRangeParameters.y - _HeightFogRangeParameters.x);
-        MiscParameters3.x = (_WorldSpaceCameraPos.y * _HeightCamRate) + _HeightFogRangeParameters.x;
-        MiscParameters3.y = (HeightFogSubtraction = 0.0f) ? 0.0f : (1 / HeightFogSubtraction);
-        MiscParameters3.z = _HeightDepthBias;
-        f = min(1.0f, (saturate(MiscParameters3.y * (-MiscParameters3.x + worldY)) * min(1.0f, MiscParameters3.z + f)) + f);
         */
+        float HeightFogSubtraction = (_HeightFogRangeParameters.y - _HeightFogRangeParameters.x);
+        float3 MiscParameters3;
+        
+        MiscParameters3.x = (_WorldSpaceCameraPos.y * _HeightCamRate); //- _HeightFogRangeParameters.x;
+        MiscParameters3.y = (HeightFogSubtraction == 0.0f) ? 0.0f : (1 / HeightFogSubtraction);
+        MiscParameters3.z = _HeightDepthBias;
 
-        #ifdef FOG_RATIO_ENABLED
-            f *= _FogRatio;
+        float hf = saturate((worldY - MiscParameters3.x) * MiscParameters3.y);
+        float f2 = min(1.0f, MiscParameters3.z + f);
+
+        f = min(1.0f, (hf * f2) + f);
+
+        #if !defined(UNITY_COLORSPACE_GAMMA)
+            f = GammaToLinearSpaceExact(f);
+        #endif
+
+        #if defined(FOG_RATIO_ENABLED)
+            #if !defined(UNITY_COLORSPACE_GAMMA)
+                f *= LinearToGammaSpaceExact(_FogRatio);
+            #else
+                f *= _FogRatio;
+            #endif
         #endif // FOG_RATIO_ENABLED
 
         f *= _FogRateClamp;
@@ -127,8 +140,6 @@ float CalcMipLevel(float2 texcoord){
         #endif // defined(USE_EXTRA_BLENDING)
 
         #if !defined(UNITY_COLORSPACE_GAMMA)
-            //resultColor.rgb = lerp(resultColor.rgb, fogColor.rgb, GammaToLinearSpaceExact(fogValue));
-            //resultColor.rgb = lerp(resultColor.rgb, fogColor.rgb, LinearToGammaSpaceExact(fogValue));
             resultColor.rgb = lerp(resultColor.rgb, fogColor.rgb, fogValue);
         #else
             resultColor.rgb = lerp(resultColor.rgb, fogColor.rgb, fogValue);
@@ -162,10 +173,10 @@ float CalcMipLevel(float2 texcoord){
 #if defined(RIM_LIGHTING_ENABLED)
     float EvaluateRimLightValue(float ndote) {
         #if !defined(UNITY_COLORSPACE_GAMMA)
-            float rimLightvalue = pow((1.0f - saturate(abs(ndote))), _RimLitPower);
+            float rimLightvalue = pow(1.0f - saturate(ndote), _RimLitPower);
             rimLightvalue *= _RimLitIntensity;
         #else
-            float rimLightvalue = pow((1.0f - saturate(abs(ndote))), _RimLitPower);
+            float rimLightvalue = pow(1.0f - saturate(ndote), _RimLitPower);
             rimLightvalue *= _RimLitIntensity;
         #endif
         return rimLightvalue;
@@ -175,7 +186,7 @@ float CalcMipLevel(float2 texcoord){
 //-----------------------------------------------------------------------------
 #if defined(CARTOON_SHADING_ENABLED)
     float calcToonShadingValueFP(float ldotn, float shadowValue) {
-        float u = (ldotn * 0.5f + 0.5f);
+        float u = pow((ldotn * 0.5f + 0.5f), 2.4);
 
         #if defined(UNITY_PASS_FORWARDBASE)
             u *= shadowValue;
@@ -185,7 +196,6 @@ float CalcMipLevel(float2 texcoord){
 
         #if !defined(UNITY_COLORSPACE_GAMMA)
             r = LinearToGammaSpaceExact(r);
-            //r = GammaToLinearSpaceExact(r);
         #endif
         return r;
     }
@@ -210,20 +220,6 @@ half2 SampleSphereMap(half3 viewDirection, half3 normalDirection) {
     return SphereUV;
 }
 
-float ED8GammaToLinearSpaceExact (float value) {
-    if (value <= 0.5F)
-        //return value / 12.92F;
-        return pow(value, 2.2F);
-    else if (value > 0.5F && value <= 0.75F)
-        //return pow((value + 0.055F)/1.055F, 6.6F);
-        return pow(value, 4.4F);
-    else if (value > 0.75F && value < 1.0F)
-        //return pow((value + 0.055F)/1.055F, 6.6F);
-        return pow(value, 6.6F);
-    else
-        return pow(value, 6.6F);
-}
-
 static const float3 lumCoeff = float3(0.2126729, 0.7151522, 0.0721750);
 float AvgLuminance(float3 color) {
 	return sqrt(
@@ -232,52 +228,10 @@ float AvgLuminance(float3 color) {
 		(color.z * color.z * lumCoeff.z)
 	);
 }
- 
-float3 ED8Curves(float3 v) {
-	float luma = AvgLuminance(v);
-	float3 chroma = v - luma;
-
-	// LumaLerp Cubic Bezier spline
-	float3 a = float3(0.00, 0.00, 0.00);
-	float3 b = float3(0.25, 0.25, 0.25);
-	float3 c = float3(0.90, 0.90, 0.90);
-	float3 d = float3(1.00, 1.00, 1.00);
-
-	float3 ab = lerp(a, b, luma);
-	float3 bc = lerp(b, c, luma);
-	float3 cd = lerp(c, d, luma);
-	float3 abbc = lerp(ab, bc, luma);
-	float3 bccd = lerp(bc, cd, luma);
-	float3 dest = lerp(abbc, bccd, luma);
-	float3 contrast = chroma + dest;
-
-	return saturate(lerp(v, contrast, float(0.50)));
-}
 
 float3 decodeSRGB(float3 screenRGB) {
     float3 a = screenRGB / 12.92f;
     float3 b = pow((screenRGB + 0.055) / 1.055, (float3)(2.4f));
     float3 c = step((float3)(0.04045f), screenRGB);
     return lerp(a, b, c);
-}
-
-float3 RGBtoYCbCr(float3 c) {
-	float3 v = float3(0.0f, 0.0f, 0.0f);
-	v.x = dot(c, float3( 0.299f, 0.587f, 0.114f));
-	v.y = dot(c, float3(-0.169f,-0.331f, 0.500f));
-	v.z = dot(c, float3( 0.500f,-0.419f,-0.081f));
-	return v * float3(219.0f/255.0f, 224.0f/255.0f, 224.0f/255.0f) + float3( 16.0f/255.0f, 126.0f/255.0f, 126.0f/255.0f);
-}
-
-// YCbCr->RGB
-float3 YCbCrtoRGB(float3 v) {
-	float y_  = (v.x -  16.0f/255.0f) * 255.0f/219.0f;
-	float cb_ = (v.y - 128.0f/255.0f) * 255.0f/224.0f;
-	float cr_ = (v.z - 128.0f/255.0f) * 255.0f/224.0f;
-	float3 c;
-
-	c.x = y_ + 1.402f*cr_;
-	c.y = y_ - 0.344f*cb_ - 0.714f*cr_;
-	c.z = y_ + 1.772f*cb_;
-	return c;
 }

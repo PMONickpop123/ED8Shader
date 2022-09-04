@@ -61,7 +61,8 @@ fixed4 DefaultFPShader (DefaultVPOutput i) : SV_TARGET {
         #endif // DUDV_MAPPING_ENABLED
 
 	    float4 diffuseAmt = float4(0.0f, 0.0f, 0.0f, 0.0f);
-        float4 materialDiffuse = (float4)_GameMaterialDiffuse;
+        float3 Monotone;
+        //float4 materialDiffuse;
         
         #if !defined(MULTI_UV_MULTIPLICATIVE_BLENDING_EX_ENANLED) && !defined(MULTI_UV2_MULTIPLICATIVE_BLENDING_EX_ENANLED)
             diffuseAmt = tex2D(_MainTex, i.uv.xy 
@@ -71,7 +72,7 @@ fixed4 DefaultFPShader (DefaultVPOutput i) : SV_TARGET {
             );
 
             #if !defined(UNITY_COLORSPACE_GAMMA)
-                //diffuseAmt.rgb = GammaToLinearSpace(diffuseAmt.rgb);
+                diffuseAmt.rgb = LinearToGammaSpace(diffuseAmt.rgb);
             #endif
 
             #if !defined(ALPHA_TESTING_ENABLED)
@@ -106,10 +107,14 @@ fixed4 DefaultFPShader (DefaultVPOutput i) : SV_TARGET {
 
         #if defined(MULTI_UV_ENANLED)
 	        #if !defined(MULTI_UV_NO_DIFFUSE_MAPPING_ENANLED)
-                float4 diffuse2Amt = tex2D(_DiffuseMap2Sampler, i.uv2.xy);
+                float4 diffuse2Amt = tex2D(_DiffuseMap2Sampler, i.uv2.xy
+                #if defined(DUDV_MAPPING_ENABLED)
+                    + dudvValue
+                #endif // DUDV_MAPPING_ENABLED
+                );
 
                 #if !defined(UNITY_COLORSPACE_GAMMA)
-                    //diffuse2Amt.rgb = GammaToLinearSpace(diffuse2Amt.rgb);
+                    diffuse2Amt.rgb = LinearToGammaSpace(diffuse2Amt.rgb);
                 #endif
 
 		        #if defined(UVA_SCRIPT_ENABLED)
@@ -132,9 +137,10 @@ fixed4 DefaultFPShader (DefaultVPOutput i) : SV_TARGET {
                     // v = lerp(x, x*y, t)
                     // v = x + (x*y - x) * t;
                     // v = x + (y - 1) * x * t;
-                    float3 muvtex_add = (((diffuse2Amt.rgb * diffuseAmt.rgb) * _BlendMulScale2) - diffuseAmt.rgb) * multi_uv_alpha;
+                    float3 muvtex_add = (diffuse2Amt.rgb * diffuseAmt.rgb) * _BlendMulScale2;
                     //float3 muvtex_add = ((diffuse2Amt.rgb - float3(1.0f, 1.0f, 1.0f)) * diffuseAmt.rgb) * multi_uv_alpha;
-                    diffuseAmt.rgb += muvtex_add;
+                    diffuseAmt.rgb = lerp(diffuseAmt.rgb, muvtex_add, multi_uv_alpha);
+                    //diffuseAmt.rgb += muvtex_add;
                 #elif defined(MULTI_UV_MULTIPLICATIVE_BLENDING_LM_ENANLED)
                     // need to be blank so it doesn't use the bottom branch code.
                 #elif defined(MULTI_UV_MULTIPLICATIVE_BLENDING_EX_ENANLED)
@@ -151,10 +157,14 @@ fixed4 DefaultFPShader (DefaultVPOutput i) : SV_TARGET {
 
             #if defined(MULTI_UV2_ENANLED)
                 #if !defined(MULTI_UV2_NO_DIFFUSE_MAPPING_ENANLED)
-                    float4 diffuse3Amt = tex2D(_DiffuseMap3Sampler, i.uv3.xy);
+                    float4 diffuse3Amt = tex2D(_DiffuseMap3Sampler, i.uv3.xy
+                    #if defined(DUDV_MAPPING_ENABLED)
+                        + dudvValue
+                    #endif // DUDV_MAPPING_ENABLED
+                    );
 
                     #if !defined(UNITY_COLORSPACE_GAMMA)
-                        //diffuse3Amt.rgb = GammaToLinearSpace(diffuse3Amt.rgb);
+                        diffuse3Amt.rgb = LinearToGammaSpace(diffuse3Amt.rgb);
                     #endif
 
                     #if defined(MULTI_UV2_FACE_ENANLED)
@@ -173,9 +183,10 @@ fixed4 DefaultFPShader (DefaultVPOutput i) : SV_TARGET {
                         // v = lerp(x, x*y, t)
                         // v = x + (x*y - x) * t;
                         // v = x + (y - 1) * x * t;
-                        float3 muvtex_add2 = (((diffuse3Amt.rgb * diffuseAmt.rgb) * _BlendMulScale3) - diffuseAmt.rgb) * multi_uv2_alpha;
                         //float3 muvtex_add2 = ((diffuse3Amt.rgb - float3(1.0f, 1.0f, 1.0f)) * diffuseAmt.rgb) * multi_uv2_alpha;
-                        diffuseAmt.rgb += muvtex_add2;
+                        float3 muvtex_add2 = (diffuse3Amt.rgb * diffuseAmt.rgb) * _BlendMulScale3;
+                        //float3 muvtex_add2 = ((diffuse3Amt.rgb - float3(1.0f, 1.0f, 1.0f)) * diffuseAmt.rgb) * multi_uv2_alpha;
+                        diffuseAmt.rgb = lerp(diffuseAmt.rgb, muvtex_add2, multi_uv2_alpha);
                     #elif defined(MULTI_UV2_MULTIPLICATIVE_BLENDING_LM_ENANLED)
                     // need to be blank so it doesn't use the bottom branch code.
                     #elif defined(MULTI_UV2_MULTIPLICATIVE_BLENDING_EX_ENANLED)
@@ -190,7 +201,11 @@ fixed4 DefaultFPShader (DefaultVPOutput i) : SV_TARGET {
             #endif // MULTI_UV2_ENANLED
         #endif // MULTI_UV_ENANLED
 
-        diffuseAmt *= materialDiffuse;
+        #if !defined(UNITY_COLORSPACE_GAMMA)
+            diffuseAmt.rgb = GammaToLinearSpace(diffuseAmt.rgb);
+        #endif
+
+        diffuseAmt *= _GameMaterialDiffuse;
 
         #if defined(USE_LIGHTING) && (defined(FP_DEFAULT) || defined(FP_PORTRAIT)) //&& defined(RECEIVE_SHADOWS)
             float shadowValue = 1.0f;
@@ -250,18 +265,23 @@ fixed4 DefaultFPShader (DefaultVPOutput i) : SV_TARGET {
 
         #if defined(PROJECTION_MAP_ENABLED)
             float4 projTex = tex2D(_ProjectionMapSampler, i.ProjMap.xy);
+            projTex *= (float4)_ShadowDensity;
 
             #if !defined(UNITY_COLORSPACE_GAMMA)
-                //projTex.r = LinearToGammaSpaceExact(projTex.r);
-                //projTex.a = LinearToGammaSpaceExact(projTex.a);
+                projTex.r = LinearToGammaSpaceExact(projTex.r);
+                projTex.a = LinearToGammaSpaceExact(projTex.a);
             #endif
 
-            shadowValue = min(shadowValue, 1.0f - projTex.r * projTex.a);
+            #if !defined(UNITY_COLORSPACE_GAMMA)
+                shadowValue = min(shadowValue, 1.0f - GammaToLinearSpaceExact(projTex.r * projTex.a));
+            #else
+                shadowValue = min(shadowValue, 1.0f - (projTex.r * projTex.a));
+            #endif
         #endif // PROJECTION_MAP_ENABLED
 
-        #if !defined(UNITY_COLORSPACE_GAMMA)
-            //shadowValue = GammaToLinearSpaceExact(shadowValue);
-        #endif
+        // CS3+ additions.
+        //shadowValue = ((1.0f - shadowValue) * (1.0f - _ShadowDensity)) + shadowValue;
+        //shadowValue = ((1.0f - shadowValue) * (1.0f - _GameMaterialEmission.a)) + shadowValue;
 
         #if defined(SPECULAR_MAPPING_ENABLED) || (defined(MULTI_UV_ENANLED) && defined(MULTI_UV_SPECULAR_MAPPING_ENABLED)) || (defined(MULTI_UV2_ENANLED) && defined(MULTI_UV2_SPECULAR_MAPPING_ENABLED))
 	        float glossValue = 1.0f;
@@ -270,7 +290,7 @@ fixed4 DefaultFPShader (DefaultVPOutput i) : SV_TARGET {
 	            glossValue = tex2D(_SpecularMapSampler, i.uv.xy).x;
 
                 #if !defined(UNITY_COLORSPACE_GAMMA)
-                    glossValue.x = LinearToGammaSpaceExact(glossValue);
+                    glossValue = LinearToGammaSpaceExact(glossValue);
                 #endif
 	        #endif // SPECULAR_MAPPING_ENABLED
 
@@ -279,7 +299,7 @@ fixed4 DefaultFPShader (DefaultVPOutput i) : SV_TARGET {
                     float glossValue2 = tex2D(_SpecularMap2Sampler, i.uv2.xy).x;
 
                     #if !defined(UNITY_COLORSPACE_GAMMA)
-                        glossValue2.x = LinearToGammaSpaceExact(glossValue2);
+                        glossValue2 = LinearToGammaSpaceExact(glossValue2);
                     #endif
 
                     glossValue = lerp(glossValue, glossValue2, multi_uv_alpha);
@@ -289,7 +309,7 @@ fixed4 DefaultFPShader (DefaultVPOutput i) : SV_TARGET {
                     float glossValue3 = tex2D(_SpecularMap3Sampler, i.uv3.xy).x;
                     
                     #if !defined(UNITY_COLORSPACE_GAMMA)
-                        glossValue2.x = LinearToGammaSpaceExact(glossValue2);
+                        glossValue3 = LinearToGammaSpaceExact(glossValue2);
                     #endif
 
                     glossValue = lerp(glossValue, glossValue3, multi_uv2_alpha);
@@ -306,7 +326,7 @@ fixed4 DefaultFPShader (DefaultVPOutput i) : SV_TARGET {
 	            occulusionValue = tex2D(_OcculusionMapSampler, i.uv.xy).x;
 
                 #if !defined(UNITY_COLORSPACE_GAMMA)
-                    //occulusionValue.x = GammaToLinearSpaceExact(occulusionValue.x);
+                    occulusionValue = LinearToGammaSpaceExact(occulusionValue);
                 #endif
 	        #endif // OCCULUSION_MAPPING_ENABLED
 
@@ -315,7 +335,7 @@ fixed4 DefaultFPShader (DefaultVPOutput i) : SV_TARGET {
 	                float4 occulusionValue2 = tex2D(_OcculusionMap2Sampler, i.uv2.xy).x;
                     
                     #if !defined(UNITY_COLORSPACE_GAMMA)
-                        //occulusionValue2.x = GammaToLinearSpaceExact(occulusionValue2.x);
+                        occulusionValue2 = LinearToGammaSpaceExact(occulusionValue2);
                     #endif
 
 			        #if defined(MULTI_UV_NO_DIFFUSE_MAPPING_ENANLED)
@@ -329,7 +349,7 @@ fixed4 DefaultFPShader (DefaultVPOutput i) : SV_TARGET {
 	                float4 occulusionValue3 = tex2D(_OcculusionMap3Sampler, i.uv3.xy).x;
                     
                     #if !defined(UNITY_COLORSPACE_GAMMA)
-                        //occulusionValue3.x = GammaToLinearSpaceExact(occulusionValue3.x);
+                        occulusionValue3 = LinearToGammaSpaceExact(occulusionValue3);
                     #endif
 
 			        #if defined(MULTI_UV2_NO_DIFFUSE_MAPPING_ENANLED)
@@ -340,9 +360,18 @@ fixed4 DefaultFPShader (DefaultVPOutput i) : SV_TARGET {
 		        #endif // defined(MULTI_UV2_ENANLED) && defined(MULTI_UV2_OCCULUSION_MAPPING_ENABLED)
 	        #endif // defined(MULTI_UV_ENANLED)
 
-	        float3 ambientOcclusion = (float3)i.Color0.rgb * occulusionValue;
+            #if !defined(UNITY_COLORSPACE_GAMMA)
+                float3 ambientOcclusion = GammaToLinearSpace(i.Color0.rgb) * GammaToLinearSpaceExact(occulusionValue);
+                //float3 ambientOcclusion = i.Color0.rgb * occulusionValue;
+            #else
+                float3 ambientOcclusion = i.Color0.rgb * occulusionValue;
+            #endif
         #else // OCCULUSION_MAPPING_ENABLED
-	        float3 ambientOcclusion = (float3)i.Color0.rgb;
+            #if !defined(UNITY_COLORSPACE_GAMMA)
+	            float3 ambientOcclusion = GammaToLinearSpace(i.Color0.rgb);
+            #else
+                float3 ambientOcclusion = i.Color0.rgb;
+            #endif
         #endif // OCCULUSION_MAPPING_ENABLED
 
         #if defined(RIM_LIGHTING_ENABLED) || defined(CARTOON_SHADING_ENABLED) || defined(CUBE_MAPPING_ENABLED) || defined(SPHERE_MAPPING_ENABLED)
@@ -352,13 +381,13 @@ fixed4 DefaultFPShader (DefaultVPOutput i) : SV_TARGET {
                 #else
                     float3 subLightColor = _MainLightColor.rgb;
                 #endif
-
-                #if !defined(UNITY_COLORSPACE_GAMMA)
-                    subLightColor = LinearToGammaSpace(subLightColor.rgb);
-                #endif
 	        #else
 	            float3 subLightColor = float3(0.0f, 0.0f, 0.0f);
 	        #endif
+
+            //#if !defined(UNITY_COLORSPACE_GAMMA)
+                //subLightColor = LinearToGammaSpace(subLightColor.rgb);
+            //#endif
 
 	        #if defined(SPECULAR_MAPPING_ENABLED)
 		        #if defined(RECEIVE_SHADOWS)
@@ -371,6 +400,10 @@ fixed4 DefaultFPShader (DefaultVPOutput i) : SV_TARGET {
 	        #endif
         #else // defined(RIM_LIGHTING_ENABLED) || defined(CARTOON_SHADING_ENABLED) || defined(CUBE_MAPPING_ENABLED) || defined(SPHERE_MAPPING_ENABLED)
 	        float3 subLightColor = float3(0.0f, 0.0f, 0.0f);
+
+            //#if !defined(UNITY_COLORSPACE_GAMMA)
+            //    subLightColor = LinearToGammaSpace(subLightColor.rgb);
+            //#endif
         #endif // defined(RIM_LIGHTING_ENABLED) || defined(CARTOON_SHADING_ENABLED) || defined(CUBE_MAPPING_ENABLED) || defined(SPHERE_MAPPING_ENABLED)
 
         float4 resultColor = diffuseAmt;
@@ -406,7 +439,6 @@ fixed4 DefaultFPShader (DefaultVPOutput i) : SV_TARGET {
 	            //ambient = float3(0.0f, 0.0f, 0.0f);
 	        #else // defined(ALPHA_BLENDING_ENABLED) && defined(USE_EXTRA_BLENDING)
 		        #if defined(NO_MAIN_LIGHT_SHADING_ENABLED)
-	                //ambient = float3(0.0f, 0.0f, 0.0f);
 			        #define FP_NEED_AFTER_MAX_AMBIENT
 		        #else // NO_MAIN_LIGHT_SHADING_ENABLED
                     #if defined(FP_PORTRAIT)
@@ -453,8 +485,8 @@ fixed4 DefaultFPShader (DefaultVPOutput i) : SV_TARGET {
                     #else // RIM_TRANSPARENCY_ENABLED
                         #if !defined(RIM_CLAMP_ENABLED)
                             #if !defined(UNITY_COLORSPACE_GAMMA)
-                                ambient += rimLightvalue * (float3)LinearToGammaSpace(_RimLitColor) * subLightColor;
-                                //ambient += rimLightvalue * (float3)_RimLitColor * subLightColor;
+                                //ambient += GammaToLinearSpace(rimLightvalue * LinearToGammaSpace(_RimLitColor) * subLightColor);
+                                ambient += rimLightvalue * (float3)_RimLitColor * subLightColor;
                             #else
                                 ambient += rimLightvalue * (float3)_RimLitColor * subLightColor;
                             #endif
@@ -470,14 +502,17 @@ fixed4 DefaultFPShader (DefaultVPOutput i) : SV_TARGET {
                 //float cubeMapIntensity = GammaToLinearSpaceExact((1.0f - max(0.0f, abs(ndote)) * _CubeMapFresnel) * _CubeMapIntensity);
 
                 #if !defined(UNITY_COLORSPACE_GAMMA)
-                    //float cubeMapIntensity = (1.0f - max(0.0f, saturate(abs(ndote))) * GammaToLinearSpaceExact(_CubeMapFresnel)) * GammaToLinearSpaceExact(_CubeMapIntensity);
-                    float cubeMapIntensity = pow(1.0f - (max(0.0f, saturate(ndote)) * _CubeMapFresnel), 4.0f) * _CubeMapIntensity;
-                    //float cubeMapFresnel = cubeMapIntensity * cubeMapIntensity;
-                    //cubeMapIntensity *= cubeMapFresnel;
-                    //cubeMapIntensity *= _CubeMapIntensity;
-                    //float cubeMapIntensity = (1.0f - max(0.0f, ndote) * _CubeMapFresnel) * _CubeMapIntensity;
+                    #if defined(DUDV_MAPPING_ENABLED)
+                        float cubeMapIntensity = pow(1.0f - (max(0.0f, ndote) * _CubeMapFresnel), 4.0f) * _CubeMapIntensity;
+                    #else
+                        float cubeMapIntensity = (1.0f - max(0.0f, ndote) * _CubeMapFresnel) * _CubeMapIntensity;
+                    #endif
                 #else
-                    float cubeMapIntensity = (1.0f - max(0.0f, saturate(abs(ndote))) * _CubeMapFresnel) * _CubeMapIntensity;
+                    #if defined(DUDV_MAPPING_ENABLED)
+                        float cubeMapIntensity = pow(1.0f - (max(0.0f, ndote) * _CubeMapFresnel), 4.0f) * _CubeMapIntensity;
+                    #else
+                        float cubeMapIntensity = (1.0f - max(0.0f, ndote) * _CubeMapFresnel) * _CubeMapIntensity;
+                    #endif
                 #endif
 
                 float4 cubeMapColor = texCUBE(_CubeMapSampler, cubeMapParams.xyz).rgba;
@@ -489,6 +524,108 @@ fixed4 DefaultFPShader (DefaultVPOutput i) : SV_TARGET {
                 float2 sphereMapParams = viewSpaceNormal.xy * 0.5f + 0.5f;
                 float4 sphereMapColor = tex2D(_SphereMapSampler, sphereMapParams.xy).rgba;
                 //float4 sphereMapColor = tex2D(_SphereMapSampler, float2(sphereMapParams.x, sphereMapParams.y * -1)).rgba;
+
+                #if !defined(UNITY_COLORSPACE_GAMMA)
+                    sphereMapColor.rgb = LinearToGammaSpace(sphereMapColor.rgb);
+                #endif
+            #endif // CUBE_MAPPING_ENABLED || SPHERE_MAPPING_ENABLED
+
+            #if !defined(EMVMAP_AS_IBL_ENABLED)
+                #if defined(CUBE_MAPPING_ENABLED)
+                    //cubeMapColor.rgb = cubeMapColor.rgb - resultColor.rgb;
+                    resultColor.rgb = lerp(resultColor.rgb, cubeMapColor.rgb * ambientOcclusion, cubeMapIntensity * glossValue);
+                    //resultColor.rgb += cubeMapColor.rgb * cubeMapIntensity * ambientOcclusion * glossValue;
+                #elif defined(SPHERE_MAPPING_ENABLED)
+                    #if !defined(UNITY_COLORSPACE_GAMMA)
+                        //resultColor.rgb += sphereMapColor.rgb * GammaToLinearSpaceExact(_SphereMapIntensity) * ambientOcclusion * glossValue;
+                        resultColor.rgb += GammaToLinearSpace(sphereMapColor.rgb * _SphereMapIntensity * LinearToGammaSpace(ambientOcclusion)) * glossValue;
+                    #else
+                        resultColor.rgb += sphereMapColor.rgb * _SphereMapIntensity * ambientOcclusion * glossValue;
+                    #endif
+                #endif 
+            #endif
+
+            #if defined(FP_SHINING)
+                shadingAmt = (1.0f - float3(ndote, ndote, ndote)) * float3(0.345f * 3.5f, 0.875f * 3.5f, 1.0f * 3.5f);
+                resultColor.rgb = dot(resultColor.rgb, float3(0.299f, 0.587f, 0.114f));
+            #elif defined(FP_PORTRAIT)
+                shadingAmt = PortraitEvaluateLightingPerPixelFP(sublightAmount, i.WorldPositionDepth.xyz, worldSpaceNormal, glossValue, shadowValue, ambient, worldSpaceEyeDirection, attenuation);
+            #else
+                shadingAmt = EvaluateLightingPerPixelFP(sublightAmount, i.WorldPositionDepth.xyz, worldSpaceNormal, glossValue, shadowValue, ambient, worldSpaceEyeDirection, attenuation);
+            #endif
+
+            // Commented out until I fully understand what this does.
+            //shadingAmt = lerp(shadingAmt, shadingAmt * _GlobalAmbientColor.rgb, 1 - shadowValue);
+
+            // リムライト
+            #if defined(USE_LIGHTING)
+                #if defined(RIM_LIGHTING_ENABLED)
+                    #if defined(RIM_CLAMP_ENABLED)
+                        #if !defined(UNITY_COLORSPACE_GAMMA)
+                            //shadingAmt += GammaToLinearSpace(rimLightvalue * LinearToGammaSpace(_RimLitColor) * subLightColor);
+                            shadingAmt += rimLightvalue * (float3)_RimLitColor * subLightColor;
+                        #else
+                            shadingAmt += rimLightvalue * (float3)_RimLitColor * subLightColor;
+                        #endif
+
+                        shadingAmt = min(shadingAmt, (float3)_RimLightClampFactor);
+                    #endif
+                #endif
+            #endif
+        #else // !defined(USE_LIGHTING)
+	        // [PerVertex]
+            float3 worldSpaceEyeDirection = normalize(getEyePosition() - i.WorldPositionDepth.xyz);
+            #define FP_WS_EYEDIR_EXIST
+	        float3 worldSpaceNormal = normalize(i.normal);
+            
+            float3 subLight = float3(0.0f, 0.0f, 0.0f);
+            float3 diffuse = float3(1.0f, 1.0f, 1.0f);
+            float3 specular = float3(0.0f, 0.0f, 0.0f);
+	        float3 ambient = EvaluateAmbient(worldSpaceNormal);
+
+            #if defined(CUBE_MAPPING_ENABLED)
+                #define FP_NDOTE_1
+            #endif // CUBE_MAPPING_ENABLED || SPHERE_MAPPING_ENABLED
+
+            #if defined(FP_NDOTE_1)
+                float ndote = dot(worldSpaceNormal, worldSpaceEyeDirection);
+                // defined(DOUBLE_SIDED)
+                UNITY_BRANCH
+                if (_Culling < 2) {
+                    if (ndote < 0.0f) {
+                        ndote *= -1.0f;
+                        worldSpaceNormal *= -1.0f;
+                    }
+                }
+	        #endif  // defined(FP_NDOTE_1) && defined(FP_NDOTE_2)
+
+            #if defined(CUBE_MAPPING_ENABLED)
+                float3 cubeMapParams = reflect(-float3(worldSpaceEyeDirection.x * -1.0f, worldSpaceEyeDirection.y, worldSpaceEyeDirection.z), worldSpaceNormal);
+                //float3 cubeMapParams = reflect(-worldSpaceEyeDirection, worldSpaceNormal);
+                //float cubeMapIntensity = GammaToLinearSpaceExact((1.0f - max(0.0f, abs(ndote)) * _CubeMapFresnel) * _CubeMapIntensity);
+
+                #if !defined(UNITY_COLORSPACE_GAMMA)
+                    #if defined(DUDV_MAPPING_ENABLED)
+                        float cubeMapIntensity = pow(1.0f - (max(0.0f, saturate(ndote)) * _CubeMapFresnel), 4.0f) * _CubeMapIntensity;
+                    #else
+                        float cubeMapIntensity = (1.0f - (max(0.0f, saturate(ndote)) * _CubeMapFresnel)) * _CubeMapIntensity;
+                    #endif
+                #else
+                    #if defined(DUDV_MAPPING_ENABLED)
+                        float cubeMapIntensity = pow(1.0f - (max(0.0f, saturate(ndote)) * _CubeMapFresnel), 4.0f) * _CubeMapIntensity;
+                    #else
+                        float cubeMapIntensity = (1.0f - (max(0.0f, saturate(ndote)) * _CubeMapFresnel)) * _CubeMapIntensity;
+                    #endif
+                #endif
+
+                float4 cubeMapColor = texCUBE(_CubeMapSampler, cubeMapParams.xyz).rgba;
+                //#if !defined(UNITY_COLORSPACE_GAMMA)
+                //    cubeMapColor.rgb = LinearToGammaSpace(cubeMapColor.rgb);
+                //#endif
+            #elif defined(SPHERE_MAPPING_ENABLED)
+                float3 viewSpaceNormal = mul((float3x3)UNITY_MATRIX_V, worldSpaceNormal);
+                float2 sphereMapParams = viewSpaceNormal.xy * 0.5f + 0.5f;
+                float4 sphereMapColor = tex2D(_SphereMapSampler, sphereMapParams.xy).rgba;
 
                 //#if !defined(UNITY_COLORSPACE_GAMMA)
                 //    sphereMapColor.rgb = GammaToLinearSpace(sphereMapColor.rgb);
@@ -511,38 +648,6 @@ fixed4 DefaultFPShader (DefaultVPOutput i) : SV_TARGET {
             #endif
 
             #if defined(FP_SHINING)
-                shadingAmt = (1.0f - float3(ndote, ndote, ndote)) * float3(0.345f * 3.5f, 0.875f * 3.5f, 1.0f * 3.5f);
-                resultColor.rgb = dot(resultColor.rgb, float3(0.299f, 0.587f, 0.114f));
-            #elif defined(FP_PORTRAIT)
-                shadingAmt = PortraitEvaluateLightingPerPixelFP(sublightAmount, i.WorldPositionDepth.xyz, worldSpaceNormal, glossValue, shadowValue, ambient, worldSpaceEyeDirection, attenuation);
-            #else
-                shadingAmt = EvaluateLightingPerPixelFP(sublightAmount, i.WorldPositionDepth.xyz, worldSpaceNormal, glossValue, shadowValue, ambient, worldSpaceEyeDirection, attenuation);
-            #endif
-
-            // リムライト
-            #if defined(USE_LIGHTING)
-                #if defined(RIM_LIGHTING_ENABLED)
-                    #if defined(RIM_CLAMP_ENABLED)
-                        #if !defined(UNITY_COLORSPACE_GAMMA)
-                            shadingAmt += rimLightvalue * (float3)LinearToGammaSpace(_RimLitColor) * subLightColor;
-                            //shadingAmt += rimLightvalue * (float3)_RimLitColor * subLightColor;
-                        #else
-                            shadingAmt += rimLightvalue * (float3)_RimLitColor * subLightColor;
-                        #endif
-
-                        shadingAmt = min(shadingAmt, (float3)_RimLightClampFactor);
-                    #endif
-                #endif
-            #endif
-        #else // !defined(USE_LIGHTING)
-	        // [PerVertex]
-            float3 subLight = float3(0.0f, 0.0f, 0.0f);
-            float3 diffuse = float3(1.0f, 1.0f, 1.0f);
-            float3 specular = float3(0.0f, 0.0f, 0.0f);
-	        float3 ambient = float3(0.0f, 0.0f, 0.0f);;
-	        float3 worldSpaceNormal = normalize(i.normal);
-
-            #if defined(FP_SHINING)
 	            float3 worldSpaceEyeDirection2 = normalize(getEyePosition() - i.WorldPositionDepth.xyz);
 	            float ndote2 = dot(worldSpaceNormal, worldSpaceEyeDirection2);
 
@@ -556,19 +661,27 @@ fixed4 DefaultFPShader (DefaultVPOutput i) : SV_TARGET {
             #if defined(FP_PORTRAIT)
                 shadingAmt = max(shadingAmt, PortraitEvaluateAmbient());
             #else // !defined(FP_PORTRAIT)
-                shadingAmt = max(shadingAmt, EvaluateAmbient(worldSpaceNormal));
+                shadingAmt = GammaToLinearSpace(max(LinearToGammaSpace(shadingAmt), LinearToGammaSpace(EvaluateAmbient(worldSpaceNormal))));
             #endif
         #endif
 
         #if defined(MULTI_UV_ENANLED)
             #if defined(MULTI_UV_MULTIPLICATIVE_BLENDING_LM_ENANLED)
-                resultColor.rgb = diffuse2Amt.rgb * resultColor.rgb * (float3)_BlendMulScale2;
+                #if !defined(UNITY_COLORSPACE_GAMMA)
+                    resultColor.rgb = GammaToLinearSpace((LinearToGammaSpace(resultColor.rgb) * diffuse2Amt.rgb) * (float3)_BlendMulScale2);
+                #else
+                    resultColor.rgb = (resultColor.rgb * diffuse2Amt.rgb) * (float3)_BlendMulScale2;
+                #endif
             #endif
         #endif
 
         #if defined(MULTI_UV2_ENANLED)
             #if defined(MULTI_UV2_MULTIPLICATIVE_BLENDING_LM_ENANLED)
-                resultColor.rgb = diffuse3Amt.rgb * resultColor.rgb * (float3)_BlendMulScale3;
+                #if !defined(UNITY_COLORSPACE_GAMMA)
+                    resultColor.rgb = GammaToLinearSpace((LinearToGammaSpace(resultColor.rgb) * diffuse3Amt.rgb) * (float3)_BlendMulScale3);
+                #else
+                    resultColor.rgb = (resultColor.rgb * diffuse3Amt.rgb) * (float3)_BlendMulScale3;
+                #endif
             #endif
         #endif
 
@@ -615,31 +728,45 @@ fixed4 DefaultFPShader (DefaultVPOutput i) : SV_TARGET {
 
             #if defined(WATER_SURFACE_ENABLED)
                 //dudvUV = (dudvTex.xy / dudvTex.w) + (worldSpaceNormal * saturate(dudvTex.w));
-                //float4 reflColor = tex2D(_RefractionTexture, float2(dudvUV.x, 1 - dudvUV.y)).xyzw;
+                //float4 reflColor = tex2D(_ReflectionTex0, dudvUV).xyzw;
                 //dudvUV.y = 1 - dudvTex.y;
-                float4 reflColor = refrColor.xyzw;
-                //float4 reflColor = (0.0f, 0.0f, 0.0f, 0.0f);
+                //float4 reflColor = refrColor.xyzw;
+                #if defined(FLAT_AMBIENT_ENABLED)
+                    float4 reflColor = float4(0.0f, 0.0f, 0.0f, 0.0f);
+                #else
+                    float4 reflColor = float4(0.0f, 0.0f, 0.0f, 1.0f);
+                    //float4 reflColor = tex2D(_ReflectionTex0, dudvUV).xyzw;
+                #endif
             #else
-                float4 reflColor = (0.0f, 0.0f, 0.0f, 0.0f);
+                float4 reflColor = float4(0.0f, 0.0f, 0.0f, 0.0f);
             #endif // defined(WATER_SURFACE_ENABLED)
         #endif // defined(USE_SCREEN_UV)
 
-        shadingAmt += (float3)_GameMaterialEmission;
+        shadingAmt += _GameMaterialEmission.rgb;
 
         #if (defined(DUDV_MAPPING_ENABLED) || defined(WATER_SURFACE_ENABLED)) && defined(ED8_GRABPASS)
             #if defined(WATER_SURFACE_ENABLED)
+                float waterAlpha;
                 #if !defined(FP_WS_EYEDIR_EXIST)
                     float3 worldSpaceEyeDirection = normalize(getEyePosition() - i.WorldPositionDepth.xyz);
                 #endif // FP_WS_EYEDIR_EXIST
 
-                #if !defined(FP_NDOTE_1) && !defined(FP_NDOTE_2)
-                    float ndote = dot(worldSpaceNormal, worldSpaceEyeDirection);
+                #if defined(FLAT_AMBIENT_ENABLED)
+                    #if !defined(FP_NDOTE_1) && !defined(FP_NDOTE_2)
+                        float ndote = dot(worldSpaceNormal, worldSpaceEyeDirection);
+                    #endif
+
+                    waterAlpha = pow(1.0f - (max(0.0f, saturate(ndote)) * _ReflectionFresnel), 4.0f) * _ReflectionIntensity;
+                #else
+                    float water_ndote = dot(normalize(_UserClipPlane.xyz), worldSpaceEyeDirection);
+                    waterAlpha = pow(1.0f - abs(water_ndote), 4.0f) * _ReflectionIntensity;
+                #endif
+                
+                #if defined(DUDV_MAPPING_ENABLED)
+                    resultColor.rgb = lerp(refrColor.rgb, resultColor.rgb, resultColor.a);
                 #endif
 
-                //float water_ndote = dot(normalize(_UserClipPlane.xyz), worldSpaceEyeDirection);
-                //water_ndote = max(0.0f, water_ndote);
-                float waterAlpha = pow(1.0f - (max(0.0f, saturate(ndote)) * _ReflectionFresnel), 4.0f) * _ReflectionIntensity;
-                resultColor.rgb = lerp(refrColor.rgb, resultColor.rgb, resultColor.a) + (reflColor.rgb * waterAlpha);
+                resultColor.rgb += reflColor.rgb * waterAlpha;
                 float waterGlowValue = reflColor.a + refrColor.a;
             #else // defined(WATER_SURFACE_ENABLED)
                 // We need to figure out how to get the refraction texture.
@@ -653,17 +780,23 @@ fixed4 DefaultFPShader (DefaultVPOutput i) : SV_TARGET {
             #endif // defined(WATER_SURFACE_ENABLED)
         #else // defined(DUDV_MAPPING_ENABLED) || defined(WATER_SURFACE_ENABLED)
             #if defined(WATER_SURFACE_ENABLED)
+                float waterAlpha;
+
                 #if !defined(FP_WS_EYEDIR_EXIST)
                     float3 worldSpaceEyeDirection = normalize(getEyePosition() - i.WorldPositionDepth.xyz);
                 #endif // FP_WS_EYEDIR_EXIST
 
-                #if !defined(FP_NDOTE_1) && !defined(FP_NDOTE_2)
-                    float ndote = dot(worldSpaceNormal, worldSpaceEyeDirection);
+                #if defined(FLAT_AMBIENT_ENABLED)
+                    #if !defined(FP_NDOTE_1) && !defined(FP_NDOTE_2)
+                        float ndote = dot(worldSpaceNormal, worldSpaceEyeDirection);
+                    #endif
+
+                    waterAlpha = pow(1.0f - (max(0.0f, saturate(ndote)) * _ReflectionFresnel), 4.0f) * _ReflectionIntensity;
+                #else
+                    float water_ndote = dot(normalize(_UserClipPlane.xyz), worldSpaceEyeDirection);
+                    waterAlpha = pow(1.0f - abs(water_ndote), 4.0f) * _ReflectionIntensity;
                 #endif
 
-                //float water_ndote = dot(normalize(_UserClipPlane.xyz), worldSpaceEyeDirection);
-                //water_ndote = max(0.0f, water_ndote);
-                float waterAlpha = pow(1.0f - (max(0.0f, saturate(ndote)) * _ReflectionFresnel), 4.0f) * _ReflectionIntensity;
                 resultColor.rgb += reflColor.rgb * waterAlpha;
                 float waterGlowValue = reflColor.a + refrColor.a;
             #endif
@@ -673,7 +806,14 @@ fixed4 DefaultFPShader (DefaultVPOutput i) : SV_TARGET {
 		    #if !defined(CUBE_MAPPING_ENABLED) && !defined(SPHERE_MAPPING_ENABLED)
 			    #if defined(CARTOON_HILIGHT_ENABLED)
 	                float hilightValue = tex2D(_HighlightMapSampler, i.CartoonMap.xy).r;
-	                float3 hilightAmt = hilightValue * _HighlightIntensity * _HighlightColor * subLightColor;
+
+                    #if !defined(UNITY_COLORSPACE_GAMMA)
+                        hilightValue = LinearToGammaSpaceExact(hilightValue);
+
+                        float3 hilightAmt = GammaToLinearSpace(hilightValue * _HighlightIntensity * LinearToGammaSpace(_HighlightColor) * subLightColor);
+                    #else
+                        float3 hilightAmt = hilightValue * _HighlightIntensity * _HighlightColor * subLightColor;
+                    #endif
                     #define FP_HAS_HILIGHT
 			    #endif // CARTOON_HILIGHT_ENABLED
 		    #endif // !defined(CUBE_MAPPING_ENABLED) && !defined(SPHERE_MAPPING_ENABLED)
@@ -689,9 +829,11 @@ fixed4 DefaultFPShader (DefaultVPOutput i) : SV_TARGET {
 
             #if !defined(UNITY_COLORSPACE_GAMMA)
                 //subLightColor2 = LinearToGammaSpace(subLightColor2);
+                //shadingAmt.rgb += (float3(1.0f, 1.0f, 1.0f) - min(float3(1.0f, 1.0f, 1.0f), shadingAmt.rgb)) * GammaToLinearSpace(LinearToGammaSpace(_ShadowColorShift) * subLightColor2);
+                shadingAmt.rgb += (float3(1.0f, 1.0f, 1.0f) - min(float3(1.0f, 1.0f, 1.0f), shadingAmt.rgb)) * _ShadowColorShift * subLightColor2;
+            #else
+                shadingAmt.rgb += (float3(1.0f, 1.0f, 1.0f) - min(float3(1.0f, 1.0f, 1.0f), shadingAmt.rgb)) * _ShadowColorShift * subLightColor2;
             #endif
-
-            shadingAmt.rgb += (float3(1.0f, 1.0f, 1.0f) - min(float3(1.0f, 1.0f, 1.0f), shadingAmt.rgb)) * _ShadowColorShift * subLightColor2;
         #endif // SHADOW_COLOR_SHIFT_ENABLED
 
         #if defined(CUBE_MAPPING_ENABLED) || defined(SPHERE_MAPPING_ENABLED)
@@ -705,7 +847,7 @@ fixed4 DefaultFPShader (DefaultVPOutput i) : SV_TARGET {
 	        #if defined(CUBE_MAPPING_ENABLED)
 	            shadingAmt.rgb += cubeMapColor.rgb * cubeMapIntensity * envMapColor * glossValue;
 	        #elif defined(SPHERE_MAPPING_ENABLED)
-	            shadingAmt.rgb += sphereMapColor.rgb * _SphereMapIntensity * envMapColor * glossValue;
+	            shadingAmt.rgb += GammaToLinearSpace(sphereMapColor.rgb * _SphereMapIntensity * LinearToGammaSpace(envMapColor)) * glossValue;
 	        #endif // CUBE_MAPPING_ENABLED
         #endif // EMVMAP_AS_IBL_ENABLED
 
@@ -726,10 +868,6 @@ fixed4 DefaultFPShader (DefaultVPOutput i) : SV_TARGET {
         #endif // EMISSION_MAPPING_ENABLED
 
         #if defined(UNITY_PASS_FORWARDBASE)
-            #if !defined(UNITY_COLORSPACE_GAMMA)
-                //shadingAmt.rgb = LinearToGammaSpace(shadingAmt.rgb);
-            #endif
-
             resultColor.rgb *= shadingAmt;
         #elif defined(UNITY_PASS_FORWARDADD)
             resultColor.rgb *= sublightAmount;
@@ -745,8 +883,13 @@ fixed4 DefaultFPShader (DefaultVPOutput i) : SV_TARGET {
                     );
 
                     resultColor.a *= (float)i.Color0.a * diffuse2Amt.a;
-                    resultColor.rgb = (((diffuse2Amt.rgb * resultColor.rgb) - shadingAmt.rgb) * resultColor.a) + shadingAmt.rgb;
-                    resultColor *= materialDiffuse;
+                    //resultColor.rgb = (((diffuse2Amt.rgb * resultColor.rgb) - shadingAmt.rgb) * resultColor.a) + shadingAmt.rgb;
+
+                    #if !defined(UNITY_COLORSPACE_GAMMA)
+                        resultColor.rgb = GammaToLinearSpace(lerp(LinearToGammaSpace(shadingAmt.rgb), LinearToGammaSpace(resultColor.rgb) * diffuse2Amt.rgb, resultColor.a));
+                    #else
+                        resultColor.rgb = lerp(shadingAmt.rgb, resultColor.rgb * diffuse2Amt.rgb, resultColor.a);
+                    #endif
                 #endif
             #endif
 
@@ -759,8 +902,12 @@ fixed4 DefaultFPShader (DefaultVPOutput i) : SV_TARGET {
                     );
 
                     resultColor.a *= (float)i.Color0.a * diffuse3Amt.a;
-                    resultColor.rgb = (((diffuse3Amt.rgb * resultColor.rgb) - shadingAmt.rgb) * resultColor.a) + shadingAmt.rgb;
-                    resultColor *= materialDiffuse;
+                    
+                    #if !defined(UNITY_COLORSPACE_GAMMA)
+                        resultColor.rgb = GammaToLinearSpace(lerp(LinearToGammaSpace(shadingAmt.rgb), LinearToGammaSpace(resultColor.rgb) * diffuse3Amt.rgb, resultColor.a));
+                    #else
+                        resultColor.rgb = lerp(shadingAmt.rgb, resultColor.rgb * diffuse3Amt.rgb, resultColor.a);
+                    #endif
                 #endif
             #endif
         #endif
@@ -771,6 +918,8 @@ fixed4 DefaultFPShader (DefaultVPOutput i) : SV_TARGET {
         #endif //ALPHA_TESTING_ENABLED
 
         #if defined(UNITY_PASS_FORWARDBASE)
+            //resultColor.rgb = (resultColor.rgb * _GameMaterialDiffuse.rgb) + _GameMaterialEmission.rgb;
+
             #if defined(MULTIPLICATIVE_BLENDING_ENABLED)
                 resultColor.rgb += max((1.0f - resultColor.rgb), 0.0f) * (1.0f - shadowValue);
             #endif
@@ -785,9 +934,10 @@ fixed4 DefaultFPShader (DefaultVPOutput i) : SV_TARGET {
                 resultColor.rgb = (1.0f - resultColor.rgb) * resultColor.a;
             #endif
 
-            #if !defined(UNITY_COLORSPACE_GAMMA)
-                //resultColor.rgb = GammaToLinearSpace(resultColor.rgb);
-            #endif
+            // CS3+ function testing.
+            //Monotone = (dot(resultColor.rgb, float3(0.298999995f,0.587000012f,0.114f)) * _MonotoneAdd.rgb) + _MonotoneMul.rgb;
+            //Monotone -= resultColor.rgb;
+            //resultColor.rgb += _GameMaterialMonotone * Monotone;
         #endif
 
         #if defined(FP_FORCETRANSPARENT) || defined(FP_SHINING)
@@ -805,16 +955,16 @@ fixed4 DefaultFPShader (DefaultVPOutput i) : SV_TARGET {
                     #endif
 
                     #if defined(MULTI_UV_ENANLED) && defined(MULTI_UV_GLARE_MAP_ENABLED)
-                        float glowValue2 = tex2D(_GlareMap2Sampler, i.uv.xy).x;
+                        float glowValue2 = tex2D(_GlareMap2Sampler, i.uv2.xy).x;
                         //glowValue2.x = GammaToLinearSpaceExact(glowValue2.x);
                         glowValue = lerp(glowValue, glowValue2, multi_uv_alpha);
                     #endif
 
                     #if defined(GLARE_HIGHTPASS_ENABLED)
                         #if !defined(UNITY_COLORSPACE_GAMMA)
-                            float lumi = dot(LinearToGammaSpace(resultColor.rgb), float3(1.0f,1.0f,1.0f));
+                            float lumi = dot(LinearToGammaSpace(resultColor.rgb), float3(1.0f, 1.0f, 1.0f));
                         #else
-                            float lumi = dot(resultColor.rgb, float3(1.0f,1.0f,1.0f));
+                            float lumi = dot(resultColor.rgb, float3(1.0f, 1.0f, 1.0f));
                         #endif
 
                         glowValue += max(lumi - 1.0f, 0.0f);
@@ -825,13 +975,13 @@ fixed4 DefaultFPShader (DefaultVPOutput i) : SV_TARGET {
                         glowValue += dot(glowof, 1.0f);
                     #endif
 
-                    #if defined(WATER_SURFACE_ENABLED)
+                    //#if defined(WATER_SURFACE_ENABLED)
                         //glowValue += waterGlowValue;
                         //return float4(resultColor.rgb, glowValue * _GlareIntensity);
                     //#else 
                         //return float4(resultColor.rgb * glowValue * _GlareIntensity, resultColor.a);
                         //return float4(resultColor.rgb + (resultColor.rgb * glowValue * _GlareIntensity), glowValue * _GlareIntensity * resultColor.a);
-                    #endif
+                    //#endif
 
                     glowValue *= _GlareIntensity;
                     resultColor.rgb = max(resultColor.rgb + (resultColor.rgb * glowValue), float3(0, 0, 0));

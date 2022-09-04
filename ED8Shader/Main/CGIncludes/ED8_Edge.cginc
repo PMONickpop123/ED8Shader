@@ -5,14 +5,9 @@ EdgeVPOutput EdgeVPShader(EdgeVPInput v) {
     float3 worldSpacePosition = mul(unity_ObjectToWorld, float4(v.vertex.xyz, 1.0f));
     float3 clipNormal = normalize(mul((float3x3)UNITY_MATRIX_IT_MV, v.normal));
     float2 offset = TransformViewToProjection(clipNormal.xy);
-    float distanceOffset = (distance(_WorldSpaceCameraPos, mul(unity_ObjectToWorld, float4(v.vertex.xyz, 1.0f)).xyz) < 4.0f) ? 1.0f : 0.0f;
+    float distanceOffset = (distance(_WorldSpaceCameraPos, worldSpacePosition) < 4.0f) ? 1.0f : 0.0f;
     o.pos = UnityObjectToClipPos(v.vertex);
-
-    #ifdef UNITY_Z_0_FAR_FROM_CLIPSPACE //to handle recent standard asset package on older version of unity (before 5.5)
-        o.pos.xy += offset * (0.00100000005f + _GameEdgeParameters.w) * min(1, max(0.300000012f, o.pos.w)) * distanceOffset;
-    #else
-        o.pos.xy += offset * (0.00100000005f + _GameEdgeParameters.w) * min(1, max(0.300000012f, o.pos.w)) * distanceOffset;
-    #endif
+    o.pos.xy += offset * (0.00100000005f + _GameEdgeParameters.w) * min(1, max(0.300000012f, o.pos.w)) * distanceOffset;
 
     #if defined(USE_OUTLINE_COLOR)
         o.Color0 = float4(_OutlineColor.rgb * _OutlineColorFactor.rgb + _GameMaterialEmission.rgb, 1.0f);

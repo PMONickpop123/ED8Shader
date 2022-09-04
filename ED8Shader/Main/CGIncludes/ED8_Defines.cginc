@@ -193,15 +193,13 @@
     #define USE_SCREEN_UV
 #endif // defined(WATER_SURFACE_ENABLED) || defined(DUDV_MAPPING_ENABLED)
 
+#if defined(USE_SCREEN_UV)
+    uniform UNITY_DECLARE_DEPTH_TEXTURE(_CameraDepthTexture); uniform float4 _CameraDepthTexture_TexelSize;
+#endif
+
 #if defined(CUBE_MAPPING_ENABLED)
 	#undef SPHERE_MAPPING_ENABLED
 #endif // CUBE_MAPPING_ENABLED
-
-// DuDv
-#if defined(DUDV_MAPPING_ENABLED)
-	#undef MULTI_UV_ENANLED
-	#undef MULTI_UV2_ENANLED
-#endif // DUDV_MAPPING_ENABLED
 
 #define MAINLIGHT_CLAMP_FACTOR_ENABLED // Global or Material
 
@@ -215,10 +213,6 @@
 #endif // LIGHT_DIRECTION_FOR_CHARACTER_ENABLED
 
 half _GlobalMainLightClampFactor;
-
-#if defined(USE_SCREEN_UV)
-    uniform UNITY_DECLARE_DEPTH_TEXTURE(_CameraDepthTexture); uniform float4 _CameraDepthTexture_TexelSize;
-#endif
 
 //#if defined(GENERATE_RELFECTION_ENABLED) || defined(WATER_SURFACE_ENABLED)
 half4 _UserClipPlane; //= {0.0, 1.0, 0.0, 0.0}; // xyzw (nx,ny,nz,height)
@@ -238,20 +232,21 @@ half4 _UserClipPlane; //= {0.0, 1.0, 0.0, 0.0}; // xyzw (nx,ny,nz,height)
     half3 _ShiningLightColor;
 #endif // defined(SHINING_MODE_ENABLED)
 
+half _ShadowDensity;
 half _GlowThreshold = 1.0;
 half _GameMaterialID;
 half4 _GameMaterialDiffuse;
-half3 _GameMaterialEmission;
+half4 _GameMaterialEmission;
+half _GameMaterialMonotone;
+half4 _MonotoneMul;
+half4 _MonotoneAdd;
 half4 _GameMaterialTexcoord;
-
-#if defined(UVA_SCRIPT_ENABLED)
-    half4 _UVaMUvColor;
-    half4 _UVaProjTexcoord;
-    half4 _UVaMUvTexcoord;
-    half4 _UVaMUv2Texcoord;
-    half4 _UVaDuDvTexcoord;
-#endif // UVA_SCRIPT_ENABLED
-
+half4 _GameDitherParams;
+half4 _UVaMUvColor; 
+half4 _UVaProjTexcoord;
+half4 _UVaMUvTexcoord;
+half4 _UVaMUv2Texcoord;
+half4 _UVaDuDvTexcoord;
 half _GlobalTexcoordFactor;
 half _AlphaTestDirection;
 half _AlphaThreshold;
@@ -296,6 +291,7 @@ half _AlphaThreshold;
     half _RimLightClampFactor;
 #endif 
 
+half _AllowFakeSpecularDir;
 half2 _TexCoordOffset;
 half2 _TexCoordOffset2;
 half2 _TexCoordOffset3;
@@ -469,12 +465,13 @@ struct DefaultVPOutput {
     float2 uv			        : TEXCOORD0;	// xy: UV
     float4 WorldPositionDepth   : TEXCOORD9;	// xyz[World]: w[View]:z
 
-    // TexCoord2
-    #if defined(DUDV_MAPPING_ENABLED)
-        float2 DuDvTexCoord	    : TEXCOORD1;	// xy: DUDV
-    #elif defined(MULTI_UV_ENANLED)
+    #if defined(MULTI_UV_ENANLED)
         float2 uv2		        : TEXCOORD1;	// xy: UV Vertex Alpha Lerp
-    #endif // DUDV_MAPPING_ENABLED || MULTI_UV_ENANLED
+    #endif // MULTI_UV_ENANLED
+
+    #if defined(MULTI_UV2_ENANLED)
+        float2 uv3		        : TEXCOORD2;	// xy: UV2 Vertex Alpha Lerp
+    #endif // defined(MULTI_UV2_ENANLED)
 
     // Projection/Etc
     #if defined(PROJECTION_MAP_ENABLED)
@@ -483,16 +480,16 @@ struct DefaultVPOutput {
 
     float3 normal			    : TEXCOORD4;		// xyz[World]: Normals
 
+    #if defined(DUDV_MAPPING_ENABLED)
+        float2 DuDvTexCoord	    : TEXCOORD5;	// xy: DUDV
+    #endif
+
     #if defined(USE_LIGHTING)
         #if defined(USE_TANGENTS)
             float3 tangent	    : TEXCOORD6;		// xyz[World]: Tangents
             float3 binormal     : TEXCOORD12;
         #endif // USE_TANGENTS
     #endif // !USE_PER_VERTEX_LIGHTING && USE_LIGHTING
-
-    #if defined(MULTI_UV2_ENANLED)
-        float2 uv3		        : TEXCOORD2;	// xy: UV2 Vertex Alpha Lerp
-    #endif // defined(MULTI_UV2_ENANLED)
 
     #if defined(USE_SCREEN_UV)
         float4 ReflectionMap	: TEXCOORD7;

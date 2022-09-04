@@ -48,7 +48,7 @@ DefaultVPOutput DefaultVPShader (DefaultVPInput v) {
     o.pos = UnityWorldToClipPos(worldSpacePosition);
     o.WorldPositionDepth = float4(worldSpacePosition.xyz, -mul(float4(UnityWorldSpaceViewDir(worldSpacePosition), 1.0f), UNITY_MATRIX_V).z);
     o.normal = (float3)worldSpaceNormal;
-    float3 viewSpacePosition = UnityWorldToViewPos(worldSpacePosition);
+    float3 viewSpacePosition = mul(UNITY_MATRIX_MV, float4(v.vertex.xyz, 1.0f)).xyz;
     o.uv.xy = (float2)v.uv.xy * (float2)_GameMaterialTexcoord.zw + (float2)_GameMaterialTexcoord.xy;
 
     #if !defined(UVA_SCRIPT_ENABLED)
@@ -60,15 +60,7 @@ DefaultVPOutput DefaultVPShader (DefaultVPInput v) {
     #endif // UVA_SCRIPT_ENABLED
 
     // TexCoord2
-    #if defined(DUDV_MAPPING_ENABLED)
-        #if !defined(UVA_SCRIPT_ENABLED)
-            o.DuDvTexCoord.xy = (float2)v.uv.xy;
-            o.DuDvTexCoord.xy += (float2)(_DuDvScroll * getGlobalTextureFactor());
-        #else // UVA_SCRIPT_ENABLED
-            o.DuDvTexCoord.xy = (float2)v.uv.xy;
-            o.DuDvTexCoord.xy += (float2)(_DuDvScroll * getGlobalTextureFactor());
-        #endif // UVA_SCRIPT_ENABLED
-    #elif defined(MULTI_UV_ENANLED)
+    #if defined(MULTI_UV_ENANLED)
         #if !defined(UVA_SCRIPT_ENABLED)
             o.uv2.xy = (float2)v.uv2.xy;
 
@@ -110,15 +102,21 @@ DefaultVPOutput DefaultVPShader (DefaultVPInput v) {
         #endif // UVA_SCRIPT_ENABLED
     #endif // 
 
+    #if defined(DUDV_MAPPING_ENABLED)
+        #if !defined(UVA_SCRIPT_ENABLED)
+            o.DuDvTexCoord.xy = (float2)v.uv.xy * _UVaDuDvTexcoord.zw;
+            o.DuDvTexCoord.xy += (float2)(_DuDvScroll * getGlobalTextureFactor());
+        #else // UVA_SCRIPT_ENABLED
+            o.DuDvTexCoord.xy = (float2)v.uv.xy * _UVaDuDvTexcoord.zw;
+            o.DuDvTexCoord.xy += (float2)(_DuDvScroll * getGlobalTextureFactor());
+        #endif // UVA_SCRIPT_ENABLED
+    #endif
+
     #if defined(VERTEX_COLOR_ENABLED)
         o.Color0 = float4(v.color.r, v.color.g, v.color.b, v.color.a);
 
         #if !defined(UNITY_COLORSPACE_GAMMA)
-            //o.Color0.r = ED8GammaToLinearSpaceExact(o.Color0.r);
-            //o.Color0.g = ED8GammaToLinearSpaceExact(o.Color0.g);
-            //o.Color0.b = ED8GammaToLinearSpaceExact(o.Color0.b);
-            o.Color0.rgb = GammaToLinearSpace(o.Color0.rgb);
-            //o.Color0.rgb = ED8Curves(o.Color0.rgb);
+            //o.Color0.rgb = GammaToLinearSpace(o.Color0.rgb);
             //o.Color0.a = GammaToLinearSpaceExact(o.Color0.a);
         #endif
     #else // VERTEX_COLOR_ENABLED
@@ -129,11 +127,7 @@ DefaultVPOutput DefaultVPShader (DefaultVPInput v) {
     o.Color1.rgb = float3(1.0f, 1.0f, 1.0f);
 
     #if defined(FOG_ENABLED)
-        //o.Color1.a = EvaluateFogVP(length(viewSpacePosition.z));
-        //float3 clipPos = UnityObjectToClipPos(v.vertex.xyz);
-        //o.Color1.a = EvaluateFogVP(UNITY_Z_0_FAR_FROM_CLIPSPACE(clipPos.z));
         o.Color1.a = EvaluateFogVP(UNITY_Z_0_FAR_FROM_CLIPSPACE(o.pos.z), worldSpacePosition.y);
-        //o.Color1.a = EvaluateFogVP(length(_WorldSpaceCameraPos - worldSpacePosition));
     #else // FOG_ENABLED
         o.Color1.a = 0.0f;
     #endif // FOG_ENABLED

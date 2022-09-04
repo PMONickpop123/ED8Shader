@@ -2,8 +2,8 @@ float calcDiffuseLightAmtLdotN(float ldotn) {
 	float diffuseValue;
 
 	#if defined(HALF_LAMBERT_LIGHTING_ENABLED)
-	    diffuseValue = ldotn * 0.5f + 0.5f;
-	    diffuseValue *= diffuseValue;
+	    diffuseValue = pow(ldotn * 0.5f + 0.5f, 2.4);
+	    //diffuseValue *= diffuseValue;
 	#else // !HALF_LAMBERT_LIGHTING_ENABLED
 	    diffuseValue = saturate(ldotn);
 	#endif // HALF_LAMBERT_LIGHTING_ENABLED
@@ -14,10 +14,9 @@ float calcSpecularLightAmt(float3 normal, float3 lightDir, float3 eyeDirection, 
 	// Specular calcs
 	float3 halfVec = normalize(eyeDirection + lightDir);
 	float nDotH = saturate(dot(halfVec, normal));
-    float specularLightAmount = saturate(pow(nDotH, specularPower)) * shininess;
-	//float specularLightAmount = pow(nDotH, specularPower) * shininess;
-    //specularLightAmount = min(1, specularLightAmount);
-    //specularLightAmount *= shininess;
+    float specularLightAmount = pow(nDotH, specularPower);
+    specularLightAmount = min(1, specularLightAmount);
+    specularLightAmount = specularLightAmount * shininess;
 	return specularLightAmount;
 }
 
@@ -46,9 +45,6 @@ float3 EvaluateAmbient(float3 normal) {
 		#endif // MULTIPLEX_HEMISPHERE_AMBIENT_ENABLED
 	#else // HEMISPHERE_AMBIENT_ENABLED
         float3 ambientColor = _GlobalAmbientColor.rgb;
-        //#if !defined(UNITY_COLORSPACE_GAMMA)
-            //ambientColor = LinearToGammaSpace(ambientColor.rgb);
-        //#endif
 
 	    return ambientColor;
 	#endif // HEMISPHERE_AMBIENT_ENABLED
@@ -73,11 +69,7 @@ float calculateAttenuationQuadratic(float distanceToLightSqr, float4 attenuation
 #if defined(LIGHT_DIRECTION_FOR_CHARACTER_ENABLED)
     float3 PortraitEvaluateAmbient() {
         float3 ambientColor = _GlobalAmbientColor.rgb;
-        //#if !defined(UNITY_COLORSPACE_GAMMA)
-        //    ambientColor = LinearToGammaSpace(ambientColor.rgb);
-        //#endif
-
-        return ambientColor; //_PortraitAmbientColor.rgb;
+        return ambientColor;
     }
 #endif // defined(LIGHT_DIRECTION_FOR_CHARACTER_ENABLED)
 
@@ -86,64 +78,63 @@ float calculateAttenuationQuadratic(float distanceToLightSqr, float4 attenuation
         #if defined(ALPHA_BLENDING_ENABLED) && defined(USE_EXTRA_BLENDING)
 	        float3 lightingResult = float3(0.0f, 0.0f, 0.0f);
 	    #else // defined(ALPHA_BLENDING_ENABLED) && defined(USE_EXTRA_BLENDING)
-            //#if defined(NO_MAIN_LIGHT_SHADING_ENABLED)
-            //    float3 lightingResult = float3(0.0f, 0.0f, 0.0f);
-            //#else
-                float3 lightingResult = ambientAmount;
-            //#endif
-            //lightingResult = max(float3(1.0f, 1.0f, 1.0f), ambientAmount);
+            float3 lightingResult = ambientAmount;
 	    #endif // defined(ALPHA_BLENDING_ENABLED) && defined(USE_EXTRA_BLENDING)
 
         float3 shadingAmount = float3(0.0f, 0.0f, 0.0f);
         float3 lightingAmount = float3(0.0f, 0.0f, 0.0f);
         float3 lightDir = float3(0.0f, 0.0f, 0.0f);
         float3 diffuseValue = float3(0.0f, 0.0f, 0.0f);
+        float3 lightColor = float3(0.0f, 0.0f, 0.0f);
         float ldotn = 0;
 
-        #if defined(USE_DIRECTIONAL_LIGHT_COLOR)
-            float3 lightColor = _LightColor0.rgb;
+        #if defined(UNITY_PASS_FORWARDBASE)
+            #if defined(USE_DIRECTIONAL_LIGHT_COLOR)
+                lightColor = _LightColor0.rgb;
+            #else
+                //lightColor = _LightColor0.rgb;
+                lightColor = _MainLightColor.rgb;
+            #endif
         #else
-            float3 lightColor = _MainLightColor.rgb;
+            lightColor = _LightColor0.rgb;
         #endif
 
         #if !defined(UNITY_COLORSPACE_GAMMA)
             lightColor = LinearToGammaSpace(lightColor.rgb);
+            //lightColor.r = LinearToGammaSpaceExact(lightColor.r);
+            //lightColor.g = LinearToGammaSpaceExact(lightColor.g);
+            //lightColor.b = LinearToGammaSpaceExact(lightColor.b);
         #endif
 
         #if defined(SPECULAR_ENABLED)
             float3 specularValue = float3(0.0f, 0.0f, 0.0f);
             float3 specularLightDir = float3(0.0f, 0.0f, 0.0f);
-
-            #if !defined(UNITY_COLORSPACE_GAMMA)
-                //float shininess = GammaToLinearSpaceExact(_Shininess) * glossValue;
-                float shininess = _Shininess * glossValue;
-            #else
-                float shininess = _Shininess * glossValue;
-            #endif
+            float shininess = _Shininess * glossValue;
         #endif // SPECULAR_ENABLED
 
         #if defined(UNITY_PASS_FORWARDBASE)
             UNITY_BRANCH
             if (_WorldSpaceLightPos0.w == 0) {
                 lightDir = normalize(_WorldSpaceLightPos0.xyz);
-                ldotn = dot(normal, lightDir);
+                ldotn = saturate(dot(normal, lightDir));
+                //ldotn = max(0.0, dot(normal, lightDir));
 
                 #if defined(CARTOON_SHADING_ENABLED)
                     diffuseValue = lightColor;
                 #elif defined(NO_MAIN_LIGHT_SHADING_ENABLED)
-                    diffuseValue = lightColor.rgb / max(max(lightColor.r, lightColor.g), max(lightColor.b, 0.001f));
+                    diffuseValue = pow(lightColor.rgb / max(max(lightColor.r, lightColor.g), max(lightColor.b, 0.001f)), 2.2f);
                 #else
                     diffuseValue = lightColor.rgb * calcDiffuseLightAmtLdotN(ldotn);
                 #endif
 
                 #if defined(SPECULAR_ENABLED)
                     #if defined(FAKE_CONSTANT_SPECULAR_ENABLED)
-                        specularLightDir = getFakeSpecularLightDir(lightDir);
+                        specularLightDir = (_AllowFakeSpecularDir == 1) ? getFakeSpecularLightDir(lightDir) : lightDir;
                     #else // FAKE_CONSTANT_SPECULAR_ENABLED
                         specularLightDir = lightDir;
                     #endif // FAKE_CONSTANT_SPECULAR_ENABLED
 
-                    specularValue = lightColor.rgb * calcSpecularLightAmt(normal, specularLightDir, eyeDirection, shininess, _SpecularPower);
+                    specularValue = GammaToLinearSpace(lightColor.rgb) * calcSpecularLightAmt(normal, specularLightDir, eyeDirection, shininess, _SpecularPower);
 
                     #if defined(SPECULAR_COLOR_ENABLED)
                         #if !defined(UNITY_COLORSPACE_GAMMA)
@@ -162,12 +153,26 @@ float calculateAttenuationQuadratic(float distanceToLightSqr, float4 attenuation
                 #endif // CARTOON_SHADING_ENABLED
 
                 #if defined(SPECULAR_ENABLED)
+                    //#if !defined(UNITY_COLORSPACE_GAMMA)
+                    //    specularValue = GammaToLinearSpace(specularValue);
+                    //#endif
+
                     lightingAmount += specularValue;
                     lightingAmount *= shadowValue;
                 #endif // SPECULAR_ENABLED
 
+                #if !defined(UNITY_COLORSPACE_GAMMA)
+                    diffuseValue = GammaToLinearSpace(diffuseValue);
+                #endif
+
                 shadingAmount += diffuseValue;
+
+                //#if !defined(UNITY_COLORSPACE_GAMMA)
+                    //lightingResult = GammaToLinearSpace(lightingResult + shadingAmount);
                 lightingResult += shadingAmount;
+                //#else
+                //    lightingResult += shadingAmount;
+                //#endif
 
                 #if defined(MAINLIGHT_CLAMP_FACTOR_ENABLED)
                     lightingResult = min(lightingResult, (float3)_GlobalMainLightClampFactor);
@@ -177,12 +182,12 @@ float calculateAttenuationQuadratic(float distanceToLightSqr, float4 attenuation
             UNITY_BRANCH
             if (_WorldSpaceLightPos0.w > 0.0) {
                 lightDir = normalize(_WorldSpaceLightPos0.xyz - worldSpacePosition);
-                ldotn = dot(lightDir, normal);
+                ldotn = max(0.0, dot(normal, lightDir));
                 diffuseValue = lightColor.rgb * atten * calcDiffuseLightAmtLdotN(ldotn);
 
                 #if defined(SPECULAR_ENABLED)
                     #if defined(FAKE_CONSTANT_SPECULAR_ENABLED)
-                        specularLightDir = getFakeSpecularLightDir(lightDir);
+                        specularLightDir = (_AllowFakeSpecularDir == 1) ? getFakeSpecularLightDir(lightDir) : lightDir;
                     #else // FAKE_CONSTANT_SPECULAR_ENABLED
                         specularLightDir = lightDir;
                     #endif // FAKE_CONSTANT_SPECULAR_ENABLED
@@ -193,6 +198,10 @@ float calculateAttenuationQuadratic(float distanceToLightSqr, float4 attenuation
                 #if defined(CARTOON_SHADING_ENABLED) && !defined(TOON_FIRST_LIGHT_ONLY_ENABLED)
                     diffuseValue *= calcToonShadingValueFP(ldotn, shadowValue);
                 #endif // CARTOON_SHADING_ENABLED && !TOON_FIRST_LIGHT_ONLY_ENABLED
+
+                #if !defined(UNITY_COLORSPACE_GAMMA)
+                    diffuseValue = GammaToLinearSpace(diffuseValue);
+                #endif
 
                 sublightAmount += diffuseValue;
 
@@ -206,7 +215,7 @@ float calculateAttenuationQuadratic(float distanceToLightSqr, float4 attenuation
 
                     #if defined(SPECULAR_ENABLED)
                         #if defined(FAKE_CONSTANT_SPECULAR_ENABLED)
-                            specularLightDir = getFakeSpecularLightDir(lightDir);
+                            specularLightDir = (_AllowFakeSpecularDir == 1) ? getFakeSpecularLightDir(lightDir) : lightDir;
                         #else // FAKE_CONSTANT_SPECULAR_ENABLED
                             specularLightDir = lightDir;
                         #endif // FAKE_CONSTANT_SPECULAR_ENABLED
@@ -217,6 +226,10 @@ float calculateAttenuationQuadratic(float distanceToLightSqr, float4 attenuation
                     #if defined(CARTOON_SHADING_ENABLED) && !defined(TOON_FIRST_LIGHT_ONLY_ENABLED)
                         diffuseValue *= calcToonShadingValueFP(ldotn, shadowValue);
                     #endif // CARTOON_SHADING_ENABLED && !TOON_FIRST_LIGHT_ONLY_ENABLED
+
+                    #if !defined(UNITY_COLORSPACE_GAMMA)
+                        diffuseValue = GammaToLinearSpace(diffuseValue);
+                    #endif
 
                     sublightAmount += diffuseValue;
 
@@ -249,10 +262,14 @@ float calculateAttenuationQuadratic(float distanceToLightSqr, float4 attenuation
             float3 diffuseValue = float3(0.0f, 0.0f, 0.0f);
             float ldotn = 0;
 
-            #if defined(USE_DIRECTIONAL_LIGHT_COLOR)
-                float3 lightColor = _LightColor0.rgb;
+            #if defined(UNITY_PASS_FORWARDBASE)
+                #if defined(USE_DIRECTIONAL_LIGHT_COLOR)
+                    float3 lightColor = _LightColor0.rgb;
+                #else
+                    float3 lightColor = _MainLightColor.rgb;
+                #endif
             #else
-                float3 lightColor = _MainLightColor.rgb;
+                float3 lightColor = _LightColor0.rgb;
             #endif
 
             #if !defined(UNITY_COLORSPACE_GAMMA)
@@ -261,20 +278,14 @@ float calculateAttenuationQuadratic(float distanceToLightSqr, float4 attenuation
 
             #if defined(SPECULAR_ENABLED)
                 float3 specularValue = float3(0.0f, 0.0f, 0.0f);
-
-                #if !defined(UNITY_COLORSPACE_GAMMA)
-                    float shininess = GammaToLinearSpaceExact(_Shininess) * glossValue;
-                    //float shininess = _Shininess * glossValue;
-                #else
-                    float shininess = _Shininess * glossValue;
-                #endif
+                float shininess = _Shininess * glossValue;
             #endif // SPECULAR_ENABLED
 
             #if defined(UNITY_PASS_FORWARDBASE)
                 UNITY_BRANCH
                 if (_WorldSpaceLightPos0.w == 0.0) {
                     lightDir = normalize(_WorldSpaceLightPos0.xyz);
-                    ldotn = dot(lightDir, normal);
+                    ldotn = max(0.0, dot(normal, lightDir));
 
                     #if defined(CARTOON_SHADING_ENABLED)
                         diffuseValue = lightColor.rgb;
@@ -286,12 +297,12 @@ float calculateAttenuationQuadratic(float distanceToLightSqr, float4 attenuation
 
                     #if defined(SPECULAR_ENABLED)
                         #if defined(FAKE_CONSTANT_SPECULAR_ENABLED)
-                            specularLightDir = getFakeSpecularLightDir(lightDir);
+                            specularLightDir = (_AllowFakeSpecularDir == 1) ? getFakeSpecularLightDir(lightDir) : lightDir;
                         #else // FAKE_CONSTANT_SPECULAR_ENABLED
                             specularLightDir = lightDir;
                         #endif // FAKE_CONSTANT_SPECULAR_ENABLED
 
-                        specularValue = lightColor.rgb * calcSpecularLightAmt(normal, specularLightDir, eyeDirection, shininess, _SpecularPower);
+                        specularValue = GammaToLinearSpace(lightColor.rgb) * calcSpecularLightAmt(normal, specularLightDir, eyeDirection, shininess, _SpecularPower);
 
                         #if defined(SPECULAR_COLOR_ENABLED)
                             #if !defined(UNITY_COLORSPACE_GAMMA)
@@ -310,9 +321,17 @@ float calculateAttenuationQuadratic(float distanceToLightSqr, float4 attenuation
                     #endif // CARTOON_SHADING_ENABLED
 
                     #if defined(SPECULAR_ENABLED)
+                        #if !defined(UNITY_COLORSPACE_GAMMA)
+                            specularValue = GammaToLinearSpace(specularValue);
+                        #endif
+
                         lightingAmount += specularValue;
                         lightingAmount *= shadowValue;
                     #endif // SPECULAR_ENABLED
+
+                    #if !defined(UNITY_COLORSPACE_GAMMA)
+                        diffuseValue = GammaToLinearSpace(diffuseValue);
+                    #endif
 
                     shadingAmount += diffuseValue;
                     lightingResult += shadingAmount;
@@ -329,22 +348,26 @@ float calculateAttenuationQuadratic(float distanceToLightSqr, float4 attenuation
                 UNITY_BRANCH
                 if (_WorldSpaceLightPos0.w > 0.0) {
                     lightDir = normalize(_WorldSpaceLightPos0.xyz - worldSpacePosition);
-                    ldotn = dot(lightDir, normal);
+                    ldotn = max(0.0, dot(normal, lightDir));
                     diffuseValue = lightColor.rgb * atten * calcDiffuseLightAmtLdotN(ldotn);
 
                     #if defined(SPECULAR_ENABLED)
                         #if defined(FAKE_CONSTANT_SPECULAR_ENABLED)
-                            specularLightDir = getFakeSpecularLightDir(lightDir);
+                            specularLightDir = (_AllowFakeSpecularDir == 1) ? getFakeSpecularLightDir(lightDir) : lightDir;
                         #else // FAKE_CONSTANT_SPECULAR_ENABLED
                             specularLightDir = lightDir;
                         #endif // FAKE_CONSTANT_SPECULAR_ENABLED
 
-                        specularValue = lightColor.rgb * calcSpecularLightAmt(normal, specularLightDir, eyeDirection, shininess, _SpecularPower);
+                        specularValue = GammaToLinearSpace(lightColor.rgb) * calcSpecularLightAmt(normal, specularLightDir, eyeDirection, shininess, _SpecularPower);
                     #endif // SPECULAR_ENABLED
 
                     #if defined(CARTOON_SHADING_ENABLED) && !defined(TOON_FIRST_LIGHT_ONLY_ENABLED)
                         diffuseValue *= calcToonShadingValueFP(ldotn, shadowValue);
                     #endif // CARTOON_SHADING_ENABLED && !TOON_FIRST_LIGHT_ONLY_ENABLED
+
+                    #if !defined(UNITY_COLORSPACE_GAMMA)
+                        diffuseValue = GammaToLinearSpace(diffuseValue);
+                    #endif
 
                     sublightAmount += diffuseValue;
 
@@ -359,7 +382,7 @@ float calculateAttenuationQuadratic(float distanceToLightSqr, float4 attenuation
 
                         #if defined(SPECULAR_ENABLED)
                             #if defined(FAKE_CONSTANT_SPECULAR_ENABLED)
-                                specularLightDir = getFakeSpecularLightDir(lightDir);
+                                specularLightDir = (_AllowFakeSpecularDir == 1) ? getFakeSpecularLightDir(lightDir) : lightDir;
                             #else // FAKE_CONSTANT_SPECULAR_ENABLED
                                 specularLightDir = lightDir;
                             #endif // FAKE_CONSTANT_SPECULAR_ENABLED
@@ -370,6 +393,10 @@ float calculateAttenuationQuadratic(float distanceToLightSqr, float4 attenuation
                         #if defined(CARTOON_SHADING_ENABLED) && !defined(TOON_FIRST_LIGHT_ONLY_ENABLED)
                             diffuseValue *= calcToonShadingValueFP(ldotn, shadowValue);
                         #endif // CARTOON_SHADING_ENABLED && !TOON_FIRST_LIGHT_ONLY_ENABLED
+
+                        #if !defined(UNITY_COLORSPACE_GAMMA)
+                            diffuseValue = GammaToLinearSpace(diffuseValue);
+                        #endif
 
                         sublightAmount += diffuseValue;
 

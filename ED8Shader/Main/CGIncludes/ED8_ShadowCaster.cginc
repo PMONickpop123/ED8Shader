@@ -33,6 +33,7 @@ struct ShadowVPInput {
         float4 pos : SV_POSITION;
         float2 texcoord : TEXCOORD1;
         UNITY_VERTEX_INPUT_INSTANCE_ID
+        UNITY_VERTEX_OUTPUT_STEREO
     };
 #endif
 
@@ -48,14 +49,14 @@ struct ShadowVPInput {
         UNITY_TRANSFER_INSTANCE_ID(v, o);
         UNITY_INITIALIZE_VERTEX_OUTPUT_STEREO(o);
 
+        o.texcoord.xy = (float2)v.texcoord.xy * (float2)_GameMaterialTexcoord.zw + (float2)_GameMaterialTexcoord.xy;
+
         #if !defined(UVA_SCRIPT_ENABLED)
             #if defined(TEXCOORD_OFFSET_ENABLED)
-                v.texcoord.xy += (float2)frac(_TexCoordOffset * getGlobalTextureFactor());
+                v.texcoord.xy += (float2)(_TexCoordOffset * getGlobalTextureFactor());
             #endif // TEXCOORD_OFFSET_ENABLED
-
-            v.texcoord.xy += (float2)_GameMaterialTexcoord.xy;
         #else // UVA_SCRIPT_ENABLED
-            v.texcoord.xy = v.texcoord.xy * (float2)_GameMaterialTexcoord.zw + (float2)_GameMaterialTexcoord.xy;
+            v.texcoord.xy += (float2)(_TexCoordOffset * getGlobalTextureFactor());
         #endif // UVA_SCRIPT_ENABLED
 
         #if defined(UNITY_STANDARD_USE_SHADOW_UVS)
