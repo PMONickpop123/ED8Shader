@@ -946,7 +946,7 @@ fixed4 DefaultFPShader (DefaultVPOutput i) : SV_TARGET {
             return resultColor;
         #elif defined(FP_DEFAULT) || defined(FP_DEFAULTRT) || defined(FP_PORTRAIT)
             #if defined(UNITY_PASS_FORWARDBASE)
-                #if defined(GLARE_MAP_ENABLED) || defined(GLARE_OVERFLOW_ENABLED) || defined(GLARE_HIGHTPASS_ENABLED)
+                #if defined(GLARE_MAP_ENABLED) || defined(MULTI_UV_GLARE_MAP_ENABLED) || defined(GLARE_OVERFLOW_ENABLED) || defined(GLARE_HIGHTPASS_ENABLED)
                     float glowValue = 0.0f;
 
                     #if defined(GLARE_MAP_ENABLED)
