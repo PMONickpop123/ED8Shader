@@ -65,11 +65,20 @@ fixed4 DefaultFPShader (DefaultVPOutput i) : SV_TARGET {
         //float4 materialDiffuse;
         
         #if !defined(MULTI_UV_MULTIPLICATIVE_BLENDING_EX_ENANLED) && !defined(MULTI_UV2_MULTIPLICATIVE_BLENDING_EX_ENANLED)
-            diffuseAmt = tex2D(_MainTex, i.uv.xy 
-            #if defined(DUDV_MAPPING_ENABLED)
-                + dudvValue
-            #endif // DUDV_MAPPING_ENABLED
-            );
+
+            #if !defined(PIXEL_ART_ENABLED)
+                diffuseAmt = tex2D(_MainTex, i.uv.xy 
+                #if defined(DUDV_MAPPING_ENABLED)
+                    + dudvValue
+                #endif // DUDV_MAPPING_ENABLED
+                );
+            #else
+                float2 pixelArtTexcoord;
+
+                pixelArtTexcoord.xy = TRANSFORM_TEX(i.uv.xy, _MainTex);
+                pixelArtTexcoord.xy = sharpSample(_MainTex_TexelSize * _MainTex_ST.xyxy, pixelArtTexcoord.xy);
+                diffuseAmt = tex2D(_MainTex, pixelArtTexcoord.xy);
+            #endif
 
             #if !defined(UNITY_COLORSPACE_GAMMA)
                 diffuseAmt.rgb = LinearToGammaSpace(diffuseAmt.rgb);
@@ -554,9 +563,6 @@ fixed4 DefaultFPShader (DefaultVPOutput i) : SV_TARGET {
                 shadingAmt = EvaluateLightingPerPixelFP(sublightAmount, i.WorldPositionDepth.xyz, worldSpaceNormal, glossValue, shadowValue, ambient, worldSpaceEyeDirection, attenuation);
             #endif
 
-            // Commented out until I fully understand what this does.
-            //shadingAmt = lerp(shadingAmt, shadingAmt * _GlobalAmbientColor.rgb, 1 - shadowValue);
-
             // リムライト
             #if defined(USE_LIGHTING)
                 #if defined(RIM_LIGHTING_ENABLED)
@@ -722,9 +728,9 @@ fixed4 DefaultFPShader (DefaultVPOutput i) : SV_TARGET {
             float4 refrColor = tex2D(_RefractionTexture, dudvUV).xyzw;
             //float4 refrColor = tex2D(_RefractionTexture, dudvTex.xy / dudvTex.w).xyzw;
 
-            #if !defined(UNITY_COLORSPACE_GAMMA)
+            //#if !defined(UNITY_COLORSPACE_GAMMA)
                 //refrColor.rgb = GammaToLinearSpace(refrColor.rgb);
-            #endif
+            //#endif
 
             #if defined(WATER_SURFACE_ENABLED)
                 //dudvUV = (dudvTex.xy / dudvTex.w) + (worldSpaceNormal * saturate(dudvTex.w));
@@ -851,19 +857,15 @@ fixed4 DefaultFPShader (DefaultVPOutput i) : SV_TARGET {
 	        #endif // CUBE_MAPPING_ENABLED
         #endif // EMVMAP_AS_IBL_ENABLED
 
-        #if !defined(UNITY_COLORSPACE_GAMMA)
+        //#if !defined(UNITY_COLORSPACE_GAMMA)
             //ambientOcclusion.rgb = LinearToGammaSpace(ambientOcclusion.rgb);
-        #endif
+        //#endif
     
         shadingAmt *= ambientOcclusion;
 	    //shadingAmt += sublightAmount;
 
         #if defined(EMISSION_MAPPING_ENABLED)
 	        float4 emiTex = tex2D(_EmissionMapSampler, i.uv.xy);
-            //#if !defined(UNITY_COLORSPACE_GAMMA)
-            //    emiTex.rgb = GammaToLinearSpace(emiTex.rgb);
-            //#endif
-
 	        shadingAmt.rgb = lerp(shadingAmt.rgb, float3(1.0f, 1.0f, 1.0f), float3(emiTex.r, emiTex.r, emiTex.r));
         #endif // EMISSION_MAPPING_ENABLED
 
@@ -974,14 +976,6 @@ fixed4 DefaultFPShader (DefaultVPOutput i) : SV_TARGET {
                         float3 glowof = max(float3(0.0f, 0.0f, 0.0f), resultColor.rgb - _GlowThreshold);
                         glowValue += dot(glowof, 1.0f);
                     #endif
-
-                    //#if defined(WATER_SURFACE_ENABLED)
-                        //glowValue += waterGlowValue;
-                        //return float4(resultColor.rgb, glowValue * _GlareIntensity);
-                    //#else 
-                        //return float4(resultColor.rgb * glowValue * _GlareIntensity, resultColor.a);
-                        //return float4(resultColor.rgb + (resultColor.rgb * glowValue * _GlareIntensity), glowValue * _GlareIntensity * resultColor.a);
-                    //#endif
 
                     glowValue *= _GlareIntensity;
                     resultColor.rgb = max(resultColor.rgb + (resultColor.rgb * glowValue), float3(0, 0, 0));

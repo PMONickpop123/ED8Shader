@@ -34,6 +34,7 @@
         [HideInInspector] m_end_WaterSurface ("Enable Water Surface", Float) = 0
 
         [Toggle(VERTEX_COLOR_ENABLED)]_VertexColorEnabled ("Enable Vertex Color", Float) = 0
+        [Toggle(PIXEL_ART_ENABLED)]_PixelArtEnabled ("Enable Pixel Art Mode", Float) = 0
         [Toggle(BLEND_VERTEX_COLOR_BY_ALPHA_ENABLED)]_BlendVertexColorAlphaEnabled ("Blend Vertex Color Alpha", Float) = 0
         [Toggle(NO_ALL_LIGHTING_ENABLED)]_NoAllLightingEnabled ("Enable No All Lighting", Float) = 0
         [Toggle(NO_MAIN_LIGHT_SHADING_ENABLED)]_NoMainLightShadingEnabled ("Enable No Main Light Shading", Float) = 0
@@ -396,6 +397,7 @@
             #pragma shader_feature WATER_SURFACE_ENABLED
             #pragma shader_feature_local TRANSPARENT_DELAY_ENABLED
             #pragma shader_feature VERTEX_COLOR_ENABLED
+            #pragma shader_feature PIXEL_ART_ENABLED
             #pragma shader_feature_local BLEND_VERTEX_COLOR_BY_ALPHA_ENABLED
             #pragma shader_feature_local FAR_CLIP_BY_DITHER_ENABLED
             #pragma shader_feature_local NO_ALL_LIGHTING_ENABLED
@@ -498,6 +500,7 @@
             #pragma shader_feature WATER_SURFACE_ENABLED
             #pragma shader_feature_local TRANSPARENT_DELAY_ENABLED
             #pragma shader_feature VERTEX_COLOR_ENABLED
+            #pragma shader_feature PIXEL_ART_ENABLED
             #pragma shader_feature_local BLEND_VERTEX_COLOR_BY_ALPHA_ENABLED
             #pragma shader_feature_local FAR_CLIP_BY_DITHER_ENABLED
             #pragma shader_feature_local NO_ALL_LIGHTING_ENABLED

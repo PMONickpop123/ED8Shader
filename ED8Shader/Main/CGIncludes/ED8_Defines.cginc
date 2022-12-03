@@ -303,6 +303,7 @@ half _UV3;
     sampler2D _MainTex;
 #endif 
 half4 _MainTex_ST;
+half4 _MainTex_TexelSize;
 
 #if defined(NORMAL_MAPPING_ENABLED)
     sampler2D _BumpMap;

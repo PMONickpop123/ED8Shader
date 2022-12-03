@@ -18,7 +18,7 @@ float3 EvaluateNormalMapNormal(float3 inNormal, float2 inUv, float3 inTangent, f
         normalMapNormal.y = normalMapData.g;
         normalMapNormal.z = sqrt(1 - saturate(dot(normalMapNormal.xy, normalMapNormal.xy)));
     #else // NORMAL_MAPP_DXT5_NM_ENABLED
-        normalMapData *= 3.0f;
+        normalMapData *= 2.0f;
         normalMapNormal.xyz = normalMapData.xyz;
         //normalMapNormal.xy = normalMapData.xy;
         //normalMapNormal.z = sqrt(1 - saturate(dot(normalMapNormal.xy, normalMapNormal.xy)));
@@ -118,10 +118,6 @@ float CalcMipLevel(float2 texcoord){
 
         f = min(1.0f, (hf * f2) + f);
 
-        #if !defined(UNITY_COLORSPACE_GAMMA)
-            f = GammaToLinearSpaceExact(f);
-        #endif
-
         #if defined(FOG_RATIO_ENABLED)
             #if !defined(UNITY_COLORSPACE_GAMMA)
                 f *= LinearToGammaSpaceExact(_FogRatio);
@@ -131,6 +127,10 @@ float CalcMipLevel(float2 texcoord){
         #endif // FOG_RATIO_ENABLED
 
         f *= _FogRateClamp;
+
+        #if !defined(UNITY_COLORSPACE_GAMMA)
+            f = GammaToLinearSpaceExact(f);
+        #endif
         return f;
     }
 
@@ -173,10 +173,10 @@ float CalcMipLevel(float2 texcoord){
 #if defined(RIM_LIGHTING_ENABLED)
     float EvaluateRimLightValue(float ndote) {
         #if !defined(UNITY_COLORSPACE_GAMMA)
-            float rimLightvalue = pow(1.0f - saturate(ndote), _RimLitPower);
+            float rimLightvalue = pow(saturate(1.0f - ndote), _RimLitPower);
             rimLightvalue *= _RimLitIntensity;
         #else
-            float rimLightvalue = pow(1.0f - saturate(ndote), _RimLitPower);
+            float rimLightvalue = pow(saturate(1.0f - ndote), _RimLitPower);
             rimLightvalue *= _RimLitIntensity;
         #endif
         return rimLightvalue;
@@ -189,7 +189,9 @@ float CalcMipLevel(float2 texcoord){
         float u = pow((ldotn * 0.5f + 0.5f), 2.4);
 
         #if defined(UNITY_PASS_FORWARDBASE)
-            u *= shadowValue;
+            #if !defined(FLAT_AMBIENT_ENABLED)
+                u *= shadowValue;
+            #endif
         #endif
 
         float r = tex2D(_CartoonMapSampler, float2(u, 0.0f)).x;
@@ -200,6 +202,18 @@ float CalcMipLevel(float2 texcoord){
         return r;
     }
 #endif // CARTOON_SHADING_ENABLED
+
+// Returns pixel sharpened to nearest pixel boundary. 
+// texelSize is Unity _Texture_TexelSize; zw is w/h, xy is 1/wh
+float2 sharpSample(float4 texelSize, float2 p) {
+	p = p * texelSize.zw;
+
+    float2 c = max(0.0f, fwidth(p));
+
+    p = floor(p) + saturate(frac(p) / c);
+	p = (p - 0.5f) * texelSize.xy;
+	return p;
+}
 
 float4 EvaluateAddUnsaturation(float4 color) {
 	float4 t0 = color;
