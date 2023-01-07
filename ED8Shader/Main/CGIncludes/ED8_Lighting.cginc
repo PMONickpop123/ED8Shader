@@ -2,7 +2,7 @@ float calcDiffuseLightAmtLdotN(float ldotn) {
 	float diffuseValue;
 
 	#if defined(HALF_LAMBERT_LIGHTING_ENABLED)
-	    diffuseValue = pow(ldotn * 0.5f + 0.5f, 2.4f);
+	    diffuseValue = pow(ldotn * 0.5f + 0.5f, 2.4);
 	    //diffuseValue *= diffuseValue;
 	#else // !HALF_LAMBERT_LIGHTING_ENABLED
 	    diffuseValue = saturate(ldotn);
@@ -33,7 +33,7 @@ float calcSpecularLightAmt(float3 normal, float3 lightDir, float3 eyeDirection, 
 float3 EvaluateAmbient(float3 normal) {
 	#if defined(HEMISPHERE_AMBIENT_ENABLED) && !defined(FLAT_AMBIENT_ENABLED)
         float3 upDirection = normalize(_HemiSphereAmbientAxis);
-        float amt = 0.5f * (1.0f + dot(upDirection, normal));
+        float amt = (dot(normal, upDirection) + 1.0f) * 0.5f;
 
 		#if defined(MULTIPLEX_HEMISPHERE_AMBIENT_ENABLED)
             float3 L = _HemiSphereAmbientGndColor.rgb;
@@ -93,7 +93,11 @@ float calculateAttenuationQuadratic(float distanceToLightSqr, float4 attenuation
                 lightColor = _LightColor0.rgb;
             #else
                 #if !defined(UNITY_COLORSPACE_GAMMA)
-                    lightColor = GammaToLinearSpace(_MainLightColor.rgb);
+                    #if !defined(FLAT_AMBIENT_ENABLED)
+                        lightColor = GammaToLinearSpace(_MainLightColor.rgb + (_MainLightColor.rgb * 0.5f));
+                    #else
+                        lightColor = GammaToLinearSpace(_MainLightColor.rgb);
+                    #endif
                 #else
                     lightColor = _MainLightColor.rgb;
                 #endif
@@ -135,15 +139,12 @@ float calculateAttenuationQuadratic(float distanceToLightSqr, float4 attenuation
                         specularLightDir = lightDir;
                     #endif // FAKE_CONSTANT_SPECULAR_ENABLED
 
-                    #if !defined(UNITY_COLORSPACE_GAMMA)
-                        specularValue = GammaToLinearSpace(lightColor.rgb) * calcSpecularLightAmt(normal, specularLightDir, eyeDirection, shininess, _SpecularPower);
-                    #else
-                        specularValue = lightColor.rgb * calcSpecularLightAmt(normal, specularLightDir, eyeDirection, shininess, _SpecularPower);
-                    #endif
+                    specularValue = GammaToLinearSpace(lightColor.rgb) * calcSpecularLightAmt(normal, specularLightDir, eyeDirection, shininess, _SpecularPower);
 
                     #if defined(SPECULAR_COLOR_ENABLED)
                         #if !defined(UNITY_COLORSPACE_GAMMA)
                             specularValue *= LinearToGammaSpace(_SpecularColor.rgb);
+                            //specularValue *= _SpecularColor.rgb;
                         #else
                             specularValue *= _SpecularColor.rgb;
                         #endif
@@ -159,8 +160,12 @@ float calculateAttenuationQuadratic(float distanceToLightSqr, float4 attenuation
                 #endif // CARTOON_SHADING_ENABLED
 
                 #if defined(SPECULAR_ENABLED)
-                    lightingAmount += specularValue;
+                    //#if !defined(UNITY_COLORSPACE_GAMMA)
+                    //    specularValue = GammaToLinearSpace(specularValue);
+                    //#endif
 
+                    lightingAmount += specularValue;
+                    
                     #if !defined(FLAT_AMBIENT_ENABLED)
                         lightingAmount *= shadowValue;
                     #endif
@@ -243,7 +248,6 @@ float calculateAttenuationQuadratic(float distanceToLightSqr, float4 attenuation
 		    lightingResult += lightingAmount;
 		#endif // SPECULAR_ENABLED
 
-        // Commented out until I fully understand what this does.
         #if defined(FLAT_AMBIENT_ENABLED)
             lightingResult = lerp(lightingResult, lightingResult * _GlobalAmbientColor.rgb, 1 - shadowValue);
         #endif
@@ -272,7 +276,11 @@ float calculateAttenuationQuadratic(float distanceToLightSqr, float4 attenuation
                     lightColor = _LightColor0.rgb;
                 #else
                     #if !defined(UNITY_COLORSPACE_GAMMA)
-                        lightColor = GammaToLinearSpace(_MainLightColor.rgb);
+                        #if !defined(FLAT_AMBIENT_ENABLED)
+                            lightColor = GammaToLinearSpace(_MainLightColor.rgb + (_MainLightColor.rgb * 0.5f));
+                        #else
+                            lightColor = GammaToLinearSpace(_MainLightColor.rgb);
+                        #endif
                     #else
                         lightColor = _MainLightColor.rgb;
                     #endif
@@ -337,7 +345,7 @@ float calculateAttenuationQuadratic(float distanceToLightSqr, float4 attenuation
                         #endif
 
                         lightingAmount += specularValue;
-
+                        
                         #if !defined(FLAT_AMBIENT_ENABLED)
                             lightingAmount *= shadowValue;
                         #endif
@@ -421,7 +429,6 @@ float calculateAttenuationQuadratic(float distanceToLightSqr, float4 attenuation
                 }
             #endif
 
-            // Commented out until I fully understand what this does.
             #if defined(FLAT_AMBIENT_ENABLED)
                 lightingResult = lerp(lightingResult, lightingResult * _GlobalAmbientColor.rgb, 1 - shadowValue);
             #endif
