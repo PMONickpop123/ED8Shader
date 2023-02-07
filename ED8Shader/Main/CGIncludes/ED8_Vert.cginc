@@ -48,7 +48,7 @@ DefaultVPOutput DefaultVPShader (DefaultVPInput v) {
     o.pos = UnityWorldToClipPos(worldSpacePosition);
     o.WorldPositionDepth = float4(worldSpacePosition.xyz, -mul(float4(UnityWorldSpaceViewDir(worldSpacePosition), 1.0f), UNITY_MATRIX_V).z);
     o.normal = (float3)worldSpaceNormal;
-    float3 viewSpacePosition = UnityObjectToViewPos(v.vertex.xyz); //mul(UNITY_MATRIX_MV, float4(v.vertex.xyz, 1.0f)).xyz;
+    float3 viewSpacePosition = mul(UNITY_MATRIX_MV, float4(v.vertex.xyz, 1.0f)).xyz;
     o.uv.xy = (float2)v.uv.xy * (float2)_GameMaterialTexcoord.zw + (float2)_GameMaterialTexcoord.xy;
 
     #if !defined(UVA_SCRIPT_ENABLED)

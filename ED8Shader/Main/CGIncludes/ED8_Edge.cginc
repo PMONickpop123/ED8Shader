@@ -47,7 +47,7 @@ fixed4 EdgeFPShader(EdgeVPOutput v) : SV_TARGET {
         #endif //ALPHA_TESTING_ENABLED
 
         #if defined(FOG_ENABLED)
-            EvaluateFogFP(resultColor.rgb, _FogColor.rgb, v.Color1.a);
+            EvaluateFogFP(resultColor.rgb, _UdonFogColor.rgb, v.Color1.a);
         #endif // FOG_ENABLED
 
         return resultColor;

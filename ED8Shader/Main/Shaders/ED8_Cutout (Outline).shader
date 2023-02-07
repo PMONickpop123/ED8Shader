@@ -11,10 +11,10 @@
         [Toggle(CASTS_SHADOWS)]_CastShadowsEnabled ("Casts Shadows", Float) = 0
         [Toggle(RECEIVE_SHADOWS)]_ReceiveShadowsEnabled ("Receive Shadows", Float) = 0
 
-        _ShadowDensity("Shadow Density", Range(0.0, 1.0)) = 1.0
-        _GlobalAmbientColor("Global Ambient Color", Color) = (0.50, 0.50, 0.50, 1)
+        //_UdonShadowDensity("Shadow Density", Range(0.0, 1.0)) = 1.0
+        //_UdonGlobalAmbientColor("Global Ambient Color", Color) = (0.50, 0.50, 0.50, 1)
         [Toggle(USE_DIRECTIONAL_LIGHT_COLOR)]_UseDirectionalLightColorEnabled ("Use Directional Light Color", Float) = 0
-        [HDR]_MainLightColor("Main Light Color", Color) = (1, 0.9568, 0.8392, 1)
+        //[HDR]_Udon_MainLightColor("Main Light Color", Color) = (1, 0.9568, 0.8392, 1)
 
         // #if defined (MAINLIGHT_CLAMP_FACTOR_ENABLED)
         // #if !defined(PER_MATERIAL_MAIN_LIGHT_CLAMP_ENABLED)
@@ -33,7 +33,6 @@
         [HideInInspector] m_end_WaterSurface ("Enable Water Surface", Float) = 0
         
         [Toggle(VERTEX_COLOR_ENABLED)]_VertexColorEnabled ("Enable Vertex Color", Float) = 0
-        [Toggle(PIXEL_ART_ENABLED)]_PixelArtEnabled ("Enable Pixel Art Mode", Float) = 0
         [Toggle(BLEND_VERTEX_COLOR_BY_ALPHA_ENABLED)]_BlendVertexColorAlphaEnabled ("Blend Vertex Color Alpha", Float) = 0
         [Toggle(NO_ALL_LIGHTING_ENABLED)]_NoAllLightingEnabled ("Enable No All Lighting", Float) = 0
         [Toggle(NO_MAIN_LIGHT_SHADING_ENABLED)]_NoMainLightShadingEnabled ("Enable No Main Light Shading", Float) = 0
@@ -68,12 +67,12 @@
         // #if defined(FOG_ENABLED)
         [HideInInspector] m_start_Fog ("Enable Fog", Float) = 0
         [HideInInspector][Toggle(FOG_ENABLED)]_FogEnabled ("Enable Fog", Float) = 0
-        _FogColor("Fog Color", Color) = (0.5, 0.5, 0.5, 0.0)
-        _FogRangeParameters("Fog Range Params", Vector) = (10.0, 500.0, 0.0, 0.0)
-        _HeightFogRangeParameters("Height Fog Range Params", Vector) = (0.0, 0.0, 0.0, 0.0)
-        _FogRateClamp("Fog Rate", Float) = 1
-        _HeightDepthBias("Height Fog Depth Bias", Float) = 1
-        _HeightCamRate("Height Fog Cam Rate", Float) = 1
+        //_UdonFogColor("Fog Color", Color) = (0.5, 0.5, 0.5, 0.0)
+        //_UdonFogRangeParameters("Fog Range Params", Vector) = (10.0, 500.0, 0.0, 0.0)
+        //_UdonHeightFogRangeParameters("Height Fog Range Params", Vector) = (0.0, 0.0, 0.0, 0.0)
+        //_UdonFogRateClamp("Fog Rate", Float) = 1
+        //_UdonHeightDepthBias("Height Fog Depth Bias", Float) = 1
+        //_UdonHeightCamRate("Height Fog Cam Rate", Float) = 1
         [Toggle(FOG_RATIO_ENABLED)]_FogRatioEnabled ("Enable Fog Ratio", Float) = 0
         _FogRatio("Fog Ratio", Range(0.0, 1.0)) = 0.5
         [HideInInspector] m_end_Fog ("Enable Fog", Float) = 1
@@ -87,9 +86,9 @@
         // #endif (SHADOW_COLOR_SHIFT_ENABLED)
 
         [HideInInspector] m_start_HSA ("Hemisphere Ambient", Float) = 0
-        _HemiSphereAmbientSkyColor("HSA Sky Color", Color) = (0.667, 0.667, 0.667, 0.0)
-        _HemiSphereAmbientGndColor("HSA Ground Color", Color) = (0.333, 0.333, 0.333, 0.0)
-        _HemiSphereAmbientAxis("HSA Axis", Vector) = (0.0, 1.0, 0.0, 0.0)
+        //_UdonHemiSphereAmbientSkyColor("HSA Sky Color", Color) = (0.667, 0.667, 0.667, 0.0)
+        //_UdonHemiSphereAmbientGndColor("HSA Ground Color", Color) = (0.333, 0.333, 0.333, 0.0)
+        //_UdonHemiSphereAmbientAxis("HSA Axis", Vector) = (0.0, 1.0, 0.0, 0.0)
         [Toggle(FLAT_AMBIENT_ENABLED)]_FlatAmbientEnabled ("Enable Flat Ambient (CS3+)", Float) = 0
         [HideInInspector] m_end_HSA ("Hemisphere Ambient", Float) = 0
 
@@ -99,7 +98,7 @@
         _Shininess("Shininess", Range(0.0, 10.0)) = 0.5
         _SpecularPower("Specular Power", Range(0.001, 100.0)) = 50.0
         [Toggle(FAKE_CONSTANT_SPECULAR_ENABLED)]_FakeConstantSpecularEnabled ("Enable Fake Constant Specular", Float) = 0
-        _AllowFakeSpecularDir("Allow Fake Specular Dir", Float) = 1
+        //_UdonAllowFakeSpecularDir("Allow Fake Specular Dir", Float) = 1
 
         // #if defined(SPECULAR_COLOR_ENABLED)
         [HideInInspector] m_start_SpecColor ("Enable Specular Color", Float) = 0
@@ -357,20 +356,20 @@
 
         //[HideInInspector] m_animationToggles ("Animation Support Toggles", Float) = 0
         //[HelpBox(1)] _AnimationToggleHelp ("You don't need to search through this list. You can enable animation support on any property by right clicking it", Int) = 0
-        [HideInInspector]_GlobalAmbientColorAnimated("Global Ambient Color", Int) = 0
-        [HideInInspector]_MainLightColorAnimated("Main Light Color", Int) = 0
+        //[HideInInspector]_GlobalAmbientColorAnimated("Global Ambient Color", Int) = 0
+        //[HideInInspector]_MainLightColorAnimated("Main Light Color", Int) = 0
         [HideInInspector]_GlobalMainLightClampFactorAnimated("Global MainLight Clamp", Int) = 0
         [HideInInspector]_GameMaterialDiffuseAnimated("Game Material Diffuse", Int) = 0
         [HideInInspector]_GameMaterialEmissionAnimated("Game Material Emission", Int) = 0
-        [HideInInspector]_FogColorAnimated("Fog Color", Int) = 0
-        [HideInInspector]_FogRangeParametersAnimated("Fog Range Params", Int) = 0
-        [HideInInspector]_HeightFogRangeParametersAnimated("Height Fog Range Params", Int) = 0
-        [HideInInspector]_HeightDepthBiasAnimated("Height Fog Depth Bias", Int) = 0
-        [HideInInspector]_HeightCamRateAnimated("Height Fog Cam Rate", Int) = 0
-        [HideInInspector]_FogRateClampAnimated("Fog Rate", Int) = 0
-        [HideInInspector]_HemiSphereAmbientSkyColorAnimated("HSA Sky Color", Int) = 0
-        [HideInInspector]_HemiSphereAmbientGndColorAnimated("HSA Ground Color", Int) = 0
-        [HideInInspector]_HemiSphereAmbientAxisAnimated("HSA Axis", Int) = 0
+        //[HideInInspector]_FogColorAnimated("Fog Color", Int) = 0
+        //[HideInInspector]_FogRangeParametersAnimated("Fog Range Params", Int) = 0
+        //[HideInInspector]_HeightFogRangeParametersAnimated("Height Fog Range Params", Int) = 0
+        //[HideInInspector]_HeightDepthBiasAnimated("Height Fog Depth Bias", Int) = 0
+        //[HideInInspector]_HeightCamRateAnimated("Height Fog Cam Rate", Int) = 0
+        //[HideInInspector]_FogRateClampAnimated("Fog Rate", Int) = 0
+        //[HideInInspector]_HemiSphereAmbientSkyColorAnimated("HSA Sky Color", Int) = 0
+        //[HideInInspector]_HemiSphereAmbientGndColorAnimated("HSA Ground Color", Int) = 0
+        //[HideInInspector]_HemiSphereAmbientAxisAnimated("HSA Axis", Int) = 0
     }
 
     CustomEditor "Thry.ShaderEditor"
@@ -417,7 +416,6 @@
             #pragma shader_feature WATER_SURFACE_ENABLED
             #pragma shader_feature_local TRANSPARENT_DELAY_ENABLED
             #pragma shader_feature VERTEX_COLOR_ENABLED
-            #pragma shader_feature PIXEL_ART_ENABLED
             #pragma shader_feature_local BLEND_VERTEX_COLOR_BY_ALPHA_ENABLED
             #pragma shader_feature_local FAR_CLIP_BY_DITHER_ENABLED
             #pragma shader_feature_local NO_ALL_LIGHTING_ENABLED
@@ -523,7 +521,6 @@
             #pragma shader_feature WATER_SURFACE_ENABLED
             #pragma shader_feature_local TRANSPARENT_DELAY_ENABLED
             #pragma shader_feature VERTEX_COLOR_ENABLED
-            #pragma shader_feature PIXEL_ART_ENABLED
             #pragma shader_feature_local BLEND_VERTEX_COLOR_BY_ALPHA_ENABLED
             #pragma shader_feature_local FAR_CLIP_BY_DITHER_ENABLED
             #pragma shader_feature_local NO_ALL_LIGHTING_ENABLED

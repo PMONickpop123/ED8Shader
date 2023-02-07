@@ -32,19 +32,19 @@ float calcSpecularLightAmt(float3 normal, float3 lightDir, float3 eyeDirection, 
 
 float3 EvaluateAmbient(float3 normal) {
 	#if defined(HEMISPHERE_AMBIENT_ENABLED) && !defined(FLAT_AMBIENT_ENABLED)
-        float3 upDirection = normalize(_HemiSphereAmbientAxis);
+        float3 upDirection = normalize(_UdonHemiSphereAmbientAxis);
         float amt = (dot(normal, upDirection) + 1.0f) * 0.5f;
 
 		#if defined(MULTIPLEX_HEMISPHERE_AMBIENT_ENABLED)
-            float3 L = _HemiSphereAmbientGndColor.rgb;
-            float3 U = _HemiSphereAmbientSkyColor.rgb;
-            float3 M = _GlobalAmbientColor.rgb;
+            float3 L = _UdonHemiSphereAmbientGndColor.rgb;
+            float3 U = _UdonHemiSphereAmbientSkyColor.rgb;
+            float3 M = _UdonGlobalAmbientColor.rgb;
 	        return L + (2 * M - 2 * L) * amt + (U - 2 * M + L) * amt * amt;
 		#else // MULTIPLEX_HEMISPHERE_AMBIENT_ENABLED
-	        return lerp(_HemiSphereAmbientGndColor.rgb, _HemiSphereAmbientSkyColor.rgb, amt);
+	        return lerp(_UdonHemiSphereAmbientGndColor.rgb, _UdonHemiSphereAmbientSkyColor.rgb, amt);
 		#endif // MULTIPLEX_HEMISPHERE_AMBIENT_ENABLED
 	#else // HEMISPHERE_AMBIENT_ENABLED
-        float3 ambientColor = _GlobalAmbientColor.rgb;
+        float3 ambientColor = _UdonGlobalAmbientColor.rgb;
 
 	    return ambientColor;
 	#endif // HEMISPHERE_AMBIENT_ENABLED
@@ -68,7 +68,7 @@ float calculateAttenuationQuadratic(float distanceToLightSqr, float4 attenuation
 //-----------------------------------------------------------------------------
 #if defined(LIGHT_DIRECTION_FOR_CHARACTER_ENABLED)
     float3 PortraitEvaluateAmbient() {
-        float3 ambientColor = _GlobalAmbientColor.rgb;
+        float3 ambientColor = _UdonGlobalAmbientColor.rgb;
         return ambientColor;
     }
 #endif // defined(LIGHT_DIRECTION_FOR_CHARACTER_ENABLED)
@@ -94,12 +94,12 @@ float calculateAttenuationQuadratic(float distanceToLightSqr, float4 attenuation
             #else
                 #if !defined(UNITY_COLORSPACE_GAMMA)
                     #if !defined(FLAT_AMBIENT_ENABLED)
-                        lightColor = GammaToLinearSpace(_MainLightColor.rgb + (_MainLightColor.rgb * 0.5f));
+                        lightColor = GammaToLinearSpace(_UdonMainLightColor.rgb + (_UdonMainLightColor.rgb * 0.5f));
                     #else
-                        lightColor = GammaToLinearSpace(_MainLightColor.rgb);
+                        lightColor = GammaToLinearSpace(_UdonMainLightColor.rgb);
                     #endif
                 #else
-                    lightColor = _MainLightColor.rgb;
+                    lightColor = _UdonMainLightColor.rgb;
                 #endif
             #endif
         #else
@@ -134,7 +134,7 @@ float calculateAttenuationQuadratic(float distanceToLightSqr, float4 attenuation
 
                 #if defined(SPECULAR_ENABLED)
                     #if defined(FAKE_CONSTANT_SPECULAR_ENABLED)
-                        specularLightDir = (_AllowFakeSpecularDir == 1) ? getFakeSpecularLightDir(lightDir) : lightDir;
+                        specularLightDir = (_UdonAllowFakeSpecularDir == 1) ? getFakeSpecularLightDir(lightDir) : lightDir;
                     #else // FAKE_CONSTANT_SPECULAR_ENABLED
                         specularLightDir = lightDir;
                     #endif // FAKE_CONSTANT_SPECULAR_ENABLED
@@ -191,7 +191,7 @@ float calculateAttenuationQuadratic(float distanceToLightSqr, float4 attenuation
 
                 #if defined(SPECULAR_ENABLED)
                     #if defined(FAKE_CONSTANT_SPECULAR_ENABLED)
-                        specularLightDir = (_AllowFakeSpecularDir == 1) ? getFakeSpecularLightDir(lightDir) : lightDir;
+                        specularLightDir = (_UdonAllowFakeSpecularDir == 1) ? getFakeSpecularLightDir(lightDir) : lightDir;
                     #else // FAKE_CONSTANT_SPECULAR_ENABLED
                         specularLightDir = lightDir;
                     #endif // FAKE_CONSTANT_SPECULAR_ENABLED
@@ -219,7 +219,7 @@ float calculateAttenuationQuadratic(float distanceToLightSqr, float4 attenuation
 
                     #if defined(SPECULAR_ENABLED)
                         #if defined(FAKE_CONSTANT_SPECULAR_ENABLED)
-                            specularLightDir = (_AllowFakeSpecularDir == 1) ? getFakeSpecularLightDir(lightDir) : lightDir;
+                            specularLightDir = (_UdonAllowFakeSpecularDir == 1) ? getFakeSpecularLightDir(lightDir) : lightDir;
                         #else // FAKE_CONSTANT_SPECULAR_ENABLED
                             specularLightDir = lightDir;
                         #endif // FAKE_CONSTANT_SPECULAR_ENABLED
@@ -249,7 +249,7 @@ float calculateAttenuationQuadratic(float distanceToLightSqr, float4 attenuation
 		#endif // SPECULAR_ENABLED
 
         #if defined(FLAT_AMBIENT_ENABLED)
-            lightingResult = lerp(lightingResult, lightingResult * _GlobalAmbientColor.rgb, 1 - shadowValue);
+            lightingResult = lerp(lightingResult, lightingResult * _UdonGlobalAmbientColor.rgb, 1 - shadowValue);
         #endif
 
 	    return lightingResult;
@@ -277,12 +277,12 @@ float calculateAttenuationQuadratic(float distanceToLightSqr, float4 attenuation
                 #else
                     #if !defined(UNITY_COLORSPACE_GAMMA)
                         #if !defined(FLAT_AMBIENT_ENABLED)
-                            lightColor = GammaToLinearSpace(_MainLightColor.rgb + (_MainLightColor.rgb * 0.5f));
+                            lightColor = GammaToLinearSpace(_UdonMainLightColor.rgb + (_UdonMainLightColor.rgb * 0.5f));
                         #else
-                            lightColor = GammaToLinearSpace(_MainLightColor.rgb);
+                            lightColor = GammaToLinearSpace(_UdonMainLightColor.rgb);
                         #endif
                     #else
-                        lightColor = _MainLightColor.rgb;
+                        lightColor = _UdonMainLightColor.rgb;
                     #endif
                 #endif
             #else
@@ -314,7 +314,7 @@ float calculateAttenuationQuadratic(float distanceToLightSqr, float4 attenuation
 
                     #if defined(SPECULAR_ENABLED)
                         #if defined(FAKE_CONSTANT_SPECULAR_ENABLED)
-                            specularLightDir = (_AllowFakeSpecularDir == 1) ? getFakeSpecularLightDir(lightDir) : lightDir;
+                            specularLightDir = (_UdonAllowFakeSpecularDir == 1) ? getFakeSpecularLightDir(lightDir) : lightDir;
                         #else // FAKE_CONSTANT_SPECULAR_ENABLED
                             specularLightDir = lightDir;
                         #endif // FAKE_CONSTANT_SPECULAR_ENABLED
@@ -375,7 +375,7 @@ float calculateAttenuationQuadratic(float distanceToLightSqr, float4 attenuation
 
                     #if defined(SPECULAR_ENABLED)
                         #if defined(FAKE_CONSTANT_SPECULAR_ENABLED)
-                            specularLightDir = (_AllowFakeSpecularDir == 1) ? getFakeSpecularLightDir(lightDir) : lightDir;
+                            specularLightDir = (_UdonAllowFakeSpecularDir == 1) ? getFakeSpecularLightDir(lightDir) : lightDir;
                         #else // FAKE_CONSTANT_SPECULAR_ENABLED
                             specularLightDir = lightDir;
                         #endif // FAKE_CONSTANT_SPECULAR_ENABLED
@@ -404,7 +404,7 @@ float calculateAttenuationQuadratic(float distanceToLightSqr, float4 attenuation
 
                         #if defined(SPECULAR_ENABLED)
                             #if defined(FAKE_CONSTANT_SPECULAR_ENABLED)
-                                specularLightDir = (_AllowFakeSpecularDir == 1) ? getFakeSpecularLightDir(lightDir) : lightDir;
+                                specularLightDir = (_UdonAllowFakeSpecularDir == 1) ? getFakeSpecularLightDir(lightDir) : lightDir;
                             #else // FAKE_CONSTANT_SPECULAR_ENABLED
                                 specularLightDir = lightDir;
                             #endif // FAKE_CONSTANT_SPECULAR_ENABLED
@@ -430,7 +430,7 @@ float calculateAttenuationQuadratic(float distanceToLightSqr, float4 attenuation
             #endif
 
             #if defined(FLAT_AMBIENT_ENABLED)
-                lightingResult = lerp(lightingResult, lightingResult * _GlobalAmbientColor.rgb, 1 - shadowValue);
+                lightingResult = lerp(lightingResult, lightingResult * _UdonGlobalAmbientColor.rgb, 1 - shadowValue);
             #endif
 
 	        return lightingResult;
@@ -444,7 +444,7 @@ float calculateAttenuationQuadratic(float distanceToLightSqr, float4 attenuation
             shadowValue = 1.0f;
         #endif
 
-        lightingResult = max(_GlobalAmbientColor.rgb, (float3)shadowValue);
+        lightingResult = max(_UdonGlobalAmbientColor.rgb, (float3)shadowValue);
 
         #if defined(MAINLIGHT_CLAMP_FACTOR_ENABLED)
             lightingResult = min(lightingResult, (float3)_GlobalMainLightClampFactor);

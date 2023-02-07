@@ -232,7 +232,7 @@ half4 _UserClipPlane; //= {0.0, 1.0, 0.0, 0.0}; // xyzw (nx,ny,nz,height)
     half3 _ShiningLightColor;
 #endif // defined(SHINING_MODE_ENABLED)
 
-half _ShadowDensity;
+uniform half _UdonShadowDensity;
 half _GlowThreshold = 1.0;
 half _GameMaterialID;
 half4 _GameMaterialDiffuse;
@@ -252,12 +252,12 @@ half _AlphaTestDirection;
 half _AlphaThreshold;
 
 #if defined(FOG_ENABLED)
-    half3 _FogColor;
-    half2 _FogRangeParameters;
-    half2 _HeightFogRangeParameters;
-    half _FogRateClamp;
-    half _HeightDepthBias;
-    half _HeightCamRate;
+    uniform half3 _UdonFogColor;
+    uniform half2 _UdonFogRangeParameters;
+    uniform half2 _UdonHeightFogRangeParameters;
+    uniform half _UdonFogRateClamp;
+    uniform half _UdonHeightDepthBias;
+    uniform half _UdonHeightCamRate;
 
     #if defined(FOG_RATIO_ENABLED)
         half _FogRatio;
@@ -269,9 +269,9 @@ half _AlphaThreshold;
 #endif
 
 #if defined(HEMISPHERE_AMBIENT_ENABLED)
-    half3 _HemiSphereAmbientSkyColor;
-    half3 _HemiSphereAmbientGndColor;
-    half3 _HemiSphereAmbientAxis;
+    uniform half3 _UdonHemiSphereAmbientSkyColor;
+    uniform half3 _UdonHemiSphereAmbientGndColor;
+    uniform half3 _UdonHemiSphereAmbientAxis;
 #endif // HEMISPHERE_AMBIENT_ENABLED
 
 #if defined(SPECULAR_ENABLED)
@@ -291,7 +291,7 @@ half _AlphaThreshold;
     half _RimLightClampFactor;
 #endif 
 
-half _AllowFakeSpecularDir;
+uniform half _UdonAllowFakeSpecularDir;
 half2 _TexCoordOffset;
 half2 _TexCoordOffset2;
 half2 _TexCoordOffset3;
@@ -303,7 +303,6 @@ half _UV3;
     sampler2D _MainTex;
 #endif 
 half4 _MainTex_ST;
-half4 _MainTex_TexelSize;
 
 #if defined(NORMAL_MAPPING_ENABLED)
     sampler2D _BumpMap;
@@ -426,8 +425,8 @@ float4 _OutlineColorFactor;
 #endif // GLARE_MAP_ENABLED
 
 half _GlareIntensity;
-half3 _GlobalAmbientColor;
-half3 _MainLightColor;
+uniform half3 _UdonGlobalAmbientColor;
+uniform half3 _UdonMainLightColor;
 half _AdditionalShadowOffset;
 float _Culling;
 half _SrcBlend;

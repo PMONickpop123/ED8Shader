@@ -65,20 +65,11 @@ fixed4 DefaultFPShader (DefaultVPOutput i) : SV_TARGET {
         //float4 materialDiffuse;
         
         #if !defined(MULTI_UV_MULTIPLICATIVE_BLENDING_EX_ENANLED) && !defined(MULTI_UV2_MULTIPLICATIVE_BLENDING_EX_ENANLED)
-
-            #if !defined(PIXEL_ART_ENABLED)
-                diffuseAmt = tex2D(_MainTex, i.uv.xy 
-                #if defined(DUDV_MAPPING_ENABLED)
-                    + dudvValue
-                #endif // DUDV_MAPPING_ENABLED
-                );
-            #else
-                float2 pixelArtTexcoord;
-
-                pixelArtTexcoord.xy = TRANSFORM_TEX(i.uv.xy, _MainTex);
-                pixelArtTexcoord.xy = sharpSample(_MainTex_TexelSize * _MainTex_ST.xyxy, pixelArtTexcoord.xy);
-                diffuseAmt = tex2D(_MainTex, pixelArtTexcoord.xy);
-            #endif
+            diffuseAmt = tex2D(_MainTex, i.uv.xy 
+            #if defined(DUDV_MAPPING_ENABLED)
+                + dudvValue
+            #endif // DUDV_MAPPING_ENABLED
+            );
 
             #if !defined(UNITY_COLORSPACE_GAMMA)
                 diffuseAmt.rgb = LinearToGammaSpace(diffuseAmt.rgb);
@@ -274,7 +265,7 @@ fixed4 DefaultFPShader (DefaultVPOutput i) : SV_TARGET {
 
         #if defined(PROJECTION_MAP_ENABLED)
             float4 projTex = tex2D(_ProjectionMapSampler, i.ProjMap.xy);
-            projTex *= (float4)_ShadowDensity;
+            projTex *= (float4)_UdonShadowDensity;
 
             #if !defined(UNITY_COLORSPACE_GAMMA)
                 projTex.r = LinearToGammaSpaceExact(projTex.r);
@@ -289,7 +280,7 @@ fixed4 DefaultFPShader (DefaultVPOutput i) : SV_TARGET {
         #endif // PROJECTION_MAP_ENABLED
 
         // CS3+ additions.
-        //shadowValue = ((1.0f - shadowValue) * (1.0f - _ShadowDensity)) + shadowValue;
+        //shadowValue = ((1.0f - shadowValue) * (1.0f - _UdonShadowDensity)) + shadowValue;
         //shadowValue = ((1.0f - shadowValue) * (1.0f - _GameMaterialEmission.a)) + shadowValue;
 
         #if defined(SPECULAR_MAPPING_ENABLED) || (defined(MULTI_UV_ENANLED) && defined(MULTI_UV_SPECULAR_MAPPING_ENABLED)) || (defined(MULTI_UV2_ENANLED) && defined(MULTI_UV2_SPECULAR_MAPPING_ENABLED))
@@ -388,7 +379,7 @@ fixed4 DefaultFPShader (DefaultVPOutput i) : SV_TARGET {
                 #if defined(USE_DIRECTIONAL_LIGHT_COLOR)
                     float3 subLightColor = _LightColor0.rgb;
                 #else
-                    float3 subLightColor = _MainLightColor.rgb;
+                    float3 subLightColor = _UdonMainLightColor.rgb;
                 #endif
 	        #else
 	            float3 subLightColor = float3(0.0f, 0.0f, 0.0f);
@@ -438,8 +429,7 @@ fixed4 DefaultFPShader (DefaultVPOutput i) : SV_TARGET {
 
                 //n2.xy *= multi_uv_alpha;
                 //worldSpaceNormal = BlendNormals(n1, n2);
-                worldSpaceNormal = lerp(n1, n2, multi_uv_alpha);
-                worldSpaceNormal = normalize(worldSpaceNormal);
+                worldSpaceNormal = normalize(lerp(n1, n2, multi_uv_alpha));
             #endif
 
 	        float3 ambient = float3(0.0f, 0.0f, 0.0f);
@@ -667,7 +657,8 @@ fixed4 DefaultFPShader (DefaultVPOutput i) : SV_TARGET {
             #if defined(FP_PORTRAIT)
                 shadingAmt = max(shadingAmt, PortraitEvaluateAmbient());
             #else // !defined(FP_PORTRAIT)
-                shadingAmt = GammaToLinearSpace(max(LinearToGammaSpace(shadingAmt), LinearToGammaSpace(EvaluateAmbient(worldSpaceNormal))));
+                //shadingAmt = GammaToLinearSpace(max(LinearToGammaSpace(shadingAmt), LinearToGammaSpace(EvaluateAmbient(worldSpaceNormal))));
+                shadingAmt = max(shadingAmt, EvaluateAmbient(worldSpaceNormal));
             #endif
         #endif
 
@@ -728,9 +719,9 @@ fixed4 DefaultFPShader (DefaultVPOutput i) : SV_TARGET {
             float4 refrColor = tex2D(_RefractionTexture, dudvUV).xyzw;
             //float4 refrColor = tex2D(_RefractionTexture, dudvTex.xy / dudvTex.w).xyzw;
 
-            //#if !defined(UNITY_COLORSPACE_GAMMA)
+            #if !defined(UNITY_COLORSPACE_GAMMA)
                 //refrColor.rgb = GammaToLinearSpace(refrColor.rgb);
-            //#endif
+            #endif
 
             #if defined(WATER_SURFACE_ENABLED)
                 //dudvUV = (dudvTex.xy / dudvTex.w) + (worldSpaceNormal * saturate(dudvTex.w));
@@ -857,15 +848,19 @@ fixed4 DefaultFPShader (DefaultVPOutput i) : SV_TARGET {
 	        #endif // CUBE_MAPPING_ENABLED
         #endif // EMVMAP_AS_IBL_ENABLED
 
-        //#if !defined(UNITY_COLORSPACE_GAMMA)
+        #if !defined(UNITY_COLORSPACE_GAMMA)
             //ambientOcclusion.rgb = LinearToGammaSpace(ambientOcclusion.rgb);
-        //#endif
+        #endif
     
         shadingAmt *= ambientOcclusion;
 	    //shadingAmt += sublightAmount;
 
         #if defined(EMISSION_MAPPING_ENABLED)
 	        float4 emiTex = tex2D(_EmissionMapSampler, i.uv.xy);
+            //#if !defined(UNITY_COLORSPACE_GAMMA)
+            //    emiTex.rgb = GammaToLinearSpace(emiTex.rgb);
+            //#endif
+
 	        shadingAmt.rgb = lerp(shadingAmt.rgb, float3(1.0f, 1.0f, 1.0f), float3(emiTex.r, emiTex.r, emiTex.r));
         #endif // EMISSION_MAPPING_ENABLED
 
@@ -927,7 +922,7 @@ fixed4 DefaultFPShader (DefaultVPOutput i) : SV_TARGET {
             #endif
 
             #if defined(FOG_ENABLED) && defined(UNITY_PASS_FORWARDBASE)
-                EvaluateFogFP(resultColor.rgb, _FogColor.rgb, i.Color1.a);
+                EvaluateFogFP(resultColor.rgb, _UdonFogColor.rgb, i.Color1.a);
             #endif // FOG_ENABLED
 
             #if defined(SUBTRACT_BLENDING_ENABLED)
@@ -976,6 +971,14 @@ fixed4 DefaultFPShader (DefaultVPOutput i) : SV_TARGET {
                         float3 glowof = max(float3(0.0f, 0.0f, 0.0f), resultColor.rgb - _GlowThreshold);
                         glowValue += dot(glowof, 1.0f);
                     #endif
+
+                    //#if defined(WATER_SURFACE_ENABLED)
+                        //glowValue += waterGlowValue;
+                        //return float4(resultColor.rgb, glowValue * _GlareIntensity);
+                    //#else 
+                        //return float4(resultColor.rgb * glowValue * _GlareIntensity, resultColor.a);
+                        //return float4(resultColor.rgb + (resultColor.rgb * glowValue * _GlareIntensity), glowValue * _GlareIntensity * resultColor.a);
+                    //#endif
 
                     glowValue *= _GlareIntensity;
                     resultColor.rgb = max(resultColor.rgb + (resultColor.rgb * glowValue), float3(0, 0, 0));

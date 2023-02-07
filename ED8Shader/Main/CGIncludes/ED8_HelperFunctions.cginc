@@ -18,7 +18,7 @@ float3 EvaluateNormalMapNormal(float3 inNormal, float2 inUv, float3 inTangent, f
         normalMapNormal.y = normalMapData.g;
         normalMapNormal.z = sqrt(1 - saturate(dot(normalMapNormal.xy, normalMapNormal.xy)));
     #else // NORMAL_MAPP_DXT5_NM_ENABLED
-        normalMapData *= 2.0f;
+        normalMapData *= 3.0f;
         normalMapNormal.xyz = normalMapData.xyz;
         //normalMapNormal.xy = normalMapData.xy;
         //normalMapNormal.z = sqrt(1 - saturate(dot(normalMapNormal.xy, normalMapNormal.xy)));
@@ -87,13 +87,13 @@ float CalcMipLevel(float2 texcoord){
 
 #if defined(FOG_ENABLED)
     float EvaluateFogVP(float z, float worldY) {
-        float f = saturate((z - _FogRangeParameters.x) * (1 / (_FogRangeParameters.y - _FogRangeParameters.x)));
+        float f = saturate((z - _UdonFogRangeParameters.x) * (1 / (_UdonFogRangeParameters.y - _UdonFogRangeParameters.x)));
 
         /*
-        scene.MiscParameters3.x = (CameraYPosition * _HeightCamRate) + _HeightFogNear
+        scene.MiscParameters3.x = (CameraYPosition * _UdonHeightCamRate) + _HeightFogNear
         scene.FogRangeParameters.x = FogNear
         scene.FogRangeParameters.z  = 1 / (FogFar - FogNear)
-        scene.FogRangeParameters.w = _FogRateClamp
+        scene.FogRangeParameters.w = _UdonFogRateClamp
         r0.y = worldYPosition
         r0.w = dot(worldPosition, scene.View._m02_m12_m22_m32) aka clipPosition.z
         r1.x = -scene.MiscParameters3.x + r0.y;
@@ -106,17 +106,21 @@ float CalcMipLevel(float2 texcoord){
         r0.x = min(1, r0.x);
         o2.w = scene.FogRangeParameters.w * r0.x;
         */
-        float HeightFogSubtraction = (_HeightFogRangeParameters.y - _HeightFogRangeParameters.x);
+        float HeightFogSubtraction = (_UdonHeightFogRangeParameters.y - _UdonHeightFogRangeParameters.x);
         float3 MiscParameters3;
         
-        MiscParameters3.x = (_WorldSpaceCameraPos.y * _HeightCamRate); //- _HeightFogRangeParameters.x;
+        MiscParameters3.x = (_WorldSpaceCameraPos.y * _UdonHeightCamRate); //- _UdonHeightFogRangeParameters.x;
         MiscParameters3.y = (HeightFogSubtraction == 0.0f) ? 0.0f : (1 / HeightFogSubtraction);
-        MiscParameters3.z = _HeightDepthBias;
+        MiscParameters3.z = _UdonHeightDepthBias;
 
         float hf = saturate((worldY - MiscParameters3.x) * MiscParameters3.y);
         float f2 = min(1.0f, MiscParameters3.z + f);
 
         f = min(1.0f, (hf * f2) + f);
+
+        #if !defined(UNITY_COLORSPACE_GAMMA)
+            f = GammaToLinearSpaceExact(f);
+        #endif
 
         #if defined(FOG_RATIO_ENABLED)
             #if !defined(UNITY_COLORSPACE_GAMMA)
@@ -126,11 +130,7 @@ float CalcMipLevel(float2 texcoord){
             #endif
         #endif // FOG_RATIO_ENABLED
 
-        f *= _FogRateClamp;
-
-        #if !defined(UNITY_COLORSPACE_GAMMA)
-            f = GammaToLinearSpaceExact(f);
-        #endif
+        f *= _UdonFogRateClamp;
         return f;
     }
 
@@ -189,9 +189,7 @@ float CalcMipLevel(float2 texcoord){
         float u = pow((ldotn * 0.5f + 0.5f), 2.4);
 
         #if defined(UNITY_PASS_FORWARDBASE)
-            #if !defined(FLAT_AMBIENT_ENABLED)
-                u *= shadowValue;
-            #endif
+            u *= shadowValue;
         #endif
 
         float r = tex2D(_CartoonMapSampler, float2(u, 0.0f)).x;
@@ -202,18 +200,6 @@ float CalcMipLevel(float2 texcoord){
         return r;
     }
 #endif // CARTOON_SHADING_ENABLED
-
-// Returns pixel sharpened to nearest pixel boundary. 
-// texelSize is Unity _Texture_TexelSize; zw is w/h, xy is 1/wh
-float2 sharpSample(float4 texelSize, float2 p) {
-	p = p * texelSize.zw;
-
-    float2 c = max(0.0f, fwidth(p));
-
-    p = floor(p) + saturate(frac(p) / c);
-	p = (p - 0.5f) * texelSize.xy;
-	return p;
-}
 
 float4 EvaluateAddUnsaturation(float4 color) {
 	float4 t0 = color;
