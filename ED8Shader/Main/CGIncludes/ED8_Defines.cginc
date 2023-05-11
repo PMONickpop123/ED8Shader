@@ -181,6 +181,7 @@
 	#undef MULTI_UV2_SHADOW_ENANLED
 #endif
 
+/*
 #if defined(WATER_SURFACE_ENABLED)
     #undef ALPHA_BLENDING_ENABLED
     #undef ADDITIVE_BLENDING_ENABLED
@@ -188,6 +189,7 @@
     #undef MULTIPLICATIVE_BLENDING_ENABLED
     #undef USE_EXTRA_BLENDING
 #endif // defined(WATER_SURFACE_ENABLED)
+*/
 
 #if defined(WATER_SURFACE_ENABLED) || defined(DUDV_MAPPING_ENABLED)
     #define USE_SCREEN_UV
@@ -232,7 +234,7 @@ half4 _UserClipPlane; //= {0.0, 1.0, 0.0, 0.0}; // xyzw (nx,ny,nz,height)
     half3 _ShiningLightColor;
 #endif // defined(SHINING_MODE_ENABLED)
 
-uniform half _UdonShadowDensity;
+uniform half _UdonShadowDensity = 1.0f;
 half _GlowThreshold = 1.0;
 half _GameMaterialID;
 half4 _GameMaterialDiffuse;
@@ -252,12 +254,16 @@ half _AlphaTestDirection;
 half _AlphaThreshold;
 
 #if defined(FOG_ENABLED)
-    uniform half3 _UdonFogColor;
-    uniform half2 _UdonFogRangeParameters;
-    uniform half2 _UdonHeightFogRangeParameters;
-    uniform half _UdonFogRateClamp;
-    uniform half _UdonHeightDepthBias;
-    uniform half _UdonHeightCamRate;
+    uniform half3 _UdonFogColor = half3(0.5f, 0.5f, 0.5f);
+    uniform half2 _UdonFogRangeParameters = half2(10.0f, 500.0f);
+    uniform half2 _UdonHeightFogRangeParameters = half2(0.0f, 0.0f);
+    uniform half _UdonFogRateClamp = 1.0f;
+    uniform half _UdonHeightDepthBias = 1.0f;
+    uniform half _UdonHeightCamRate = 1.0f;
+    uniform half _UdonFogImageSpeedX = 0.05f;
+    uniform half _UdonFogImageSpeedZ = 0.05f;
+    uniform half _UdonFogImageScale = 0.05f;
+    uniform half _UdonFogImageRatio = 0;
 
     #if defined(FOG_RATIO_ENABLED)
         half _FogRatio;
@@ -269,9 +275,9 @@ half _AlphaThreshold;
 #endif
 
 #if defined(HEMISPHERE_AMBIENT_ENABLED)
-    uniform half3 _UdonHemiSphereAmbientSkyColor;
-    uniform half3 _UdonHemiSphereAmbientGndColor;
-    uniform half3 _UdonHemiSphereAmbientAxis;
+    uniform half3 _UdonHemiSphereAmbientSkyColor = half3(0.55f, 0.55f, 0.55f);
+    uniform half3 _UdonHemiSphereAmbientGndColor = half3(0.55f, 0.55f, 0.55f);
+    uniform half3 _UdonHemiSphereAmbientAxis = half3(0, 10, 0);
 #endif // HEMISPHERE_AMBIENT_ENABLED
 
 #if defined(SPECULAR_ENABLED)
@@ -291,13 +297,16 @@ half _AlphaThreshold;
     half _RimLightClampFactor;
 #endif 
 
-uniform half _UdonAllowFakeSpecularDir;
+uniform half _UdonAllowFakeSpecularDir = 1.0f;
 half2 _TexCoordOffset;
 half2 _TexCoordOffset2;
 half2 _TexCoordOffset3;
 half _UV1;
 half _UV2;
 half _UV3;
+
+uniform sampler2D _UdonDitherNoiseTexture;
+uniform sampler2D _UdonLowResDepthTexture;
 
 #if !defined(NOTHING_ENABLED)
     sampler2D _MainTex;
@@ -425,8 +434,8 @@ float4 _OutlineColorFactor;
 #endif // GLARE_MAP_ENABLED
 
 half _GlareIntensity;
-uniform half3 _UdonGlobalAmbientColor;
-uniform half3 _UdonMainLightColor;
+uniform half3 _UdonGlobalAmbientColor = half3(0.50f, 0.50f, 0.50f);
+uniform half3 _UdonMainLightColor = half3(1.0f, 0.9568f, 0.8392f);
 half _AdditionalShadowOffset;
 float _Culling;
 half _SrcBlend;
@@ -460,7 +469,7 @@ struct DefaultVPInput {
 struct DefaultVPOutput {
     float4 pos			        : SV_POSITION;		// xyzw:[Proj]
     centroid float4 Color0	    : COLOR0;		// xyzw:VertexColor x GameDiffuse
-    float4 Color1			    : COLOR1;		// [V] xyz:000 w:Fog
+    centroid float4 Color1			    : COLOR1;		// [V] xyz:000 w:Fog
                                 // [P] xyz:SubLight w:Fog
     float2 uv			        : TEXCOORD0;	// xy: UV
     float4 WorldPositionDepth   : TEXCOORD9;	// xyz[World]: w[View]:z

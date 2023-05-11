@@ -20,9 +20,6 @@ float3 EvaluateNormalMapNormal(float3 inNormal, float2 inUv, float3 inTangent, f
     #else // NORMAL_MAPP_DXT5_NM_ENABLED
         normalMapData *= 3.0f;
         normalMapNormal.xyz = normalMapData.xyz;
-        //normalMapNormal.xy = normalMapData.xy;
-        //normalMapNormal.z = sqrt(1 - saturate(dot(normalMapNormal.xy, normalMapNormal.xy)));
-        //normalMapNormal.z = sqrt(1 - saturate(normalMapNormal.x * normalMapNormal.x - normalMapNormal.y * normalMapNormal.y));
     #endif // NORMAL_MAPP_DXT5_NM_ENABLED
 
     inNormal = normalize(inNormal);
@@ -106,6 +103,7 @@ float CalcMipLevel(float2 texcoord){
         r0.x = min(1, r0.x);
         o2.w = scene.FogRangeParameters.w * r0.x;
         */
+
         float HeightFogSubtraction = (_UdonHeightFogRangeParameters.y - _UdonHeightFogRangeParameters.x);
         float3 MiscParameters3;
         
@@ -115,19 +113,11 @@ float CalcMipLevel(float2 texcoord){
 
         float hf = saturate((worldY - MiscParameters3.x) * MiscParameters3.y);
         float f2 = min(1.0f, MiscParameters3.z + f);
-
+        
         f = min(1.0f, (hf * f2) + f);
 
-        #if !defined(UNITY_COLORSPACE_GAMMA)
-            f = GammaToLinearSpaceExact(f);
-        #endif
-
         #if defined(FOG_RATIO_ENABLED)
-            #if !defined(UNITY_COLORSPACE_GAMMA)
-                f *= LinearToGammaSpaceExact(_FogRatio);
-            #else
-                f *= _FogRatio;
-            #endif
+            f *= _FogRatio;
         #endif // FOG_RATIO_ENABLED
 
         f *= _UdonFogRateClamp;
@@ -140,10 +130,10 @@ float CalcMipLevel(float2 texcoord){
         #endif // defined(USE_EXTRA_BLENDING)
 
         #if !defined(UNITY_COLORSPACE_GAMMA)
-            resultColor.rgb = lerp(resultColor.rgb, fogColor.rgb, fogValue);
-        #else
-            resultColor.rgb = lerp(resultColor.rgb, fogColor.rgb, fogValue);
+            fogColor.rgb = LinearToGammaSpace(fogColor.rgb);
         #endif
+
+        resultColor.rgb = lerp(resultColor.rgb, fogColor.rgb, fogValue);
     }
 #endif // FOG_ENABLED
 
@@ -161,7 +151,7 @@ float CalcMipLevel(float2 texcoord){
 #if defined(MULTI_UV_NORMAL_MAPPING_ENABLED)
 	#if defined(DUDV_MAPPING_ENABLED)
 		//#define EvaluateNormal2FP(In) EvaluateNormalMapNormal(In.normal.xyz, In.DuDvTexCoord.xy, In.tangent, In.binormal, _NormalMap2Sampler)
-        #define EvaluateNormal2FP(In, dudvValue) EvaluateNormalMapNormal(In.normal.xyz, In.uv.xy + dudvValue, In.tangent, In.binormal, _NormalMap2Sampler)
+        #define EvaluateNormal2FP(In, dudvValue) EvaluateNormalMapNormal(In.normal.xyz, In.uv2.xy + dudvValue, In.tangent, In.binormal, _NormalMap2Sampler)
 	#else // defined(DUDV_MAPPING_ENABLED)
 		#define EvaluateNormal2FP(In) EvaluateNormalMapNormal(In.normal.xyz, In.uv2.xy, In.tangent, In.binormal, _NormalMap2Sampler)
 	#endif // defined(DUDV_MAPPING_ENABLED)
@@ -172,13 +162,8 @@ float CalcMipLevel(float2 texcoord){
 //-----------------------------------------------------------------------------
 #if defined(RIM_LIGHTING_ENABLED)
     float EvaluateRimLightValue(float ndote) {
-        #if !defined(UNITY_COLORSPACE_GAMMA)
-            float rimLightvalue = pow(saturate(1.0f - ndote), _RimLitPower);
-            rimLightvalue *= _RimLitIntensity;
-        #else
-            float rimLightvalue = pow(saturate(1.0f - ndote), _RimLitPower);
-            rimLightvalue *= _RimLitIntensity;
-        #endif
+        float rimLightvalue = pow(saturate(1.0f - ndote), _RimLitPower);
+        rimLightvalue *= _RimLitIntensity;
         return rimLightvalue;
     }
 #endif // RIM_LIGHTING_ENABLED
@@ -186,10 +171,13 @@ float CalcMipLevel(float2 texcoord){
 //-----------------------------------------------------------------------------
 #if defined(CARTOON_SHADING_ENABLED)
     float calcToonShadingValueFP(float ldotn, float shadowValue) {
-        float u = pow((ldotn * 0.5f + 0.5f), 2.4);
+        float u = ldotn * 0.5f + 0.5f;
+        //u *= u;
 
         #if defined(UNITY_PASS_FORWARDBASE)
-            u *= shadowValue;
+            #if !defined(FLAT_AMBIENT_ENABLED)
+                u *= shadowValue;
+            #endif
         #endif
 
         float r = tex2D(_CartoonMapSampler, float2(u, 0.0f)).x;

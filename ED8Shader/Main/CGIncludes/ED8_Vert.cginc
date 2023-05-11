@@ -23,15 +23,12 @@ DefaultVPOutput DefaultVPShader (DefaultVPInput v) {
     float3 position = v.vertex.xyz;
     float3 worldSpacePosition = mul(unity_ObjectToWorld, float4(position.xyz, 1.0f)).xyz;
     float3 worldSpaceNormal = normalize(UnityObjectToWorldNormal(normal));
-    //float3 worldSpaceNormal = normalize(mul(v.normal.xyz, (float3x3)unity_WorldToObject));
-    //float3 worldSpaceNormal = normalize(mul(unity_ObjectToWorld, float4(normal.xyz, 0.0f)).xyz); 
 
     #if defined(USE_LIGHTING)
         #if defined(USE_TANGENTS)
-            //float3 tangent = normalize(mul(unity_ObjectToWorld, float4(v.tangent.xyz, 0.0f)).xyz);
             float3 tangent = UnityObjectToWorldDir(v.tangent.xyz);
-            //float3 tangent = normalize(mul(v.tangent.xyz, (float3x3)unity_WorldToObject));
             float3 binormal = CreateBinormal(normal, v.tangent.xyz, v.tangent.w);
+            
             o.tangent = tangent;
             o.binormal = binormal;
         #endif // USE_TANGENTS
@@ -45,80 +42,49 @@ DefaultVPOutput DefaultVPShader (DefaultVPInput v) {
         #endif // WINDY_GRASS_TEXV_WEIGHT_ENABLED
     #endif // WINDY_GRASS_ENABLED
 
+    float3 viewSpacePosition = UnityWorldToViewPos(worldSpacePosition);
     o.pos = UnityWorldToClipPos(worldSpacePosition);
-    o.WorldPositionDepth = float4(worldSpacePosition.xyz, -mul(float4(UnityWorldSpaceViewDir(worldSpacePosition), 1.0f), UNITY_MATRIX_V).z);
-    o.normal = (float3)worldSpaceNormal;
-    float3 viewSpacePosition = mul(UNITY_MATRIX_MV, float4(v.vertex.xyz, 1.0f)).xyz;
-    o.uv.xy = (float2)v.uv.xy * (float2)_GameMaterialTexcoord.zw + (float2)_GameMaterialTexcoord.xy;
+    o.WorldPositionDepth = float4(worldSpacePosition.xyz, -viewSpacePosition.z);
+    o.normal = worldSpaceNormal;
+    o.uv.xy = v.uv.xy * _GameMaterialTexcoord.zw + _GameMaterialTexcoord.xy;
 
-    #if !defined(UVA_SCRIPT_ENABLED)
-        #if defined(TEXCOORD_OFFSET_ENABLED)
-            o.uv.xy += (float2)(_TexCoordOffset * getGlobalTextureFactor());
-        #endif // TEXCOORD_OFFSET_ENABLED
-    #else
-        o.uv.xy += (float2)(_TexCoordOffset * getGlobalTextureFactor());
-    #endif // UVA_SCRIPT_ENABLED
+    #if defined(TEXCOORD_OFFSET_ENABLED)
+        o.uv.xy += _TexCoordOffset.xy * getGlobalTextureFactor();
+    #endif // TEXCOORD_OFFSET_ENABLED
 
     // TexCoord2
     #if defined(MULTI_UV_ENANLED)
-        #if !defined(UVA_SCRIPT_ENABLED)
-            o.uv2.xy = (float2)v.uv2.xy;
+        o.uv2.xy = v.uv2.xy;
 
-            #if defined(MULTI_UV_TEXCOORD_OFFSET_ENABLED)
-                o.uv2.xy += (float2)(_TexCoordOffset2 * getGlobalTextureFactor());
-            #endif // MULTI_UV_TEXCOORD_OFFSET_ENABLED
+        #if defined(MULTI_UV_TEXCOORD_OFFSET_ENABLED)
+            o.uv2.xy += _TexCoordOffset2.xy * getGlobalTextureFactor();
+        #endif // MULTI_UV_TEXCOORD_OFFSET_ENABLED
 
-            o.uv2.xy += (float2)_GameMaterialTexcoord.xy;
-        #else // UVA_SCRIPT_ENABLED
-            o.uv2.xy = (float2)v.uv2.xy;
-            o.uv2.xy += (float2)(_TexCoordOffset2 * getGlobalTextureFactor());
-            o.uv2.xy += (float2)_GameMaterialTexcoord.xy;
-        #endif // UVA_SCRIPT_ENABLED
+        o.uv2.xy += _GameMaterialTexcoord.xy;
     #endif // MULTI_UV_ENANLED
 
     // TexCoord3
     #if defined(MULTI_UV2_ENANLED)
-        #if !defined(UVA_SCRIPT_ENABLED)
-            o.uv3.xy = (float2)v.uv3.xy;
+        o.uv3.xy = v.uv3.xy;
 
-            #if defined(MULTI_UV2_TEXCOORD_OFFSET_ENABLED)
-                o.uv3.xy += (float2)(_TexCoordOffset3 * getGlobalTextureFactor());
-            #endif // MULTI_UV2_TEXCOORD_OFFSET_ENABLED
+        #if defined(MULTI_UV2_TEXCOORD_OFFSET_ENABLED)
+            o.uv3.xy += _TexCoordOffset3.xy * getGlobalTextureFactor();
+        #endif // MULTI_UV2_TEXCOORD_OFFSET_ENABLED
 
-            o.uv3.xy += (float2)_GameMaterialTexcoord.xy;
-        #else // UVA_SCRIPT_ENABLED
-            o.uv3.xy = (float2)v.uv3.xy;
-            o.uv3.xy += (float2)(_TexCoordOffset3 * getGlobalTextureFactor());
-            o.uv3.xy += (float2)_GameMaterialTexcoord.xy;
-        #endif // UVA_SCRIPT_ENABLED
+        o.uv3.xy += _GameMaterialTexcoord.xy;
     #endif // defined(MULTI_UV2_ENANLED)
 
     #if defined(PROJECTION_MAP_ENABLED) && !defined(CARTOON_SHADING_ENABLED)
-        #if !defined(UVA_SCRIPT_ENABLED)
-            o.ProjMap.xy = float2(worldSpacePosition.xz / _ProjectionScale + (_ProjectionScroll * getGlobalTextureFactor()));
-        #else // UVA_SCRIPT_ENABLED
-            o.ProjMap.xy = float2(worldSpacePosition.xz / _ProjectionScale + (_ProjectionScroll * getGlobalTextureFactor()));
-            //x	o.ProjMap.xy = half2(worldSpacePosition.xz / ProjectionScale) + ProjectionScroll * UVaProjTexcoord.xy;
-        #endif // UVA_SCRIPT_ENABLED
+        o.ProjMap.xy = float2(worldSpacePosition.xz / _ProjectionScale + (_ProjectionScroll * getGlobalTextureFactor()));
     #endif // 
 
     #if defined(DUDV_MAPPING_ENABLED)
-        #if !defined(UVA_SCRIPT_ENABLED)
-            o.DuDvTexCoord.xy = (float2)v.uv.xy * _UVaDuDvTexcoord.zw;
-            o.DuDvTexCoord.xy += (float2)(_DuDvScroll * getGlobalTextureFactor());
-        #else // UVA_SCRIPT_ENABLED
-            o.DuDvTexCoord.xy = (float2)v.uv.xy * _UVaDuDvTexcoord.zw;
-            o.DuDvTexCoord.xy += (float2)(_DuDvScroll * getGlobalTextureFactor());
-        #endif // UVA_SCRIPT_ENABLED
+        o.DuDvTexCoord.xy = v.uv.xy * _UVaDuDvTexcoord.zw;
+        o.DuDvTexCoord.xy += _DuDvScroll.xy * getGlobalTextureFactor();
     #endif
 
     #if defined(VERTEX_COLOR_ENABLED)
         o.Color0 = float4(v.color.r, v.color.g, v.color.b, v.color.a);
-
-        #if !defined(UNITY_COLORSPACE_GAMMA)
-            //o.Color0.rgb = GammaToLinearSpace(o.Color0.rgb);
-            //o.Color0.a = GammaToLinearSpaceExact(o.Color0.a);
-        #endif
     #else // VERTEX_COLOR_ENABLED
         o.Color0 = float4(1.0f, 1.0f, 1.0f, 1.0f);
     #endif // VERTEX_COLOR_ENABLED
@@ -127,7 +93,7 @@ DefaultVPOutput DefaultVPShader (DefaultVPInput v) {
     o.Color1.rgb = float3(1.0f, 1.0f, 1.0f);
 
     #if defined(FOG_ENABLED)
-        o.Color1.a = EvaluateFogVP(UNITY_Z_0_FAR_FROM_CLIPSPACE(o.pos.z), worldSpacePosition.y);
+        o.Color1.a = EvaluateFogVP(-viewSpacePosition.z, worldSpacePosition.y);
     #else // FOG_ENABLED
         o.Color1.a = 0.0f;
     #endif // FOG_ENABLED
@@ -142,7 +108,7 @@ DefaultVPOutput DefaultVPShader (DefaultVPInput v) {
     #if defined(VP_LIGHTPROCESS)
         #if defined(VP_PORTRAIT)
             #if defined(LIGHT_DIRECTION_FOR_CHARACTER_ENABLED)
-                light0dir = normalize(_WorldSpaceLightPos0.xyz); //normalize(_LightDirForChar);
+                light0dir = normalize(_WorldSpaceLightPos0.xyz);
             #else
                 light0dir = normalize(float3(0.0f, 1.0f, 0.0f));
             #endif // LIGHT_DIRECTION_FOR_CHARACTER_ENABLED
@@ -152,14 +118,6 @@ DefaultVPOutput DefaultVPShader (DefaultVPInput v) {
     #else
         light0dir = normalize(float3(0.0f, -1.0f, 0.0f));
     #endif
-
-    #if defined(RECEIVE_SHADOWS)
-        #if defined(CARTOON_AVOID_SELFSHADOW_OFFSET) && defined(CARTOON_SHADING_ENABLED)
-            //o.WorldPositionDepth.xyz += light0dir * _ShadowReceiveOffset + worldSpaceNormal * -0.02f;
-        #else // defined(CARTOON_AVOID_SELFSHADOW_OFFSET) && defined(CARTOON_SHADING_ENABLED)
-            //o.WorldPositionDepth.xyz += light0dir * 0.02f + worldSpaceNormal * -0.01f;
-        #endif // !defined(CARTOON_AVOID_SELFSHADOW_OFFSET) && !defined(CARTOON_SHADING_ENABLED)
-    #endif // RECEIVE_SHADOWS
 
     #if defined(CARTOON_SHADING_ENABLED)
         #if !defined(CUBE_MAPPING_ENABLED) && !defined(SPHERE_MAPPING_ENABLED)
@@ -173,7 +131,6 @@ DefaultVPOutput DefaultVPShader (DefaultVPInput v) {
 
     #if defined(USE_SCREEN_UV)
         o.ReflectionMap = ComputeGrabScreenPos(o.pos);
-        //o.ReflectionMap = GenerateScreenProjectedUv(o.pos);
     #endif // defined(USE_SCREEN_UV)
 
     #if defined(CARTOON_SHADING_ENABLED)

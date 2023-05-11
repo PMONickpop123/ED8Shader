@@ -411,9 +411,6 @@
             #define ED8_GRABPASS
 
             #pragma shader_feature NOTHING_ENABLED
-            #pragma shader_feature CASTS_SHADOWS_ONLY
-            #pragma shader_feature CASTS_SHADOWS
-            #pragma shader_feature RECEIVE_SHADOWS
             #pragma shader_feature USE_DIRECTIONAL_LIGHT_COLOR
             #pragma shader_feature ADDITIVE_BLENDING_ENABLED
             #pragma shader_feature SUBTRACT_BLENDING_ENABLED
@@ -427,7 +424,6 @@
             #pragma shader_feature_local NO_MAIN_LIGHT_SHADING_ENABLED
             #pragma shader_feature_local HALF_LAMBERT_LIGHTING_ENABLED
             #pragma shader_feature FLAT_AMBIENT_ENABLED
-            #pragma shader_feature_local UVA_SCRIPT_ENABLED
             #pragma shader_feature FOG_ENABLED
             #pragma shader_feature_local FOG_RATIO_ENABLED
             #pragma shader_feature_local SHADOW_COLOR_SHIFT_ENABLED
@@ -480,7 +476,6 @@
             #pragma shader_feature_local WINDY_GRASS_TEXV_WEIGHT_ENABLED
             #pragma shader_feature USE_OUTLINE
             #pragma shader_feature_local USE_OUTLINE_COLOR
-            #pragma shader_feature USE_SCREEN_UV
             #pragma shader_feature_local GLARE_MAP_ENABLED
             #pragma shader_feature_local GLARE_HIGHTPASS_ENABLED
 
@@ -517,9 +512,6 @@
             #define ED8_GRABPASS
 
             #pragma shader_feature NOTHING_ENABLED
-            #pragma shader_feature CASTS_SHADOWS_ONLY
-            #pragma shader_feature CASTS_SHADOWS
-            #pragma shader_feature RECEIVE_SHADOWS
             #pragma shader_feature USE_DIRECTIONAL_LIGHT_COLOR
             #pragma shader_feature ADDITIVE_BLENDING_ENABLED
             #pragma shader_feature SUBTRACT_BLENDING_ENABLED
@@ -533,7 +525,6 @@
             #pragma shader_feature_local NO_MAIN_LIGHT_SHADING_ENABLED
             #pragma shader_feature_local HALF_LAMBERT_LIGHTING_ENABLED
             #pragma shader_feature FLAT_AMBIENT_ENABLED
-            #pragma shader_feature_local UVA_SCRIPT_ENABLED
             #pragma shader_feature FOG_ENABLED
             #pragma shader_feature_local FOG_RATIO_ENABLED
             #pragma shader_feature_local SHADOW_COLOR_SHIFT_ENABLED
@@ -586,7 +577,6 @@
             #pragma shader_feature_local WINDY_GRASS_TEXV_WEIGHT_ENABLED
             #pragma shader_feature USE_OUTLINE
             #pragma shader_feature_local USE_OUTLINE_COLOR
-            #pragma shader_feature USE_SCREEN_UV
             #pragma shader_feature_local GLARE_MAP_ENABLED
             #pragma shader_feature_local GLARE_HIGHTPASS_ENABLED
 
