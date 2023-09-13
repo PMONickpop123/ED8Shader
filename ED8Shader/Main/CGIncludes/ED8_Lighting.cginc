@@ -1,21 +1,30 @@
+//-----------------------------------------------------------------------------
+// ライティング
+//-----------------------------------------------------------------------------
 float calcDiffuseLightAmtLdotN(float ldotn) {
 	float diffuseValue;
 
-	#if defined(HALF_LAMBERT_LIGHTING_ENABLED)
-	    diffuseValue = ldotn * 0.5f + 0.5f;
+    #if defined(HALF_LAMBERT_LIGHTING_ENABLED)	// ハーフランバートで固定
+        diffuseValue = ldotn * 0.5 + 0.5;
         diffuseValue *= diffuseValue;
-	#else // !HALF_LAMBERT_LIGHTING_ENABLED
-	    diffuseValue = saturate(ldotn);
-	#endif // HALF_LAMBERT_LIGHTING_ENABLED
+    #else
+        diffuseValue = ClampPlusMinusOneToNonNegative(ldotn);
+    #endif
 	return diffuseValue;
 }
 
 float calcSpecularLightAmt(float3 normal, float3 lightDir, float3 eyeDirection, float shininess, float specularPower) {
-	// Specular calcs
 	float3 halfVec = normalize(eyeDirection + lightDir);
-	float nDotH = saturate(dot(normal, halfVec));
-    float specularLightAmount = saturate(pow(nDotH, specularPower)) * shininess;
+	float nDotH = ClampPlusMinusOneToNonNegative(dot(normal,halfVec));
+	float specularLightAmount = ClampPlusMinusOneToNonNegative(pow(nDotH, specularPower)) * shininess;
 	return specularLightAmount;
+}
+
+float calcEmissionBias(float ndote) {
+    float bias;
+
+    bias = (_Culling < 2) ? pow(max(0, 1.0 - abs(ndote)), _PointLightColor.x) : pow(1.0 - clamp(ndote, 0.0, 1.0), _PointLightColor.x);
+	return lerp(1.0, bias, _PointLightColor.y);
 }
 
 #if defined(FAKE_CONSTANT_SPECULAR_ENABLED) && defined(SPECULAR_ENABLED)
@@ -28,7 +37,7 @@ float calcSpecularLightAmt(float3 normal, float3 lightDir, float3 eyeDirection, 
     }   
 #endif // FAKE_CONSTANT_SPECULAR_ENABLED
 
-float3 EvaluateAmbient(float3 normal) {
+float3 GetGlobalAmbientColor(float3 normal) {
 	#if defined(HEMISPHERE_AMBIENT_ENABLED) && !defined(FLAT_AMBIENT_ENABLED)
         float3 upDirection = normalize(_UdonHemiSphereAmbientAxis);
         //float amt = (dot(normal, upDirection) + 1.0f) * 0.5f;
@@ -90,7 +99,7 @@ float3 EvaluateAmbient(float3 normal) {
 #endif // defined(LIGHT_DIRECTION_FOR_CHARACTER_ENABLED)
 
 #if defined(USE_LIGHTING)
-    float3 EvaluateLightingPerPixelFP(inout float3 sublightAmount, float3 worldSpacePosition, float3 normal, float glossValue, float shadowValue, float3 ambientAmount, float3 eyeDirection, float atten) {
+    float3 EvaluateLightingPerPixel(inout float3 sublightAmount, float3 worldSpacePosition, float3 normal, float glossValue, float shadowValue, float3 ambientAmount, float3 eyeDirection, float atten) {
         #if defined(ALPHA_BLENDING_ENABLED) && defined(USE_EXTRA_BLENDING)
 	        float3 lightingResult = float3(0.0f, 0.0f, 0.0f);
 	    #else // defined(ALPHA_BLENDING_ENABLED) && defined(USE_EXTRA_BLENDING)
@@ -133,7 +142,7 @@ float3 EvaluateAmbient(float3 normal) {
                 ldotn = dot(normal, lightDir);
 
                 #if defined(CARTOON_SHADING_ENABLED)
-                    diffuseValue = lightColor * calcToonShadingValueFP(ldotn, shadowValue);
+                    diffuseValue = lightColor * calcToonShadingValue(ldotn, shadowValue);
                 #else
                     #if defined(NO_MAIN_LIGHT_SHADING_ENABLED)
                         diffuseValue = lightColor.rgb / max(max(lightColor.r, lightColor.g), max(lightColor.b, 0.001f));
@@ -153,15 +162,16 @@ float3 EvaluateAmbient(float3 normal) {
                         specularLightDir = lightDir;
                     #endif // FAKE_CONSTANT_SPECULAR_ENABLED
 
-                    specularValue = lightColor.rgb * calcSpecularLightAmt(normal, specularLightDir, eyeDirection, shininess, _SpecularPower);
+                    specularValue = lightColor.rgb
 
                     #if defined(SPECULAR_COLOR_ENABLED)
                         #if !defined(UNITY_COLORSPACE_GAMMA)
-                            specularValue *= LinearToGammaSpace(_SpecularColor.rgb);
+                            * LinearToGammaSpace(_SpecularColor.rgb)
                         #else
-                            specularValue *= _SpecularColor.rgb;
+                            * _SpecularColor.rgb
                         #endif
                     #endif
+                    * calcSpecularLightAmt(normal, specularLightDir, eyeDirection, shininess, _SpecularPower);
 
                     lightingAmount += specularValue;
 
@@ -172,10 +182,7 @@ float3 EvaluateAmbient(float3 normal) {
 
                 shadingAmount += diffuseValue;
                 lightingResult += shadingAmount;
-
-                #if defined(MAINLIGHT_CLAMP_FACTOR_ENABLED)
-                    lightingResult = min(lightingResult, (float3)_GlobalMainLightClampFactor);
-                #endif // MAINLIGHT_CLAMP_FACTOR_ENABLED
+                lightingResult = min(lightingResult, (float3)_GlobalMainLightClampFactor);
             }
         #elif defined(UNITY_PASS_FORWARDADD)
             UNITY_BRANCH
@@ -185,7 +192,7 @@ float3 EvaluateAmbient(float3 normal) {
                 diffuseValue = lightColor.rgb * atten * calcDiffuseLightAmtLdotN(ldotn);
 
                 #if defined(CARTOON_SHADING_ENABLED) && !defined(TOON_FIRST_LIGHT_ONLY_ENABLED)
-                    diffuseValue *= calcToonShadingValueFP(ldotn, shadowValue);
+                    diffuseValue *= calcToonShadingValue(ldotn, shadowValue);
                 #endif // CARTOON_SHADING_ENABLED && !TOON_FIRST_LIGHT_ONLY_ENABLED
 
                 sublightAmount += diffuseValue;
@@ -206,7 +213,7 @@ float3 EvaluateAmbient(float3 normal) {
                     diffuseValue = lightColor.rgb * atten * calcDiffuseLightAmtLdotN(ldotn);
 
                     #if defined(CARTOON_SHADING_ENABLED) && !defined(TOON_FIRST_LIGHT_ONLY_ENABLED)
-                        diffuseValue *= calcToonShadingValueFP(ldotn, shadowValue);
+                        diffuseValue *= calcToonShadingValue(ldotn, shadowValue);
                     #endif // CARTOON_SHADING_ENABLED && !TOON_FIRST_LIGHT_ONLY_ENABLED
 
                     sublightAmount += diffuseValue;
@@ -228,16 +235,11 @@ float3 EvaluateAmbient(float3 normal) {
 		#if defined(SPECULAR_ENABLED)
 		    lightingResult += lightingAmount;
 		#endif // SPECULAR_ENABLED
-
-        #if defined(FLAT_AMBIENT_ENABLED)
-            lightingResult = lerp(lightingResult, lightingResult * ambientAmount.rgb, 1 - shadowValue);
-        #endif
-
 	    return lightingResult;
     }
 
 	#if defined(LIGHT_DIRECTION_FOR_CHARACTER_ENABLED)
-        float3 PortraitEvaluateLightingPerPixelFP(inout float3 sublightAmount, float3 worldSpacePosition, float3 normal, float glossValue, float shadowValue, float3 ambientAmount, float3 eyeDirection, float atten) {
+        float3 PortraitEvaluateLightingPerPixel(inout float3 sublightAmount, float3 worldSpacePosition, float3 normal, float glossValue, float shadowValue, float3 ambientAmount, float3 eyeDirection, float atten) {
 	        #if defined(ALPHA_BLENDING_ENABLED) && defined(USE_EXTRA_BLENDING)
 	            float3 lightingResult = float3(0.0f, 0.0f, 0.0f);
 	        #else // defined(ALPHA_BLENDING_ENABLED) && defined(USE_EXTRA_BLENDING)
@@ -280,7 +282,7 @@ float3 EvaluateAmbient(float3 normal) {
                     ldotn = dot(normal, lightDir);
 
                     #if defined(CARTOON_SHADING_ENABLED)
-                        diffuseValue = lightColor.rgb * calcToonShadingValueFP(ldotn, shadowValue);
+                        diffuseValue = lightColor.rgb * calcToonShadingValue(ldotn, shadowValue);
                     #else
                         #if defined(NO_MAIN_LIGHT_SHADING_ENABLED)
                             diffuseValue = lightColor.rgb / max(max(lightColor.r, lightColor.g), max(lightColor.b, 0.001f));
@@ -300,15 +302,16 @@ float3 EvaluateAmbient(float3 normal) {
                             specularLightDir = lightDir;
                         #endif // FAKE_CONSTANT_SPECULAR_ENABLED
 
-                        specularValue = lightColor.rgb * calcSpecularLightAmt(normal, specularLightDir, eyeDirection, shininess, _SpecularPower);
+                        specularValue = lightColor.rgb
 
                         #if defined(SPECULAR_COLOR_ENABLED)
                             #if !defined(UNITY_COLORSPACE_GAMMA)
-                                specularValue *= LinearToGammaSpace(_SpecularColor.rgb);
+                                * LinearToGammaSpace(_SpecularColor.rgb)
                             #else
-                                specularValue *= _SpecularColor.rgb;
+                                * _SpecularColor.rgb
                             #endif
                         #endif
+                        * calcSpecularLightAmt(normal, specularLightDir, eyeDirection, shininess, _SpecularPower);
 
                         lightingAmount += specularValue;
 
@@ -319,10 +322,7 @@ float3 EvaluateAmbient(float3 normal) {
 
                     shadingAmount += diffuseValue;
                     lightingResult += shadingAmount;
-
-                    #if defined(MAINLIGHT_CLAMP_FACTOR_ENABLED)
-                        lightingResult = min(lightingResult, (float3)_GlobalMainLightClampFactor);
-                    #endif // MAINLIGHT_CLAMP_FACTOR_ENABLED
+                    lightingResult = min(lightingResult, (float3)_GlobalMainLightClampFactor);
 
                     #if defined(SPECULAR_ENABLED)
                         lightingResult += lightingAmount;
@@ -336,7 +336,7 @@ float3 EvaluateAmbient(float3 normal) {
                     diffuseValue = lightColor.rgb * atten * calcDiffuseLightAmtLdotN(ldotn);
 
                     #if defined(CARTOON_SHADING_ENABLED) && !defined(TOON_FIRST_LIGHT_ONLY_ENABLED)
-                        diffuseValue *= calcToonShadingValueFP(ldotn, shadowValue);
+                        diffuseValue *= calcToonShadingValue(ldotn, shadowValue);
                     #endif // CARTOON_SHADING_ENABLED && !TOON_FIRST_LIGHT_ONLY_ENABLED
 
                     sublightAmount += diffuseValue;
@@ -358,7 +358,7 @@ float3 EvaluateAmbient(float3 normal) {
                         diffuseValue = lightColor.rgb * atten * calcDiffuseLightAmtLdotN(ldotn);
 
                         #if defined(CARTOON_SHADING_ENABLED) && !defined(TOON_FIRST_LIGHT_ONLY_ENABLED)
-                            diffuseValue *= calcToonShadingValueFP(ldotn, shadowValue);
+                            diffuseValue *= calcToonShadingValue(ldotn, shadowValue);
                         #endif // CARTOON_SHADING_ENABLED && !TOON_FIRST_LIGHT_ONLY_ENABLED
 
                         sublightAmount += diffuseValue;
@@ -376,28 +376,19 @@ float3 EvaluateAmbient(float3 normal) {
                     }
                 }
             #endif
-
-            #if defined(FLAT_AMBIENT_ENABLED)
-                lightingResult = lerp(lightingResult, lightingResult * ambientAmount.rgb, 1 - shadowValue);
-            #endif
-
 	        return lightingResult;
         }
 	#endif // defined(LIGHT_DIRECTION_FOR_CHARACTER_ENABLED)
 #else // !USE_PER_VERTEX_LIGHTING && USE_LIGHTING
-    float3 EvaluateLightingPerVertexFP(DefaultVPOutput In, float3 worldSpacePosition, float glossValue, float shadowValue, float3 ambientAmount, float3 shadingAmount, float3 lightingAmount, float3 subLight) {
-	    float3 lightingResult = float3(0.0f, 0.0f, 0.0f);
+    float3 EvaluateLightingPerVertexFP(float shadowValue, float3 normal) {
+	    float3 lightingResult;
 
         #if defined(MULTIPLICATIVE_BLENDING_ENABLED)
-            shadowValue = 1.0f;
+            shadowValue = 1.0;
         #endif
 
-        lightingResult = max(_UdonGlobalAmbientColor.rgb, (float3)shadowValue);
-
-        #if defined(MAINLIGHT_CLAMP_FACTOR_ENABLED)
-            lightingResult = min(lightingResult, (float3)_GlobalMainLightClampFactor);
-        #endif // MAINLIGHT_CLAMP_FACTOR_ENABLED
-
+        lightingResult = max(GetGlobalAmbientColor(normal), (float3)shadowValue);
+        lightingResult = min(lightingResult, (float3)_GlobalMainLightClampFactor);
         return lightingResult;
     }
 #endif // !USE_PER_VERTEX_LIGHTING && USE_LIGHTING

@@ -1,0 +1,1307 @@
+/*-------------------------ed8def.h----------------------------*/
+
+#define FPS_MAX	30
+
+struct DirectionalLight
+{
+	half3 m_direction;
+	half3 m_colorIntensity;
+};
+
+// 影受けバイアス値
+#define SHADOW_LIGHTDIR_BIAS	0.05
+#define SHADOW_NORMALDIR_BIAS	0.05
+
+#define PCF_ENABLED
+#if defined(__SCE_CGC__)
+	#define PCF_OFFSET	(1.0 / 2048)
+#else
+	#define PCF_OFFSET	(1.0 / 4096)
+#endif
+
+struct CombinedCascadedShadowMap
+{
+	// 二分割
+	float4x4 m_split0Transform;
+	float4x4 m_split1Transform;
+
+	float4 m_splitDistances;
+};
+
+#define NUM_SKIN_TRANSFORMS	160
+layout(std140) uniform Param
+{
+uniform SceneWideParameters scene;
+
+uniform float4x4 World;
+uniform float4x4 WorldViewProjection;
+uniform float GlobalTexcoordFactor;
+
+uniform DirectionalLight Light0;
+uniform CombinedCascadedShadowMap LightShadow0;
+
+uniform float4 GameMaterialDiffuse;
+uniform float4 GameMaterialEmission;
+uniform float GameMaterialMonotone;
+uniform float4 GameMaterialTexcoord;
+
+uniform float4 UVaMUvColor;
+uniform float4 UVaProjTexcoord;
+uniform float4 UVaMUvTexcoord;
+uniform float4 UVaMUv2Texcoord;
+uniform float4 UVaDuDvTexcoord;
+
+uniform float AlphaThreshold;
+
+uniform float Shininess;
+uniform float SpecularPower;
+uniform float3 SpecularColor;
+uniform float3 RimLitColor;
+uniform float RimLitIntensity;
+uniform float RimLitPower;
+
+uniform float BlendMulScale2;
+uniform float BlendMulScale3;
+uniform float SphereMapIntensity;
+uniform float CubeMapIntensity;
+uniform float CubeMapFresnel;
+
+uniform float2 ProjectionScale;
+
+uniform float2 DuDvMapImageSize;
+uniform float2 DuDvScale;
+
+uniform float2 WindyGrassDirection;
+uniform float WindyGrassSpeed;
+uniform float WindyGrassHomogenity;
+uniform float WindyGrassScale;
+
+uniform float BloomIntensity;
+uniform float GlareIntensity;
+uniform float ReflectionIntensity;
+
+uniform float4 PointLightParams;
+uniform float4 PointLightColor;
+
+uniform float4x4 BoneTransforms[NUM_SKIN_TRANSFORMS];
+};
+
+/*-------------------------ed8def.h----------------------------*/
+
+
+/*-------------------------ed8_map.cgfx----------------------------*/
+
+//=============================================================================
+// マテリアルスイッチのプリプロセス(copy from ed8_map.cgfx)
+//=============================================================================
+
+// ブルームは常時ON
+#define BLOOM_ENABLED
+
+// Maya上では機能しないスイッチを無効化
+#if defined(DCC_TOOL)
+	#undef CASTS_SHADOWS
+	#undef RECEIVE_SHADOWS
+#endif
+
+// DUDVとマルチテクスチャは排他
+#if defined(DUDV_MAPPING_ENABLED)
+	#undef MULTI_UV_ENANLED
+	#undef MULTI_UV2_ENANLED
+#endif
+
+// 非マルチテクスチャなら関連スイッチを無効化
+#if !defined(MULTI_UV_ENANLED)
+	#undef MULTI_UV_ADDITIVE_BLENDING_ENANLED
+	#undef MULTI_UV_MULTIPLICATIVE_BLENDING_ENANLED
+	#undef MULTI_UV_MULTIPLICATIVE_BLENDING_LM_ENANLED
+	#undef MULTI_UV_NORMAL_MAPPING_ENABLED
+	#undef MULTI_UV_SPECULAR_MAPPING_ENABLED
+	#undef MULTI_UV_GLARE_MAP_ENABLED
+	#undef MULTI_UV2_ENANLED
+	#undef MULTI_UV2_ADDITIVE_BLENDING_ENANLED
+	#undef MULTI_UV2_MULTIPLICATIVE_BLENDING_ENANLED
+	#undef MULTI_UV2_MULTIPLICATIVE_BLENDING_LM_ENANLED
+#endif // !defined(MULTI_UV_ENANLED)
+
+// マルチUV2と排他なものを無効化
+#if defined(MULTI_UV2_ENANLED)
+	#undef SPHERE_MAPPING_ENABLED
+	#undef CUBE_MAPPING_ENABLED
+#endif
+
+#if defined(WATER_SURFACE_ENABLED)
+	#if !defined(DCC_TOOL)
+		#undef ALPHA_BLENDING_ENABLED
+	#else
+		#if !defined(ALPHA_BLENDING_ENABLED)
+			#define ALPHA_BLENDING_ENABLED
+		#endif
+	#endif
+	#undef ADDITIVE_BLENDING_ENABLED
+	#undef SUBTRACT_BLENDING_ENABLED
+	#undef MULTIPLICATIVE_BLENDING_ENABLED
+#endif // defined(WATER_SURFACE_ENABLED)
+
+#if defined(WATER_SURFACE_ENABLED) || defined(DUDV_MAPPING_ENABLED)
+	#define USE_SCREEN_UV
+#endif
+
+#if !defined(ALPHA_BLENDING_ENABLED)
+	#undef ADDITIVE_BLENDING_ENABLED
+	#undef SUBTRACT_BLENDING_ENABLED
+	#undef MULTIPLICATIVE_BLENDING_ENABLED
+#endif
+
+// Vita向け高速化
+#if defined(__psp2__)
+	// 可能な限り頂点単位でライト計算する
+	#if !(defined(NORMAL_MAPPING_ENABLED) || defined(MULTI_UV_NORMAL_MAPPING_ENABLED))
+		#define USE_PER_VERTEX_LIGHTING
+	#endif
+	// リムライトを頂点単位で計算（リム透明度の場合は見栄えが悪くなるのでやらない）
+	#if defined(RIM_LIGHTING_ENABLED) && !defined(RIM_TRANSPARENCY_ENABLED) 
+		#define USE_FORCE_VERTEX_RIM_LIGHTING
+	#endif
+#endif // defined(__psp2__)
+
+#if !defined(DCC_TOOL)
+	#define GAME_MATERIAL_ENABLED
+	#define UVA_SCRIPT_ENABLED
+#endif
+
+#define USE_POSITION_HALF	// 変換済み座標をhalfで処理
+
+#if defined(NUM_LIGHTS)
+	#if (NUM_LIGHTS > 0) && !defined(NOTHING_ENABLED) && !defined(NO_ALL_LIGHTING_ENABLED)
+		#define USE_LIGHTING
+	#endif
+#endif
+
+#if defined(RECEIVE_SHADOWS)
+	#if defined(NUM_LIGHTS)
+		#if NUM_LIGHTS == 0
+			#undef RECEIVE_SHADOWS
+		#endif
+	#else
+		#undef RECEIVE_SHADOWS
+	#endif
+	#if !defined(SHADOWTYPE_0)
+		#undef RECEIVE_SHADOWS
+	#endif
+#endif // defined(RECEIVE_SHADOWS)
+
+#if defined(NORMAL_MAPPING_ENABLED) || defined(MULTI_UV_NORMAL_MAPPING_ENABLED)
+	#define USE_TANGENTS
+#endif
+
+#if defined(ADDITIVE_BLENDING_ENABLED) || defined(SUBTRACT_BLENDING_ENABLED) || defined(MULTIPLICATIVE_BLENDING_ENABLED)
+	#define USE_EXTRA_BLENDING
+#endif
+
+//=============================================================================
+// グローバルシェーダパラメータ
+//=============================================================================
+#if defined(USE_SCREEN_UV)
+	#define ScreenWidth		scene.ViewportWidthHeight.x
+	#define ScreenHeight	scene.ViewportWidthHeight.y
+#endif
+
+//-----------------------------------------------------------------------------
+// ライティング
+//-----------------------------------------------------------------------------
+
+#if defined(RECEIVE_SHADOWS)
+uniform sampler2DShadow LightShadowMap0;
+//uniform sampler2D LightShadowMap0;
+
+#endif // defined(RECEIVE_SHADOWS)
+
+#define MainLightClampFactor	1.5
+
+//-----------------------------------------------------------------------------
+// テクスチャ
+//-----------------------------------------------------------------------------
+uniform sampler2D DiffuseMapSampler;
+
+#if defined(NORMAL_MAPPING_ENABLED)
+uniform sampler2D NormalMapSampler;
+#endif
+
+#if defined(SPECULAR_MAPPING_ENABLED)
+uniform sampler2D SpecularMapSampler;
+#endif
+
+//-----------------------------------------------------------------------------
+// マルチUVテクスチャ
+//-----------------------------------------------------------------------------
+#if defined(MULTI_UV_ENANLED)
+	#if !defined(MULTI_UV_NO_DIFFUSE_MAPPING_ENANLED)
+uniform sampler2D DiffuseMap2Sampler;
+	#endif // !defined(MULTI_UV_NO_DIFFUSE_MAPPING_ENANLED)
+
+	#if defined(MULTI_UV_SPECULAR_MAPPING_ENABLED)
+uniform sampler2D SpecularMap2Sampler;
+	#endif
+
+	#if defined(MULTI_UV_NORMAL_MAPPING_ENABLED)
+uniform sampler2D NormalMap2Sampler;
+	#endif
+
+#endif // defined(MULTI_UV_ENANLED)
+
+//-----------------------------------------------------------------------------
+// マルチUV2テクスチャ
+//-----------------------------------------------------------------------------
+#if defined(MULTI_UV2_ENANLED)
+uniform sampler2D DiffuseMap3Sampler;
+#endif // defined(MULTI_UV2_ENANLED)
+
+
+//-----------------------------------------------------------------------------
+// スフィアマップ
+//-----------------------------------------------------------------------------
+#if defined(SPHERE_MAPPING_ENABLED)
+uniform sampler2D SphereMapSampler;
+
+#endif // defined(SPHERE_MAPPING_ENABLED)
+
+//-----------------------------------------------------------------------------
+// キューブマップ
+//-----------------------------------------------------------------------------
+#if defined(CUBE_MAPPING_ENABLED)
+uniform samplerCUBE CubeMapSampler;
+
+#endif // defined(CUBE_MAPPING_ENABLED)
+
+//-----------------------------------------------------------------------------
+// 射影マップ
+//-----------------------------------------------------------------------------
+#if defined(PROJECTION_MAP_ENABLED)
+uniform sampler2D ProjectionMapSampler;
+
+	//#if !defined(UVA_SCRIPT_ENABLED)
+//uniform float2 ProjectionScroll = float2(0.0, 0.0);
+	//#endif
+
+#endif // defined(PROJECTION_MAP_ENABLED)
+
+//-----------------------------------------------------------------------------
+// DU/DVマップ
+//-----------------------------------------------------------------------------
+#if defined(DUDV_MAPPING_ENABLED)
+uniform sampler2D DuDvMapSampler;
+
+	#define DUDVMAP_SIZE	256.0
+
+	//#if !defined(UVA_SCRIPT_ENABLED)
+	//uniform float2 DuDvScroll = float2(0.01, 0.01);
+	//#endif
+#endif // defined(DUDV_MAPPING_ENABLED)
+
+//-----------------------------------------------------------------------------
+// グロー
+//-----------------------------------------------------------------------------
+#if defined(GLARE_ENABLED)
+	#if defined(GLARE_MAP_ENABLED)
+uniform sampler2D GlareMapSampler;
+	#endif
+	#if defined(MULTI_UV_GLARE_MAP_ENABLED)
+uniform sampler2D GlareMap2Sampler;
+	#endif
+
+#endif // defined(GLARE_ENABLED)
+
+//-----------------------------------------------------------------------------
+// 映り込み
+//-----------------------------------------------------------------------------
+uniform sampler2D ReflectionTexture;
+uniform sampler2D RefractionTexture;
+
+//=============================================================================
+// シェーダ入出力構造体
+//=============================================================================
+// 補足:
+// - 変換済み座標はhalfで処理（精度面で問題が出るようならfloatに戻す）。
+// - シャドウマップ計算に関わる変数はfloatで処理。
+// - テクスチャ座標はfloatで処理。ゆっくりスクロールさせたい場合などにhalfだと精度が足りずカクつくため。
+struct DefaultVPOutput
+{
+	#if defined(USE_POSITION_HALF)
+	half4 Position;
+	#else
+	float4 Position;
+	#endif
+
+	half4 Color0;
+	half4 Color1;		// xyz = スペキュラ要素総計（USE_PER_VERTEX_LIGHTING有効時のみ）, w = フォグ計算結果
+	float2 TexCoord;
+	float4 WorldPositionDepth;	// xyz = ワールド座標, w = 視線方向のZ値
+
+#if defined(DUDV_MAPPING_ENABLED)
+	float2 DuDvTexCoord;
+#elif defined(MULTI_UV_ENANLED)
+	float2 TexCoord2;
+#endif
+
+#if defined(PROJECTION_MAP_ENABLED)
+	float2 ProjMap;
+#endif
+
+#if defined(RECEIVE_SHADOWS)
+	half4 Normal;	// w = 傾斜によるシャドウマップ補正値
+#else
+	half3 Normal;
+#endif
+
+#if !defined(USE_PER_VERTEX_LIGHTING) && defined(USE_LIGHTING)
+	#if defined(USE_TANGENTS)
+	half3 Tangent;
+	#endif
+#else // !defined(USE_PER_VERTEX_LIGHTING) && defined(USE_LIGHTING)
+	#if defined(USE_LIGHTING)
+		#if defined(RIM_LIGHTING_ENABLED) && defined(USE_FORCE_VERTEX_RIM_LIGHTING)
+	half4 ShadingAmount;	// ディフィーズ要素総計
+		#else
+	half3 ShadingAmount;	// ディフィーズ要素総計
+		#endif
+	#endif
+#endif // !defined(USE_PER_VERTEX_LIGHTING) && defined(USE_LIGHTING)
+
+#if defined(MULTI_UV2_ENANLED)
+	float2 TexCoord3;
+#endif
+
+#if defined(USE_SCREEN_UV)
+	half4 ReflectionMap;
+#endif
+
+#if !defined(USE_TANGENTS) || !defined(USE_LIGHTING)
+	#if defined(SPHERE_MAPPING_ENABLED)
+	half2 SphereMap;
+	#elif defined(CUBE_MAPPING_ENABLED)
+	half4 CubeMap;
+	#endif
+#endif
+};
+
+/*-------------------------ed8_map.cgfx----------------------------*/
+
+//=============================================================================
+// サブルーチン
+//=============================================================================
+
+
+/*-------------------------ed8_common.cgfx----------------------------*/
+
+half ClampPlusMinusOneToNonNegative(half value)
+{
+	return saturate(value);
+}
+
+float3 GetEyePosition()
+{
+	return scene.EyePosition.xyz;
+}
+
+half3 GetGlobalAmbientColor()
+{
+	return scene.GlobalAmbientColor.rgb;
+}
+
+float3 GetFakeSpecularLightDir(float3 trueLightDir)
+{
+	return scene.FakeRimLightDir;
+}
+
+//-----------------------------------------------------------------------------
+// 輝度計算
+//-----------------------------------------------------------------------------
+
+// 輝度レンジ。上げ過ぎるとマッハバンド酷くなるので注意！
+#define BRIGHT_RANGE		(2.0)
+#define BRIGHT_RANGE_RCP	(1 / BRIGHT_RANGE)
+
+#if defined(GLARE_ENABLED)
+half CalcGlowValue(half val)
+{
+	const half glowIntensity = BRIGHT_RANGE;
+	return min(1, val * glowIntensity * BRIGHT_RANGE_RCP);
+}
+#endif // defined(GLARE_ENABLED)
+
+#if defined(BLOOM_ENABLED)
+half CalcBrightness(half3 rgb, half scale)
+{
+	half bright = dot(rgb * BloomIntensity * scale, half3(0.299, 0.587, 0.114));
+	half threshold = scene.MiscParameters2.z;
+	bright = max(0, bright - threshold);
+	return min(1, bright * BRIGHT_RANGE_RCP);
+}
+#endif // defined(BLOOM_ENABLED)
+
+//-----------------------------------------------------------------------------
+// ライティング
+//-----------------------------------------------------------------------------
+half calcDiffuseLightAmtLdotN(half ldotn)
+{
+	half diffuseValue;
+#if defined(HALF_LAMBERT_LIGHTING_ENABLED)
+	diffuseValue = ldotn * 0.5 + 0.5;
+	diffuseValue *= diffuseValue;
+#else
+	diffuseValue = ClampPlusMinusOneToNonNegative(ldotn);
+#endif
+	return diffuseValue;
+}
+
+half calcSpecularLightAmt(half3 normal, half3 lightDir, half3 eyeDirection, half shininess, half specularPower)
+{
+	half3 halfVec = normalize(eyeDirection + lightDir);
+	half nDotH = ClampPlusMinusOneToNonNegative(dot(normal,halfVec));
+	half specularLightAmount = ClampPlusMinusOneToNonNegative(pow(nDotH, specularPower)) * shininess;
+	return specularLightAmount;
+}
+
+half3 EvaluatePointLight(half3 position, half3 normal)
+{
+	if (PointLightParams.w > 0) {
+		half3 offset = PointLightParams.xyz - position;
+		half vecLengthSqr = dot(offset, offset);
+		if (vecLengthSqr > 0) {
+			half vecLength = sqrt(vecLengthSqr);
+			half3 lightDir = offset / vecLength;
+			half atten = min(vecLength / PointLightParams.w, 1);
+			atten *= atten;
+			atten = 1 - atten;
+			half nDotL = dot(normal, lightDir);
+			nDotL = nDotL * 0.5 + 0.5;
+			nDotL *= nDotL;
+			return half3(PointLightColor.xyz) * atten * nDotL;
+		} 
+		else
+		{
+			return half3(PointLightColor.xyz);
+		}
+	}
+	return half3(0);
+}
+
+//-----------------------------------------------------------------------------
+// 法線マップ
+//-----------------------------------------------------------------------------
+half3 EvaluateNormalMapNormal(half3 inNormal, float2 inUv, half3 inTangent, sampler2D normalMapSampler)
+{
+	half4 normalMapData = _h4tex2D(normalMapSamplerSampler, normalMapSampler, inUv).xyzw;
+
+#if defined(NORMAL_MAPP_DXT5_NM_ENABLED)
+
+	half3 normalMapNormal;
+	normalMapNormal.x = normalMapData.a * 2.0 - 1.0;
+	normalMapNormal.y = normalMapData.r * 2.0 - 1.0;
+	normalMapNormal.z = sqrt(1 - saturate(normalMapNormal.x * normalMapNormal.x - normalMapNormal.y * normalMapNormal.y));
+
+#elif defined(NORMAL_MAPP_DXT5_LP_ENABLED)
+
+	normalMapData = normalMapData * 2.0 - 1.0;
+	half3 normalMapNormal;
+	normalMapNormal.x = normalMapData.r * normalMapData.a;
+	normalMapNormal.y = normalMapData.g;
+	normalMapNormal.z = sqrt(1 - saturate(normalMapNormal.x * normalMapNormal.x - normalMapNormal.y * normalMapNormal.y));
+
+#else // defined(NORMAL_MAPP_DXT5_NM_ENABLED)
+
+	half3 normalMapNormal = normalMapData.xyz * 2.0 - 1.0;
+
+#endif // defined(NORMAL_MAPP_DXT5_NM_ENABLED)
+
+	inTangent = normalize(inTangent);
+	inNormal = normalize(inNormal);
+
+	// tangenが逆のケースを考慮
+//	inTangent = normalize(inTangent - dot(inTangent, inNormal) * inNormal);
+
+	half3 biTangent = cross(inNormal, inTangent);
+
+	// xはUフリップとして負の値にしていることがある
+	normalMapNormal.x *= (inUv.x < 0.0) ? -1.0 : 1.0;
+
+	half3 n =  normalize((normalMapNormal.x * inTangent) +
+						 (normalMapNormal.y * biTangent) +
+						 (normalMapNormal.z * inNormal));
+	return n;
+}
+
+
+half3 EvaluateStandardNormal(half3 inNormal)
+{
+	return normalize(inNormal).xyz;
+}
+
+	#define _EvaluateNormalMapNormal(a,b,c,d) EvaluateNormalMapNormal(a, b, c, d)
+
+#if defined(NORMAL_MAPPING_ENABLED)
+	#if defined(DUDV_MAPPING_ENABLED)
+		#define EvaluateNormalFP(In) _EvaluateNormalMapNormal(In.Normal.xyz, In.TexCoord.xy + dudvValue, In.Tangent, NormalMapSampler)
+	#else
+		#define EvaluateNormalFP(In) _EvaluateNormalMapNormal(In.Normal.xyz, In.TexCoord.xy, In.Tangent, NormalMapSampler)
+	#endif
+#else
+	#define EvaluateNormalFP(In) EvaluateStandardNormal(In.Normal.xyz)
+#endif
+
+#if defined(MULTI_UV_NORMAL_MAPPING_ENABLED)
+	#if defined(DUDV_MAPPING_ENABLED)
+		#define EvaluateNormal2FP(In) _EvaluateNormalMapNormal(In.Normal.xyz, In.TexCoord2.xy + dudvValue, In.Tangent, NormalMap2Sampler)
+	#else
+		#define EvaluateNormal2FP(In) _EvaluateNormalMapNormal(In.Normal.xyz, In.TexCoord2.xy, In.Tangent, NormalMap2Sampler)
+	#endif
+#else
+	#define EvaluateNormal2FP(In) EvaluateStandardNormal(In.Normal.xyz)
+#endif
+
+
+
+//-----------------------------------------------------------------------------
+// フォグ
+//-----------------------------------------------------------------------------
+void EvaluateFogColor(inout half3 resultColor, half fogValue)
+{
+	#if defined(USE_EXTRA_BLENDING)
+		#if defined(MULTIPLICATIVE_BLENDING_ENABLED)
+	half3 fogColor = half3(1);
+		#else
+	half3 fogColor = half3(0);
+		#endif
+	#else
+	half3 fogColor = scene.FogColor.rgb;
+	#endif
+	resultColor.rgb = lerp(resultColor.rgb, fogColor.rgb, fogValue);
+}
+
+
+#if defined(RECEIVE_SHADOWS)
+//-----------------------------------------------------------------------------
+// シャドウマップ
+//-----------------------------------------------------------------------------
+half SampleOrthographicShadowMap(float3 shadowPosition, sampler2DShadow shadowMapSampler)
+{
+	return h4tex2D(shadowMapSampler, shadowPosition.xyz).x;
+}
+
+
+#if defined(PCF_ENABLED)
+half SampleOrthographicShadowMapPCF5(float3 shadowPosition, sampler2DShadow shadowMapSampler)
+{
+	float3 sampleOffsets[5] =
+	{
+		float3( 0, 0, 0),
+		float3(-PCF_OFFSET, -PCF_OFFSET, 0),
+		float3( PCF_OFFSET, -PCF_OFFSET, 0),
+		float3(-PCF_OFFSET,  PCF_OFFSET, 0),
+		float3( PCF_OFFSET,  PCF_OFFSET, 0)
+	};
+
+	const half shadowWeights[5] =
+	{
+		0.500f,
+		0.125f,
+		0.125f,
+		0.125f,
+		0.125f
+	};
+
+	half shadowRslt = half(0);
+	for (int i = 0; i < 5; ++i)
+	{
+		shadowRslt += SampleOrthographicShadowMap(shadowPosition + sampleOffsets[i], shadowMapSampler) * shadowWeights[i];
+	}
+	return shadowRslt;
+}
+#endif // defined(PCF_ENABLED)
+
+
+half EvaluateShadow(CombinedCascadedShadowMap shadow, sampler2DShadow shadowMapSampler, float3 worldPosition, float viewDepth)
+{
+	half result = half(1);
+
+	//
+	// 二分割
+	//
+
+	if (viewDepth > shadow.m_splitDistances.y)
+	{
+		return 1.0;
+	}
+
+	if (viewDepth < shadow.m_splitDistances.x)
+	{
+		// 近
+		float3 shadowPosition = _mul(shadow.m_split0Transform, float4(worldPosition, 1)).xyz;
+
+	#if defined(PCF_ENABLED)
+		result = SampleOrthographicShadowMapPCF5(shadowPosition, shadowMapSampler);
+	#else
+		result = SampleOrthographicShadowMap(shadowPosition, shadowMapSampler);
+	#endif
+	}
+	else
+	{
+		// 遠
+		float3 shadowPosition = _mul(shadow.m_split1Transform, float4(worldPosition, 1)).xyz;
+		result = SampleOrthographicShadowMap(shadowPosition, shadowMapSampler);
+	}
+
+	return result;
+}
+
+half EvaluateShadow(float dummy, float dummy2, float3 worldPosition, float viewDepth)
+{
+	return 1;
+}
+
+#endif // defined(RECEIVE_SHADOWS)
+
+/*-------------------------ed8_common.cgfx----------------------------*/
+
+
+/*-------------------------ed8_map.cgfx----------------------------*/
+
+//-----------------------------------------------------------------------------
+// ライティング
+//-----------------------------------------------------------------------------
+void EvaluateDiffuseAndSpecular(out half3 diffuseValue, out half ldotn, float3 normal, float3 lightDir, half3 lightColor
+#if defined(SPECULAR_ENABLED)
+, out half3 specularValue, float3 specularLightDir, float3 eyeDirection, half shininess, half specularPower
+#endif
+)
+{
+#if defined(NO_MAIN_LIGHT_SHADING_ENABLED)
+	ldotn = dot(lightDir, normal);
+	diffuseValue = lightColor / max(max(lightColor.r, lightColor.g), max(lightColor.b, 0.001));	// 一番大きい色成分で正規化
+#else
+	ldotn = dot(lightDir, normal);
+	diffuseValue = lightColor * calcDiffuseLightAmtLdotN(ldotn);
+#endif
+
+#if defined(SPECULAR_ENABLED)
+	specularValue = lightColor
+	#if defined(SPECULAR_COLOR_ENABLED)
+	* SpecularColor
+	#endif
+	* calcSpecularLightAmt(normal, specularLightDir, eyeDirection, shininess, specularPower);
+#endif
+}
+
+
+void EvaluateLight(DirectionalLight light, out half ldotn, out half3 diffuseValue, out float3 lightDir, float3 worldSpacePosition, float3 normal
+#if defined(SPECULAR_ENABLED)
+, out half3 specularValue, float3 eyeDirection, half shininess, half specularPower
+#endif
+)
+{
+	float3 lightDirTmp = light.m_direction;
+	lightDir = lightDirTmp;
+
+#if defined(FAKE_CONSTANT_SPECULAR_ENABLED)
+	float3 specularLightDir = GetFakeSpecularLightDir(lightDirTmp);
+#else
+	float3 specularLightDir = lightDirTmp;
+#endif
+	EvaluateDiffuseAndSpecular(diffuseValue, ldotn, normal, lightDirTmp, light.m_colorIntensity
+#if defined(SPECULAR_ENABLED)
+	, specularValue, specularLightDir, eyeDirection, shininess, specularPower
+#endif
+	);
+}
+
+
+#if !defined(USE_PER_VERTEX_LIGHTING) && defined(USE_LIGHTING)
+
+// ピクセル単位ライティング
+half3 EvaluateLightingPerPixel(DefaultVPOutput In, float3 worldSpacePosition, float3 normal, half glossValue, half shadowValue, half3 ambientAmount, float3 eyeDirection)
+{
+	half3 lightingResult;
+
+	#if defined(ALPHA_BLENDING_ENABLED) && defined(USE_EXTRA_BLENDING)
+	lightingResult = half3(0);
+	#else
+	lightingResult = ambientAmount;
+	#endif
+	half3 shadingAmount = half3(0);
+	half3 lightingAmount = half3(0);
+	#if defined(SPECULAR_ENABLED)
+	half shininess = Shininess * glossValue;
+	#endif
+
+	float3 lightDir_ = float3(0);
+	half3 diffuseValue_ = half3(0);
+	half3 specularValue_ = half3(0);
+	half ldotn_ = half(0);
+	EvaluateLight(Light0, ldotn_, diffuseValue_, lightDir_, worldSpacePosition, normal
+	#if defined(SPECULAR_ENABLED)
+	, specularValue_, eyeDirection, shininess, SpecularPower
+	#endif
+	);
+
+	diffuseValue_ *= shadowValue;
+
+	#if defined(SPECULAR_ENABLED)
+	lightingAmount += specularValue_;
+	lightingAmount *= shadowValue;
+	#endif
+
+	shadingAmount += diffuseValue_;
+
+	lightingResult += shadingAmount;
+	lightingResult = min(lightingResult, half3(MainLightClampFactor));
+
+	#if defined(SPECULAR_ENABLED)
+	lightingResult += lightingAmount;
+	#endif
+
+	return lightingResult;
+}
+
+#else // !defined(USE_PER_VERTEX_LIGHTING) && defined(USE_LIGHTING)
+
+// 頂点単位ライティング(VP)
+	#if defined(USE_LIGHTING)
+void EvaluateLightingPerVertexVP(out half3 shadingAmount, out half3 lightingAmount, out float3 light0dir, DefaultVPInput In, float3 worldSpacePosition, float3 normal
+		#if defined(SPECULAR_ENABLED)
+, float3 eyeDirection
+		#endif
+)
+{
+	shadingAmount = half3(0);
+	lightingAmount = half3(0);
+
+		#if defined(SPECULAR_ENABLED)
+	half shininess = Shininess;
+		#endif
+
+	float3 lightDir_ = float3(0);
+	half3 diffuseValue_ = half3(0);
+	half3 specularValue_ = half3(0);
+	half ldotn_ = half(0);
+	EvaluateLight(Light0, ldotn_, diffuseValue_, lightDir_, worldSpacePosition, normal
+		#if defined(SPECULAR_ENABLED)
+	, specularValue_, eyeDirection, shininess, SpecularPower
+		#endif
+	);
+
+	shadingAmount += diffuseValue_;
+		#if defined(SPECULAR_ENABLED)
+	lightingAmount += specularValue_;
+		#endif
+	light0dir = lightDir_;
+}
+#endif // defined(USE_LIGHTING)
+
+// 頂点単位ライティング(FP)
+half3 EvaluateLightingPerVertexFP(DefaultVPOutput In, float3 worldSpacePosition, half glossValue, half shadowValue, half3 ambientAmount, half3 shadingAmount, half3 lightingAmount)
+{
+	half3 lightingResult;
+
+	#if defined(USE_LIGHTING)
+
+	lightingResult = ambientAmount;
+		#if defined(SPECULAR_ENABLED)
+	lightingAmount *= shadowValue * glossValue;
+		#endif
+
+	shadingAmount *= shadowValue;
+
+	lightingResult += shadingAmount;
+	lightingResult = min(lightingResult, half3(MainLightClampFactor));
+		#if defined(SPECULAR_ENABLED)
+	lightingResult += lightingAmount;
+		#endif
+
+	#else // USE_LIGHTING
+
+		#if defined(MULTIPLICATIVE_BLENDING_ENABLED)
+	shadowValue = 1.0;
+		#endif
+
+	lightingResult = max(GetGlobalAmbientColor(), half3(shadowValue));
+	lightingResult = min(lightingResult, half3(MainLightClampFactor));
+
+	#endif // defined(USE_LIGHTING)
+
+	return lightingResult;
+}
+
+#endif // !defined(USE_PER_VERTEX_LIGHTING) && defined(USE_LIGHTING)
+
+
+//-----------------------------------------------------------------------------
+// リムライト
+//-----------------------------------------------------------------------------
+#if defined(RIM_LIGHTING_ENABLED)
+half EvaluateRimLightValue(half ndote)
+{
+	half rimLightvalue = pow(max(0, 1.0 - abs(ndote)), RimLitPower);
+	return rimLightvalue * RimLitIntensity;
+}
+#endif
+
+/*-------------------------ed8_map.cgfx----------------------------*/
+
+
+/*-------------------------ed8_map_fp.h----------------------------*/
+
+#if defined(main_DefaultFPShader) 
+	#define FP_DEFAULT
+#endif
+
+#if defined(main_ForceTransparentFPShader) 
+	#define FP_FORCETRANSPARENT
+#endif
+
+#if defined(main_DefaultFPShader) || defined(main_ForceTransparentFPShader)
+
+#if defined(FP_DEFAULT)
+	half4 DefaultFPShader(DefaultVPOutput IN)
+#elif defined(FP_FORCETRANSPARENT)
+	half4 ForceTransparentFPShader(DefaultVPOutput IN)
+#endif
+{
+
+#if defined(NOTHING_ENABLED)
+
+	half4 resultColor = IN.Color0;
+
+	#if defined(FP_FORCETRANSPARENT)
+		return resultColor;
+	#endif
+
+	#if defined(FP_DEFAULT)
+		#if !defined(ALPHA_BLENDING_ENABLED)
+			return half4(resultColor.rgb, 0);
+		#else
+			return resultColor;
+		#endif
+	#endif
+
+
+#else // defined(NOTHING_ENABLED)
+
+	#if defined(DUDV_MAPPING_ENABLED)
+		half2 dudvValue_ = _h4tex2D(DuDvMapSamplerSampler, DuDvMapSampler, IN.DuDvTexCoord.xy).xy * 2.0 - 1.0;
+		half2 dudvValue = dudvValue_ * (DuDvScale / DuDvMapImageSize);
+
+		dudvValue *= scene.MiscParameters2.w;
+		
+		half4 diffuseAmt = _h4tex2D(DiffuseMapSamplerSampler, DiffuseMapSampler, IN.TexCoord.xy + dudvValue);
+	#else
+		half4 diffuseAmt = _h4tex2D(DiffuseMapSamplerSampler, DiffuseMapSampler, IN.TexCoord.xy);
+	#endif
+		diffuseAmt.a *= half(IN.Color0.a);
+
+	// 屈折・映り込み処理用のテクスチャサンプリング
+	#if defined(USE_SCREEN_UV)
+		float4 dudvTex = IN.ReflectionMap;
+
+		#if defined(DUDV_MAPPING_ENABLED)
+			float2 dudvAmt = dudvValue * half2(ScreenWidth / DuDvMapImageSize.x, ScreenHeight / DuDvMapImageSize.y);
+			dudvTex.xy += dudvAmt;
+			#define FP_DUDV_AMT_EXIST
+		#endif
+
+		#if defined(WATER_SURFACE_ENABLED) && !defined(CUBE_MAPPING_ENABLED)
+			half4 reflColor = _h4tex2D(LinearClampSamplerState, ReflectionTexture, dudvTex.xy / dudvTex.w).xyzw;
+		#endif
+
+		half4 refrColor = _h4tex2D(LinearClampSamplerState, RefractionTexture, dudvTex.xy / dudvTex.w).xyzw;
+	#endif // defined(USE_SCREEN_UV)
+
+	// アルファテスト
+	#if defined(ALPHA_BLENDING_ENABLED) || defined(ALPHA_TESTING_ENABLED)
+		#if defined(ALPHA_TESTING_ENABLED)
+			clip(diffuseAmt.a - AlphaThreshold * half(IN.Color0.a));
+		#else
+			clip(diffuseAmt.a - 0.004);
+		#endif
+	#endif
+
+	// マルチUV
+	#if defined(MULTI_UV_ENANLED)
+		half4 diffuse2Amt = _h4tex2D(DiffuseMap2SamplerSampler, DiffuseMap2Sampler, IN.TexCoord2.xy);
+
+		diffuse2Amt *= half4(UVaMUvColor);
+
+		half multi_uv_alpha = half(IN.Color0.a) * diffuse2Amt.a;
+
+		#if defined(MULTI_UV_ADDITIVE_BLENDING_ENANLED)
+			// 加算
+			half3 muvtex_add = diffuse2Amt.rgb * multi_uv_alpha;
+			diffuseAmt.rgb += muvtex_add;
+		#elif defined(MULTI_UV_MULTIPLICATIVE_BLENDING_ENANLED)
+			// 乗算
+			diffuseAmt.rgb = lerp(diffuseAmt.rgb, diffuseAmt.rgb * diffuse2Amt.rgb * BlendMulScale2, multi_uv_alpha);
+		#elif defined(MULTI_UV_MULTIPLICATIVE_BLENDING_LM_ENANLED)
+			// 乗算（ライトマップとして扱う）
+		//x	diffuseAmt.rgb = diffuseAmt.rgb * diffuse2Amt.rgb * BlendMulScale2;	// キューブマップ後まで遅らせる
+		#else
+			// アルファ
+			diffuseAmt.rgb = lerp(diffuseAmt.rgb, diffuse2Amt.rgb, multi_uv_alpha);
+		#endif
+
+		// マルチUV2
+		#if defined(MULTI_UV2_ENANLED)
+			half4 diffuse3Amt = _h4tex2D(DiffuseMap3SamplerSampler, DiffuseMap3Sampler, IN.TexCoord3.xy);
+			half multi_uv2_alpha =half(IN.Color0.a) * diffuse3Amt.a;
+			#if defined(MULTI_UV2_ADDITIVE_BLENDING_ENANLED)
+				// 加算
+				half3 muvtex_add2 = diffuse3Amt.rgb * multi_uv2_alpha;
+				diffuseAmt.rgb += muvtex_add2;
+			#elif defined(MULTI_UV2_MULTIPLICATIVE_BLENDING_ENANLED)
+				// 乗算
+				diffuseAmt.rgb = lerp(diffuseAmt.rgb, diffuseAmt.rgb * diffuse3Amt.rgb * BlendMulScale3, multi_uv2_alpha);
+			#elif defined(MULTI_UV2_MULTIPLICATIVE_BLENDING_LM_ENANLED)
+				// 乗算（ライトマップとして扱う）
+			//x	diffuseAmt.rgb = diffuseAmt.rgb * diffuse3Amt.rgb * BlendMulScale3;	// キューブマップ後まで遅らせる
+			#else
+				// アルファ
+				diffuseAmt.rgb = lerp(diffuseAmt.rgb, diffuse3Amt.rgb, multi_uv2_alpha);
+			#endif
+		#endif // defined(MULTI_UV2_ENANLED)
+	#endif // defined(MULTI_UV_ENANLED)
+
+
+	
+	// シャドウマップ
+	#if defined(RECEIVE_SHADOWS) && defined(USE_LIGHTING) && (defined(FP_DEFAULT) || defined(FP_FORCETRANSPARENT))
+		half shadowValue = 1.0;
+		float3 fakeWorldPos = IN.WorldPositionDepth.xyz + scene.MiscParameters1.xyz * SHADOW_LIGHTDIR_BIAS + IN.Normal.xyz * SHADOW_NORMALDIR_BIAS;
+		
+		half shadowMin = EvaluateShadow(LightShadow0, LightShadowMap0, fakeWorldPos, IN.WorldPositionDepth.w);
+
+		shadowMin = min(shadowMin + IN.Normal.w, 1);
+		shadowValue = min(shadowValue, shadowMin);
+		#if defined(FP_DUDV_AMT_EXIST)
+			shadowValue = (shadowValue + 1.0) * 0.5;
+		#endif
+	#else // defined(RECEIVE_SHADOWS) && defined(USE_LIGHTING) && (defined(FP_DEFAULT) || defined(FP_FORCETRANSPARENT))
+		half shadowValue = 1.0;
+	#endif // defined(RECEIVE_SHADOWS) && defined(USE_LIGHTING) && (defined(FP_DEFAULT) || defined(FP_FORCETRANSPARENT))
+
+	// 日陰の影響を考慮
+	half shadeRatio = half(GameMaterialEmission.a);
+	shadowValue *= shadeRatio;
+
+	// "雲の影"の濃度を加味
+	#if defined(PROJECTION_MAP_ENABLED)
+		half4 projTex = _h4tex2D(LinearWrapSamplerState, ProjectionMapSampler, IN.ProjMap.xy);
+	//	shadowValue = max(shadowValue - (1 - (projTex.r * projTex.a)), 0);
+		shadowValue = min(shadowValue, 1 - (projTex.r * projTex.a));
+	#endif // defined(PROJECTION_MAP_ENABLED)
+
+	// スペキュラマップ
+	#if defined(SPECULAR_MAPPING_ENABLED) || (defined(MULTI_UV_ENANLED) && defined(MULTI_UV_SPECULAR_MAPPING_ENABLED))
+		half glossValue = 1.0;
+		#if defined(SPECULAR_MAPPING_ENABLED)
+			glossValue = _h4tex2D(SpecularMapSamplerSampler, SpecularMapSampler, IN.TexCoord.xy).x;
+		#endif
+		#if defined(MULTI_UV_ENANLED) && defined(MULTI_UV_SPECULAR_MAPPING_ENABLED)
+			half glossValue2 = _h4tex2D(SpecularMap2SamplerSampler, SpecularMap2Sampler, IN.TexCoord2.xy).x;
+			glossValue = lerp(glossValue, glossValue2, multi_uv_alpha);
+		#endif
+	#else // defined(SPECULAR_MAPPING_ENABLED) || (defined(MULTI_UV_ENANLED) && defined(MULTI_UV_SPECULAR_MAPPING_ENABLED))
+		half glossValue = 1.0;
+	#endif // defined(SPECULAR_MAPPING_ENABLED) || (defined(MULTI_UV_ENANLED) && defined(MULTI_UV_SPECULAR_MAPPING_ENABLED))
+
+	// リムライトの影響度を調整（ambientAmountに合算してしまう為、このタイミングでの調整が必要）
+	#if defined(USE_LIGHTING) && defined(RIM_LIGHTING_ENABLED)
+		half3 rimLightPower = Light0.m_colorIntensity;
+		#if defined(SPECULAR_MAPPING_ENABLED)
+			rimLightPower *= (glossValue + 1.0) * 0.5;
+		#endif
+		rimLightPower *= pow(shadowValue, 4);
+	#else // defined(USE_LIGHTING) && defined(RIM_LIGHTING_ENABLED)
+		half3 rimLightPower = half3(0);
+	#endif // defined(USE_LIGHTING) && defined(RIM_LIGHTING_ENABLED)
+
+	// スフィア／キューブマップ（頂点単位）
+	#if !defined(USE_TANGENTS) || !defined(USE_LIGHTING)
+		#if defined(SPHERE_MAPPING_ENABLED)
+			half4 sphereMapColor = _h4tex2D(LinearClampSamplerState, SphereMapSampler, IN.SphereMap.xy).rgba;
+		#elif defined(CUBE_MAPPING_ENABLED)
+			half4 cubeMapColor = _h4texCUBE(LinearClampSamplerState, CubeMapSampler, normalize(IN.CubeMap.xyz)).rgba;
+			diffuseAmt.rgb = lerp(diffuseAmt.rgb, cubeMapColor.rgb, half(CubeMapIntensity) * IN.CubeMap.w * glossValue);
+		#endif // defined(SPHERE_MAPPING_ENABLED)
+	#endif // !defined(USE_TANGENTS) || !defined(USE_LIGHTING)
+	
+	half4 resultColor = diffuseAmt;
+	half3 shadingAmt;
+
+	#if !defined(USE_PER_VERTEX_LIGHTING) && defined(USE_LIGHTING)
+
+		//
+		// ピクセル単位のライト計算
+		//
+
+		float3 worldSpaceNormal = EvaluateNormalFP(IN);
+		#if defined(MULTI_UV_ENANLED) && defined(MULTI_UV_NORMAL_MAPPING_ENABLED)
+			worldSpaceNormal = normalize(lerp(worldSpaceNormal, EvaluateNormal2FP(IN), multi_uv_alpha));
+		#endif
+
+		// 環境光の算出
+		half3 ambientAmount;
+		#if defined(ALPHA_BLENDING_ENABLED) && defined(USE_EXTRA_BLENDING)
+			ambientAmount = half3(0);
+		#else // defined(ALPHA_BLENDING_ENABLED) && defined(USE_EXTRA_BLENDING)
+			#if defined(NO_MAIN_LIGHT_SHADING_ENABLED)
+				ambientAmount = half3(0);
+				#define FP_NEED_AFTER_MAX_AMBIENT
+			#else
+				ambientAmount = GetGlobalAmbientColor();
+			#endif
+		#endif // defined(ALPHA_BLENDING_ENABLED) && defined(USE_EXTRA_BLENDING)
+
+		#if defined(WATER_SURFACE_ENABLED) && defined(DUDV_MAPPING_ENABLED)
+			// スペキュラやキューブマップの反射具合を大袈裟にする工夫
+			half3 fakeWorldPos2 = IN.WorldPositionDepth.xyz;
+			fakeWorldPos2.xz += half2(dudvValue_.x, -dudvValue_.y) * 10;
+			float3 worldSpaceEyeDirection = normalize(GetEyePosition() - fakeWorldPos2);
+		#else
+			float3 worldSpaceEyeDirection = normalize(GetEyePosition() - IN.WorldPositionDepth.xyz);
+		#endif
+
+		#define FP_WS_EYEDIR_EXIST
+
+		// リムライトの計算結果を環境光に合算
+		#if defined(USE_LIGHTING) && defined(RIM_LIGHTING_ENABLED)
+			half ndote = dot(worldSpaceNormal, worldSpaceEyeDirection);
+			#define FP_NDOTE_EXIST
+			#if defined(DOUBLE_SIDED)
+				if (ndote < 0)
+				{
+					ndote *= -1;
+					worldSpaceNormal *= -1;
+				}
+			#endif // defined(DOUBLE_SIDED)
+			half rimLightvalue = EvaluateRimLightValue(ndote);
+			#if defined(RIM_TRANSPARENCY_ENABLED)
+				resultColor.a *= 1 - rimLightvalue;
+			#else
+				ambientAmount += rimLightvalue * half3(RimLitColor) * rimLightPower;
+			#endif
+		#endif // defined(USE_LIGHTING) && defined(RIM_LIGHTING_ENABLED)
+
+		// スフィア／キューブマップ（ピクセル単位）
+		#if defined(USE_TANGENTS)
+			#if defined(SPHERE_MAPPING_ENABLED)
+				float3 viewSpaceNormal = float3(_mul(float3x3(scene.View), worldSpaceNormal));
+				half4 sphereMapColor = _h4tex2D(LinearClampSamplerState, SphereMapSampler, viewSpaceNormal.xy * 0.5 + half2(0.5, 0.5)).rgba;
+			#elif defined(CUBE_MAPPING_ENABLED)
+				half4 cubeMapColor = _h4texCUBE(LinearClampSamplerState, CubeMapSampler, normalize(reflect(-worldSpaceEyeDirection, worldSpaceNormal))).rgba;
+				#if !defined(FP_NDOTE_EXIST)
+					half ndote = dot(worldSpaceNormal, worldSpaceEyeDirection);
+				#endif
+				half cubeMapFresnel = 1.0 - max(0, ndote) * CubeMapFresnel;
+				resultColor.rgb = lerp(resultColor.rgb, cubeMapColor.rgb, half(CubeMapIntensity) * cubeMapFresnel * glossValue);
+			#endif // defined(SPHERE_MAPPING_ENABLED)
+		#endif // defined(USE_TANGENTS)
+
+		shadingAmt = EvaluateLightingPerPixel(IN, IN.WorldPositionDepth.xyz, worldSpaceNormal, glossValue, shadowValue, ambientAmount, worldSpaceEyeDirection);
+
+	#else // !defined(USE_PER_VERTEX_LIGHTING) && defined(USE_LIGHTING)
+
+		//
+		// 頂点単位のライト計算
+		//
+
+		#if defined(USE_LIGHTING)
+
+			half3 diffuse = IN.ShadingAmount.rgb;
+			half3 specular = IN.Color1.rgb;
+
+			// 環境光の算出
+			half3 ambientAmount;
+			#if defined(ALPHA_BLENDING_ENABLED) && defined(USE_EXTRA_BLENDING)
+				ambientAmount = half3(0);
+			#else // defined(ALPHA_BLENDING_ENABLED) && defined(USE_EXTRA_BLENDING)
+				#if defined(NO_MAIN_LIGHT_SHADING_ENABLED)
+					ambientAmount = half3(0);
+					#define FP_NEED_AFTER_MAX_AMBIENT
+				#else
+					ambientAmount = GetGlobalAmbientColor();
+				#endif
+			#endif // defined(ALPHA_BLENDING_ENABLED) && defined(USE_EXTRA_BLENDING)
+
+			// リムライトの計算結果を環境光に合算
+			#if defined(RIM_LIGHTING_ENABLED)
+				#if defined(USE_FORCE_VERTEX_RIM_LIGHTING)
+					half rimLightvalue = IN.ShadingAmount.a;
+					#if defined(RIM_TRANSPARENCY_ENABLED)
+						resultColor.a *= 1 - rimLightvalue;
+					#else
+						ambientAmount += rimLightvalue * half3(RimLitColor) * rimLightPower;
+					#endif
+				#else // defined(USE_FORCE_VERTEX_RIM_LIGHTING)
+					float3 worldSpaceNormal = normalize(IN.Normal.xyz);
+					float3 worldSpaceEyeDirection = normalize(GetEyePosition() - IN.WorldPositionDepth.xyz);
+					#define FP_WS_EYEDIR_EXIST
+						half ndote = dot(worldSpaceNormal, worldSpaceEyeDirection);
+					#if defined(DOUBLE_SIDED)
+						if (ndote < 0)
+						{
+							ndote *= -1;
+							worldSpaceNormal *= -1;
+						}
+					#endif // defined(DOUBLE_SIDED)
+
+					half rimLightvalue = EvaluateRimLightValue(ndote);
+
+					#if defined(RIM_TRANSPARENCY_ENABLED)
+						resultColor.a *= 1 - rimLightvalue;
+					#else
+						ambientAmount += rimLightvalue * half3(RimLitColor) * rimLightPower;
+					#endif
+				#endif // defined(USE_FORCE_VERTEX_RIM_LIGHTING)
+			#endif // defined(RIM_LIGHTING_ENABLED)
+
+		#else // defined(USE_LIGHTING)
+
+			half3 diffuse = half3(1);
+			half3 specular = half3(0);
+			half3 ambientAmount = half3(0);
+
+		#endif // defined(USE_LIGHTING)
+
+		shadingAmt = EvaluateLightingPerVertexFP(IN, IN.WorldPositionDepth.xyz, glossValue, shadowValue, ambientAmount, diffuse, specular);
+
+	#endif // !defined(USE_PER_VERTEX_LIGHTING) && defined(USE_LIGHTING)
+
+	#if defined(FP_NEED_AFTER_MAX_AMBIENT)
+		shadingAmt = max(shadingAmt, GetGlobalAmbientColor());
+	#endif
+
+	// ライトマップの反映
+	#if defined(MULTI_UV_ENANLED)
+		#if defined(MULTI_UV_MULTIPLICATIVE_BLENDING_LM_ENANLED)
+			resultColor.rgb = resultColor.rgb * diffuse2Amt.rgb * BlendMulScale2;
+		#endif
+		#if defined(MULTI_UV2_ENANLED)
+			#if defined(MULTI_UV2_MULTIPLICATIVE_BLENDING_LM_ENANLED)
+				resultColor.rgb = resultColor.rgb * diffuse3Amt.rgb * BlendMulScale3;
+			#endif
+		#endif
+	#endif
+
+	
+	// 屈折・映り込み画像との合成
+	#if defined(DUDV_MAPPING_ENABLED) || defined(WATER_SURFACE_ENABLED)
+		#if defined(WATER_SURFACE_ENABLED) && !defined(CUBE_MAPPING_ENABLED)
+			#if !defined(FP_WS_EYEDIR_EXIST)
+				float3 worldSpaceEyeDirection = normalize(GetEyePosition() - IN.WorldPositionDepth.xyz);
+			#endif
+
+			half ndoteWater = dot(float3(0,1,0), worldSpaceEyeDirection);
+			half waterAlpha = pow(1.0 - abs(ndoteWater), 4);
+			waterAlpha = min(1, waterAlpha * half(ReflectionIntensity) + half(ReflectionIntensity));
+			resultColor.rgb = lerp(lerp(refrColor.rgb, resultColor.rgb, resultColor.a), reflColor.rgb, waterAlpha);
+
+		#else // defined(WATER_SURFACE_ENABLED) && !defined(CUBE_MAPPING_ENABLED)
+			resultColor.rgb = lerp(refrColor.rgb, resultColor.rgb, resultColor.a);
+
+		#endif // defined(WATER_SURFACE_ENABLED) && !defined(CUBE_MAPPING_ENABLED)
+	#endif // defined(DUDV_MAPPING_ENABLED) || defined(WATER_SURFACE_ENABLED)
+
+	// スフィアマップ（加算合成）
+	#if defined(SPHERE_MAPPING_ENABLED)
+		resultColor.rgb += sphereMapColor.rgb * half(SphereMapIntensity) * half3(IN.Color0.rgb) * glossValue;
+	#endif
+
+	shadingAmt *= half3(IN.Color0.rgb);
+	
+	// ライティング結果を反映
+	resultColor.rgb *= shadingAmt;
+	
+	// シェーダ外部からのカラー操作
+	resultColor *= half4(GameMaterialDiffuse);
+	resultColor.rgb += half3(GameMaterialEmission);
+
+	#if defined(MULTIPLICATIVE_BLENDING_ENABLED)
+		resultColor.rgb += max((1 - resultColor.rgb), 0) * (1.0 - shadowValue);
+	#endif
+
+	// フォグ計算
+	#if defined(FOG_ENABLED)
+		EvaluateFogColor(resultColor.rgb, IN.Color1.a);
+	#endif
+
+	#if defined(SUBTRACT_BLENDING_ENABLED)
+		resultColor.rgb = resultColor.rgb * resultColor.a;
+	#elif defined(MULTIPLICATIVE_BLENDING_ENABLED)
+		resultColor.rgb = (1 - resultColor.rgb) * resultColor.a;
+	#endif
+
+	// モノクロ変換
+	resultColor.rgb = lerp(resultColor.rgb, dot(resultColor.rgb, half3(0.299, 0.587, 0.114)) * half3(scene.MonotoneMul) + half3(scene.MonotoneAdd), half(GameMaterialMonotone));
+
+	#if !defined(ALPHA_BLENDING_ENABLED) && !defined(FP_FORCETRANSPARENT)
+		resultColor.a = 1.0;	// レンダーターゲットに描画したときに半透明α値を上書きしてしまうため(場合によってはPORTRAIT限定で)
+	#endif
+
+
+	// 出力
+	#if defined(FP_FORCETRANSPARENT)
+		return resultColor;
+	#elif defined(FP_DEFAULT)
+		#if defined(ALPHA_BLENDING_ENABLED)
+			return resultColor;	// A成分に輝度を書き込む形でグローを実現している関係上、アルファを使用しているマテリアルではグロー不可
+		#else // defined(ALPHA_BLENDING_ENABLED)
+			#if defined(GLARE_ENABLED)
+				#if defined(GLARE_MAP_ENABLED)
+					half glowValue = _h4tex2D(GlareMapSamplerSampler, GlareMapSampler, IN.TexCoord.xy).x;
+				#else
+					half glowValue = 1.0;
+				#endif
+
+				#if defined(MULTI_UV_GLARE_MAP_ENABLED)
+					glowValue *= _h4tex2D(GlareMap2SamplerSampler, GlareMap2Sampler, IN.TexCoord2.xy).x;
+				#endif
+
+				#if defined(BLOOM_ENABLED)
+					return half4(resultColor.rgb, lerp(CalcBrightness(resultColor.rgb, scene.BloomParams.y), CalcGlowValue(glowValue * GlareIntensity * scene.BloomParams.z), glowValue));
+				#else
+					return half4(resultColor.rgb, CalcGlowValue(glowValue * GlareIntensity * scene.BloomParams.z));
+				#endif
+			#else // defined(GLARE_ENABLED)
+				#if defined(BLOOM_ENABLED)
+					return half4(resultColor.rgb, CalcBrightness(resultColor.rgb, scene.BloomParams.y));
+				#else
+					return half4(resultColor.rgb, 0);
+				#endif
+			#endif // defined(GLARE_ENABLED)
+		#endif // defined(ALPHA_BLENDING_ENABLED)
+	#endif // defined(FP_FORCETRANSPARENT)
+
+#endif // defined(NOTHING_ENABLED)
+
+}
+
+
+in DefaultVPOutput OUT;
+out vec4 out_FragColor;
+
+void main()
+{
+	#if defined(main_DefaultFPShader)
+		out_FragColor = DefaultFPShader(OUT);
+	#elif defined(main_ForceTransparentFPShader)
+		out_FragColor = ForceTransparentFPShader(OUT);
+	#endif
+}
+
+#endif // defined(main_DefaultFPShader) || defined(main_ForceTransparentFPShader)
+
+#undef FP_DUDV_AMT_EXIST
+#undef FP_NEED_AFTER_MAX_AMBIENT
+#undef FP_WS_EYEDIR_EXIST
+#undef FP_NDOTE_EXIST
+
+/*-------------------------ed8_map_fp.h----------------------------*/

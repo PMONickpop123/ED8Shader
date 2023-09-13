@@ -1,3 +1,58 @@
+float ClampPlusMinusOneToNonNegative(float value) {
+	return saturate(value);
+}
+
+float4 GenerateScreenProjectedUv(float4 projPosition) {
+	float2 clipSpaceDivided = projPosition.xy / float2(projPosition.w, -projPosition.w);
+	float2 tc = clipSpaceDivided.xy * 0.5 + 0.5;
+	return float4(tc.x * projPosition.w, tc.y * projPosition.w, 0, projPosition.w);
+}
+
+float3 GetEyePosition() {
+	return _WorldSpaceCameraPos.xyz;
+}
+
+float GetGlobalTextureFactor() {
+    return _Time.y * 0.30f;
+}
+
+//-----------------------------------------------------------------------------
+// インスタンシング
+//-----------------------------------------------------------------------------
+#if defined(INSTANCING_ENABLED)
+    float GetDitherThreshold(float2 screenPos) {
+        float2 matrixUv = screenPos * (1.0 / 4);
+        return tex2Dlod(_UdonDitherNoiseTexture, float4(matrixUv.xy, 0, 0)).x
+    }
+#endif // defined(INSTANCING_ENABLED)
+
+//-----------------------------------------------------------------------------
+// 輝度計算
+//-----------------------------------------------------------------------------
+
+// 輝度レンジ。上げ過ぎるとマッハバンド酷くなるので注意！
+#if defined(GLARE_ENABLED)
+    float CalcGlowValue(float val) {
+        float glowIntensity = 2;
+        return min(1, val * glowIntensity * 0.5);
+    }
+#endif // defined(GLARE_ENABLED)
+
+/*
+#if defined(BLOOM_ENABLED)
+    float CalcBrightness(float3 rgb) {
+        float bright = dot(rgb * _BloomIntensity, float3(0.299, 0.587, 0.114));
+        float threshold = scene.MiscParameters2.z;
+        bright = max(0, bright - threshold);
+        return min(1, bright * 0.5);
+    }
+#endif // defined(BLOOM_ENABLED)
+*/
+
+float3 CreateBinormal(float3 normal, float3 tangent, float binormalSign) {
+    return cross(normal, tangent) * (binormalSign * unity_WorldTransformParams.w);
+}
+
 float3 EvaluateNormalMapNormal(float3 inNormal, float2 inUv, float3 inTangent, float3 inBiTangent, uniform sampler2D normalMap) {
     float4 normalMapData = tex2D(normalMap, inUv).xyzw;
 
@@ -6,7 +61,7 @@ float3 EvaluateNormalMapNormal(float3 inNormal, float2 inUv, float3 inTangent, f
         normalMapData.a = LinearToGammaSpaceExact(normalMapData.a);
     #endif
 
-    normalMapData = normalMapData * float4(2.0f, 2.0f, 2.0f, 2.0f) - float4(1.0f, 1.0f, 1.0f, 1.0f);
+    normalMapData = normalMapData * 2.0 - 1.0;
     float3 normalMapNormal = float3(0.0f, 0.0f, 0.0f);
 
     #if defined(NORMAL_MAPP_DXT5_NM_ENABLED)
@@ -18,8 +73,9 @@ float3 EvaluateNormalMapNormal(float3 inNormal, float2 inUv, float3 inTangent, f
         normalMapNormal.y = normalMapData.g;
         normalMapNormal.z = sqrt(1 - saturate(dot(normalMapNormal.xy, normalMapNormal.xy)));
     #else // NORMAL_MAPP_DXT5_NM_ENABLED
-        normalMapData *= 3.0f;
-        normalMapNormal.xyz = normalMapData.xyz;
+        normalMapData.x *= normalMapData.w;
+        normalMapNormal.xy = normalMapData.xy;
+        normalMapNormal.z = sqrt(1 - saturate(dot(normalMapNormal.xy, normalMapNormal.xy)));
     #endif // NORMAL_MAPP_DXT5_NM_ENABLED
 
     inNormal = normalize(inNormal);
@@ -34,31 +90,27 @@ float3 EvaluateStandardNormal(float3 inNormal) {
 	return normalize(inNormal).xyz;
 }
 
-float3 getEyePosition() {
-	return _WorldSpaceCameraPos.xyz;
-}
+#define _EvaluateNormalMapNormal(a,b,c,d,e) EvaluateNormalMapNormal(a, b, c, d, e)
 
-//-----------------------------------------------------------------------------
-float getGlobalTextureFactor() {
-	//return (_GlobalTexcoordFactor + 0.001) * (float2)_Time * 0.25f;
-    return _Time.y * 0.30f;
-}
+#if defined(NORMAL_MAPPING_ENABLED)
+	#if defined(DUDV_MAPPING_ENABLED)
+		#define EvaluateNormalFP(In, dudvValue) _EvaluateNormalMapNormal(In.normal.xyz, In.uv.xy + dudvValue, In.tangent, In.binormal, _BumpMap)
+	#else
+		#define EvaluateNormalFP(In) _EvaluateNormalMapNormal(In.normal.xyz, In.uv.xy, In.tangent, In.binormal, _BumpMap)
+	#endif
+#else
+	#define EvaluateNormalFP(In) EvaluateStandardNormal(In.normal.xyz)
+#endif
 
-float CalcMipLevel(float2 texcoord){
-    float2 dx = ddx(texcoord);
-    float2 dy = ddy(texcoord);
-    float delta_max_sqr = max(dot(dx, dx), dot(dy, dy));
-    return 0.5 * log2(delta_max_sqr);
-}
-
-//-----------------------------------------------------------------------------
-#if defined(USE_SCREEN_UV)
-    float4 GenerateScreenProjectedUv(float4 projPosition) {
-        float2 clipSpaceDivided = projPosition.xy / float2(projPosition.w, -projPosition.w);
-        float2 tc = clipSpaceDivided.xy * 0.5f + 0.5f;
-        return float4(tc * projPosition.w, 0, projPosition.w);	
-    }
-#endif // defined(USE_SCREEN_UV)
+#if defined(MULTI_UV_NORMAL_MAPPING_ENABLED)
+	#if defined(DUDV_MAPPING_ENABLED)
+		#define EvaluateNormal2FP(In, dudvValue) _EvaluateNormalMapNormal(In.normal.xyz, In.uv2.xy + dudvValue, In.tangent, In.binormal, _NormalMap2Sampler)
+	#else
+		#define EvaluateNormal2FP(In) _EvaluateNormalMapNormal(In.normal.xyz, In.uv2.xy, In.tangent, In.binormal, _NormalMap2Sampler)
+	#endif
+#else
+	#define EvaluateNormal2FP(In) EvaluateStandardNormal(In.normal.xyz)
+#endif
 
 //-----------------------------------------------------------------------------
 #if defined(WINDY_GRASS_ENABLED)
@@ -68,7 +120,7 @@ float CalcMipLevel(float2 texcoord){
         float3 calcWindyGrass(float3 position)
 	#endif // WINDY_GRASS_TEXV_WEIGHT_ENABLED
     {
-	    float time = getGlobalTextureFactor();
+	    float time = GetGlobalTextureFactor();
 	    float k = position.x + position.z;
         float a = k * (1.0f / (_WindyGrassHomogenity * _WindyGrassHomogenity));
         float t = a * 0.25f + frac(a) + (time * _WindyGrassSpeed);
@@ -83,96 +135,86 @@ float CalcMipLevel(float2 texcoord){
 #endif // WINDY_GRASS_ENABLED
 
 #if defined(FOG_ENABLED)
-    float EvaluateFogVP(float z, float worldY) {
+    float EvaluateFogValue(float z, float worldY) {
         float f = saturate((z - _UdonFogRangeParameters.x) * (1 / (_UdonFogRangeParameters.y - _UdonFogRangeParameters.x)));
-
-        /*
-        scene.MiscParameters3.x = (CameraYPosition * _UdonHeightCamRate) + _HeightFogNear
-        scene.FogRangeParameters.x = FogNear
-        scene.FogRangeParameters.z  = 1 / (FogFar - FogNear)
-        scene.FogRangeParameters.w = _UdonFogRateClamp
-        r0.y = worldYPosition
-        r0.w = dot(worldPosition, scene.View._m02_m12_m22_m32) aka clipPosition.z
-        r1.x = -scene.MiscParameters3.x + r0.y;
-        r0.x = saturate(scene.MiscParameters3.y * r1.x);
-        r0.y = -scene.FogRangeParameters.x + -r0.w;
-        r0.y = saturate(scene.FogRangeParameters.z * r0.y);
-        r0.z = scene.MiscParameters3.z + r0.y;
-        r0.z = min(1, r0.z);
-        r0.x = r0.x * r0.z + r0.y;
-        r0.x = min(1, r0.x);
-        o2.w = scene.FogRangeParameters.w * r0.x;
-        */
 
         float HeightFogSubtraction = (_UdonHeightFogRangeParameters.y - _UdonHeightFogRangeParameters.x);
         float3 MiscParameters3;
-        
         MiscParameters3.x = (_WorldSpaceCameraPos.y * _UdonHeightCamRate); //- _UdonHeightFogRangeParameters.x;
         MiscParameters3.y = (HeightFogSubtraction == 0.0f) ? 0.0f : (1 / HeightFogSubtraction);
         MiscParameters3.z = _UdonHeightDepthBias;
 
-        float hf = saturate((worldY - MiscParameters3.x) * MiscParameters3.y);
-        float f2 = min(1.0f, MiscParameters3.z + f);
-        
-        f = min(1.0f, (hf * f2) + f);
+        float h = saturate((worldY - MiscParameters3.x) * MiscParameters3.y);
+        h *= min(1, f + MiscParameters3.z);
+        f = min(1, f + h);
 
         #if defined(FOG_RATIO_ENABLED)
             f *= _FogRatio;
-        #endif // FOG_RATIO_ENABLED
+        #endif
 
         f *= _UdonFogRateClamp;
         return f;
     }
 
-    void EvaluateFogFP(inout float3 resultColor, float3 fogColor, float fogValue) {
+    float EvaluateFogColor(inout float3 resultColor, float fogValue, float3 worldPos) {
         #if defined(USE_EXTRA_BLENDING)
-            fogColor = float3(0.0f, 0.0f, 0.0f);
-        #endif // defined(USE_EXTRA_BLENDING)
+            #if defined(MULTIPLICATIVE_BLENDING_ENABLED)
+                float3 fogColor = float3(1, 1, 1);
+            #else
+                float3 fogColor = float3(0, 0 ,0);
+            #endif
+        #else
+            float3 fogColor = _UdonFogColor.rgb;
+        #endif
+
+        float4 MiscParameters6 = float4(_UdonFogImageSpeedX, _UdonFogImageSpeedZ, _UdonFogImageScale, _UdonFogImageRatio);
+        
+        UNITY_BRANCH
+        if (_UdonFogImageRatio > 0) {
+            worldPos.xz += MiscParameters6.xy * GetGlobalTextureFactor();
+            worldPos *= MiscParameters6.z;
+
+            float3 d = float3(tex2Dlod(_UdonLowResDepthTexture, float4(worldPos.xy, 0, 0)).x, 
+            tex2Dlod(_UdonLowResDepthTexture, float4(worldPos.xz, 0, 0)).x, 
+            tex2Dlod(_UdonLowResDepthTexture, float4(worldPos.yz, 0, 0)).x);
+
+            #if !defined(UNITY_COLORSPACE_GAMMA)
+                d = LinearToGammaSpace(d);
+            #endif
+
+            float density = dot(d, float3(0.3333, 0.3333, 0.3333));
+            fogValue = max(0.0, fogValue - (density * fogValue * MiscParameters6.w));
+        }
 
         #if !defined(UNITY_COLORSPACE_GAMMA)
             fogColor.rgb = LinearToGammaSpace(fogColor.rgb);
         #endif
 
         resultColor.rgb = lerp(resultColor.rgb, fogColor.rgb, fogValue);
+        return fogValue;
     }
 #endif // FOG_ENABLED
 
-#if defined(NORMAL_MAPPING_ENABLED)
-	#if defined(DUDV_MAPPING_ENABLED)
-		//#define EvaluateNormalFP(In) EvaluateNormalMapNormal(In.normal.xyz, In.DuDvTexCoord.xy, In.tangent, In.binormal, _BumpMap)
-        #define EvaluateNormalFP(In, dudvValue) EvaluateNormalMapNormal(In.normal.xyz, In.uv.xy + dudvValue, In.tangent, In.binormal, _BumpMap)
-	#else // defined(DUDV_MAPPING_ENABLED)
-		#define EvaluateNormalFP(In) EvaluateNormalMapNormal(In.normal.xyz, In.uv.xy, In.tangent, In.binormal, _BumpMap)
-	#endif // defined(DUDV_MAPPING_ENABLED)
-#else
-	#define EvaluateNormalFP(In) EvaluateStandardNormal(In.normal.xyz)
-#endif
-
-#if defined(MULTI_UV_NORMAL_MAPPING_ENABLED)
-	#if defined(DUDV_MAPPING_ENABLED)
-		//#define EvaluateNormal2FP(In) EvaluateNormalMapNormal(In.normal.xyz, In.DuDvTexCoord.xy, In.tangent, In.binormal, _NormalMap2Sampler)
-        #define EvaluateNormal2FP(In, dudvValue) EvaluateNormalMapNormal(In.normal.xyz, In.uv2.xy + dudvValue, In.tangent, In.binormal, _NormalMap2Sampler)
-	#else // defined(DUDV_MAPPING_ENABLED)
-		#define EvaluateNormal2FP(In) EvaluateNormalMapNormal(In.normal.xyz, In.uv2.xy, In.tangent, In.binormal, _NormalMap2Sampler)
-	#endif // defined(DUDV_MAPPING_ENABLED)
-#else
-	#define EvaluateNormal2FP(In) EvaluateStandardNormal(In.normal.xyz)
-#endif
-
+//-----------------------------------------------------------------------------
+// リムライト
 //-----------------------------------------------------------------------------
 #if defined(RIM_LIGHTING_ENABLED)
     float EvaluateRimLightValue(float ndote) {
-        float rimLightvalue = pow(saturate(1.0f - ndote), _RimLitPower);
-        rimLightvalue *= _RimLitIntensity;
-        return rimLightvalue;
+        float rimLightvalue; 
+
+        rimLightvalue = (_Culling < 2) ? pow(max(0, 1.0 - abs(ndote)), _RimLitPower) : pow(1.0 - clamp(ndote, 0.0, 1.0), _RimLitPower);
+        return rimLightvalue * _RimLitIntensity;
     }
-#endif // RIM_LIGHTING_ENABLED
+
+    float3 ClampRimLighting(float3 ambient) {
+        return min(ambient, (float3)_RimLightClampFactor);
+    }
+#endif // defined(RIM_LIGHTING_ENABLED)
 
 //-----------------------------------------------------------------------------
 #if defined(CARTOON_SHADING_ENABLED)
-    float calcToonShadingValueFP(float ldotn, float shadowValue) {
-        float u = ldotn * 0.5f + 0.5f;
-        //u *= u;
+    float calcToonShadingValue(float ldotn, float shadowValue) {
+        float u = ldotn * 0.5 + 0.5;
 
         #if defined(UNITY_PASS_FORWARDBASE)
             #if !defined(FLAT_AMBIENT_ENABLED)
@@ -180,7 +222,7 @@ float CalcMipLevel(float2 texcoord){
             #endif
         #endif
 
-        float r = tex2D(_CartoonMapSampler, float2(u, 0.0f)).x;
+        float r = tex2Dlod(_CartoonMapSampler, float4(u, 0.0, 0, 0)).x;
 
         #if !defined(UNITY_COLORSPACE_GAMMA)
             r = LinearToGammaSpaceExact(r);
@@ -189,22 +231,19 @@ float CalcMipLevel(float2 texcoord){
     }
 #endif // CARTOON_SHADING_ENABLED
 
-float4 EvaluateAddUnsaturation(float4 color) {
-	float4 t0 = color;
-	t0.rgb *= t0.a;
-	float4 r0 = t0 * t0;
-	r0 = r0 * r0 + float4(-0.11f, -0.11f, -0.11f, 1.0f);
-	r0 = lerp(t0, r0, float4(1.0f, 0.6f, 0.0f, 1.0f));
-	float r1a = min(t0.b + 0.75f, 1.0f);
-	r0.a = r1a + 1.0f * -0.75f;
-	return r0;
+//-----------------------------------------------------------------------------
+float CalcMipLevel(float2 texcoord){
+    float2 dx = ddx(texcoord);
+    float2 dy = ddy(texcoord);
+    float delta_max_sqr = max(dot(dx, dx), dot(dy, dy));
+    return 0.5 * log2(delta_max_sqr);
 }
 
-half2 SampleSphereMap(half3 viewDirection, half3 normalDirection) {
-    half3 worldUp = half3(0, 1, 0);
-    half3 worldViewUp = normalize(worldUp - viewDirection * dot(viewDirection, worldUp));
-    half3 worldViewRight = normalize(cross(viewDirection, worldViewUp));
-    half2 SphereUV = half2(dot(worldViewRight, normalDirection), dot(worldViewUp, normalDirection)) * 0.5 + 0.5;
+float2 SampleSphereMap(float3 viewDirection, float3 normalDirection) {
+    float3 worldUp = float3(0, 1, 0);
+    float3 worldViewUp = normalize(worldUp - viewDirection * dot(viewDirection, worldUp));
+    float3 worldViewRight = normalize(cross(viewDirection, worldViewUp));
+    float2 SphereUV = float2(dot(worldViewRight, normalDirection), dot(worldViewUp, normalDirection)) * 0.5 + 0.5;
     return SphereUV;
 }
 

@@ -1,0 +1,118 @@
+uniform sampler2D TextureSampler;
+
+layout(std140) uniform Param
+{
+uniform SceneWideParameters scene;
+};
+
+// InstanceTransform0～2、InstanceColorはシステム定義名なので変えてはいけない
+struct InstancingInput
+{
+	float4 InstanceTransform0;
+	float4 InstanceTransform1;
+	float4 InstanceTransform2;
+	float4 InstanceColor;
+};
+layout (location = 12) in	InstancingInput instancingInput;
+
+struct BillboardVPInput
+{
+	float3 position;
+	float2 texcoord;
+	InstancingInput instancingInput;
+};
+
+struct BillboardVPOutput
+{
+	float4 position;
+	float2 texcoord;
+	half4  color;
+	half   blend_factor;	// 0=加算、1=αブレンド
+};
+
+#ifdef main_BillboardVP
+BillboardVPOutput BillboardVP(BillboardVPInput IN)
+{
+	BillboardVPOutput OUT;
+	float3 localPos = IN.position.xyz;
+	// XY拡縮
+	localPos.xy = localPos.xy * IN.instancingInput.InstanceTransform1.xy;
+	// Z回転
+#if 0
+	float2x2 rot2x2 = float2x2(IN.instancingInput.InstanceTransform1.w, -IN.instancingInput.InstanceTransform1.z, IN.instancingInput.InstanceTransform1.z, IN.instancingInput.InstanceTransform1.w);
+#else
+	float sin_val = sin(IN.instancingInput.InstanceTransform1.z);
+	float cos_val = cos(IN.instancingInput.InstanceTransform1.z);
+	float2x2 rot2x2 = float2x2(cos_val, -sin_val, sin_val, cos_val);
+#endif
+	localPos.xy = _mul(rot2x2, localPos.xy);
+	// ビルボード回転
+#if !defined(SP_SPRITE)
+	if (IN.instancingInput.InstanceTransform1.w > 0.0) {
+		// Ｙ軸のみ
+		float3x3 viewInv = float3x3(scene.ViewInverse);
+		viewInv[1][0] = 0.0;
+		viewInv[1][1] = 1.0;
+		viewInv[1][2] = 0.0;
+		localPos = _mul(viewInv, localPos);
+	} else {
+		localPos = _mul(float3x3(scene.ViewInverse), localPos);
+	}
+#endif
+	// 移動
+	float3 worldPos = localPos + IN.instancingInput.InstanceTransform0.xyz;
+#if defined(SP_SPRITE)
+	worldPos.x *= scene.ViewportWidthHeight.y / scene.ViewportWidthHeight.x;
+	OUT.position = float4(worldPos, 1);
+#else
+	OUT.position = _mul(scene.ViewProjection, float4(worldPos, 1));
+#endif
+	OUT.texcoord = IN.texcoord * IN.instancingInput.InstanceTransform2.xy + IN.instancingInput.InstanceTransform2.zw;
+	OUT.color = IN.instancingInput.InstanceColor;
+	OUT.blend_factor = IN.instancingInput.InstanceTransform0.w;
+	return OUT;
+}
+
+in	BillboardVPInput IN;
+out	BillboardVPOutput OUT;
+out gl_PerVertex
+{
+    vec4 gl_Position;
+};
+void main()
+{
+	BillboardVPInput IN_ = IN;
+	IN_.instancingInput	= instancingInput;
+
+	OUT = BillboardVP(IN_);
+
+	gl_Position		= OUT.position;
+}
+#endif
+
+#ifdef main_BillboardFP
+half4 BillboardFP(BillboardVPOutput IN)
+{
+	half4 col = _h4tex2D(VariableSamplerState, TextureSampler, IN.texcoord);
+	col.rgb *= IN.color.rgb;
+	// Srcカラーのブレンド計算「SrcRGB x SrcA」を手動でやってしまう。
+	// プログラム側のブレンドステートは「PE_SHADER_BLEND_ONE」「PE_SHADER_BLEND_ONE_MINUS_SRC_ALPHA」にしておく
+#if 0
+	col.rgb *= IN.color.a * col.a;
+#else
+	col.rgb *= IN.color.a;	// 乗算済みαテクスチャの場合、頂点αの分だけ追加計算
+#endif
+	// アルファ／加算の切り替え
+	// Dstカラーのブレンド計算式「DstRGB x (1 - SrcA)」における「SrcA」を「1」にするか「0」にするかで合成結果が変わる仕組み
+//x	col.a *= IN.blend_factor;
+	col.a *= IN.color.a * IN.blend_factor;
+	return col;
+}
+
+in	BillboardVPOutput OUT;
+out vec4 out_FragColor;
+void main()
+{
+	out_FragColor = BillboardFP(OUT);
+}
+#endif

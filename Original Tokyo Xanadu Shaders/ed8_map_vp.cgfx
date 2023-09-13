@@ -1,0 +1,713 @@
+#define FPS_MAX	30
+
+struct DirectionalLight
+{
+	half3 m_direction;
+	half3 m_colorIntensity;
+};
+
+// 影受けバイアス値
+#define SHADOW_LIGHTDIR_BIAS	0.05
+#define SHADOW_NORMALDIR_BIAS	0.05
+
+struct CombinedCascadedShadowMap
+{
+	// 二分割
+	float4x4 m_split0Transform;
+	float4x4 m_split1Transform;
+
+	float4 m_splitDistances;
+};
+
+#define NUM_SKIN_TRANSFORMS	160
+layout(std140) uniform Param
+{
+uniform SceneWideParameters scene;
+
+uniform float4x4 World;
+uniform float4x4 WorldViewProjection;
+uniform float GlobalTexcoordFactor;
+
+uniform DirectionalLight Light0;
+uniform CombinedCascadedShadowMap LightShadow0;
+
+uniform float4 GameMaterialDiffuse;
+uniform float4 GameMaterialEmission;
+uniform float GameMaterialMonotone;
+uniform float4 GameMaterialTexcoord;
+
+uniform float4 UVaMUvColor;
+uniform float4 UVaProjTexcoord;
+uniform float4 UVaMUvTexcoord;
+uniform float4 UVaMUv2Texcoord;
+uniform float4 UVaDuDvTexcoord;
+
+uniform float AlphaThreshold;
+
+uniform float Shininess;
+uniform float SpecularPower;
+uniform float3 SpecularColor;
+uniform float3 RimLitColor;
+uniform float RimLitIntensity;
+uniform float RimLitPower;
+
+uniform float BlendMulScale2;
+uniform float BlendMulScale3;
+uniform float SphereMapIntensity;
+uniform float CubeMapIntensity;
+uniform float CubeMapFresnel;
+
+uniform float2 ProjectionScale;
+
+uniform float2 DuDvMapImageSize;
+uniform float2 DuDvScale;
+
+uniform float2 WindyGrassDirection;
+uniform float WindyGrassSpeed;
+uniform float WindyGrassHomogenity;
+uniform float WindyGrassScale;
+
+uniform float BloomIntensity;
+uniform float GlareIntensity;
+uniform float ReflectionIntensity;
+
+uniform float4 PointLightParams;
+uniform float4 PointLightColor;
+
+uniform float4x4 BoneTransforms[NUM_SKIN_TRANSFORMS];
+};
+
+
+
+/*-------------------------ed8_map.cgfx----------------------------*/
+
+//=============================================================================
+// マテリアルスイッチのプリプロセス(copy from ed8_map.cgfx)
+//=============================================================================
+
+// ブルームは常時ON
+#define BLOOM_ENABLED
+
+// Maya上では機能しないスイッチを無効化
+#if defined(DCC_TOOL)
+	#undef CASTS_SHADOWS
+	#undef RECEIVE_SHADOWS
+#endif
+
+// DUDVとマルチテクスチャは排他
+#if defined(DUDV_MAPPING_ENABLED)
+	#undef MULTI_UV_ENANLED
+	#undef MULTI_UV2_ENANLED
+#endif
+
+// 非マルチテクスチャなら関連スイッチを無効化
+#if !defined(MULTI_UV_ENANLED)
+	#undef MULTI_UV_ADDITIVE_BLENDING_ENANLED
+	#undef MULTI_UV_MULTIPLICATIVE_BLENDING_ENANLED
+	#undef MULTI_UV_MULTIPLICATIVE_BLENDING_LM_ENANLED
+	#undef MULTI_UV_NORMAL_MAPPING_ENABLED
+	#undef MULTI_UV_SPECULAR_MAPPING_ENABLED
+	#undef MULTI_UV_GLARE_MAP_ENABLED
+	#undef MULTI_UV2_ENANLED
+	#undef MULTI_UV2_ADDITIVE_BLENDING_ENANLED
+	#undef MULTI_UV2_MULTIPLICATIVE_BLENDING_ENANLED
+	#undef MULTI_UV2_MULTIPLICATIVE_BLENDING_LM_ENANLED
+#endif // !defined(MULTI_UV_ENANLED)
+
+// マルチUV2と排他なものを無効化
+#if defined(MULTI_UV2_ENANLED)
+	#undef SPHERE_MAPPING_ENABLED
+	#undef CUBE_MAPPING_ENABLED
+#endif
+
+#if defined(WATER_SURFACE_ENABLED)
+	#if !defined(DCC_TOOL)
+		#undef ALPHA_BLENDING_ENABLED
+	#else
+		#if !defined(ALPHA_BLENDING_ENABLED)
+			#define ALPHA_BLENDING_ENABLED
+		#endif
+	#endif
+	#undef ADDITIVE_BLENDING_ENABLED
+	#undef SUBTRACT_BLENDING_ENABLED
+	#undef MULTIPLICATIVE_BLENDING_ENABLED
+#endif // defined(WATER_SURFACE_ENABLED)
+
+#if defined(WATER_SURFACE_ENABLED) || defined(DUDV_MAPPING_ENABLED)
+	#define USE_SCREEN_UV
+#endif
+
+#if !defined(ALPHA_BLENDING_ENABLED)
+	#undef ADDITIVE_BLENDING_ENABLED
+	#undef SUBTRACT_BLENDING_ENABLED
+	#undef MULTIPLICATIVE_BLENDING_ENABLED
+#endif
+
+// Vita向け高速化
+#if defined(__psp2__)
+	// 可能な限り頂点単位でライト計算する
+	#if !(defined(NORMAL_MAPPING_ENABLED) || defined(MULTI_UV_NORMAL_MAPPING_ENABLED))
+		#define USE_PER_VERTEX_LIGHTING
+	#endif
+	// リムライトを頂点単位で計算（リム透明度の場合は見栄えが悪くなるのでやらない）
+	#if defined(RIM_LIGHTING_ENABLED) && !defined(RIM_TRANSPARENCY_ENABLED) 
+		#define USE_FORCE_VERTEX_RIM_LIGHTING
+	#endif
+#endif // defined(__psp2__)
+
+#if !defined(DCC_TOOL)
+	#define GAME_MATERIAL_ENABLED
+	#define UVA_SCRIPT_ENABLED
+#endif
+
+#define USE_POSITION_HALF	// 変換済み座標をhalfで処理
+
+#if defined(NUM_LIGHTS)
+	#if (NUM_LIGHTS > 0) && !defined(NOTHING_ENABLED) && !defined(NO_ALL_LIGHTING_ENABLED)
+		#define USE_LIGHTING
+	#endif
+#endif
+
+#if defined(RECEIVE_SHADOWS)
+	#if defined(NUM_LIGHTS)
+		#if NUM_LIGHTS == 0
+			#undef RECEIVE_SHADOWS
+		#endif
+	#else
+		#undef RECEIVE_SHADOWS
+	#endif
+	#if !defined(SHADOWTYPE_0)
+		#undef RECEIVE_SHADOWS
+	#endif
+#endif // defined(RECEIVE_SHADOWS)
+
+#if defined(NORMAL_MAPPING_ENABLED) || defined(MULTI_UV_NORMAL_MAPPING_ENABLED)
+	#define USE_TANGENTS
+#endif
+
+#if defined(ADDITIVE_BLENDING_ENABLED) || defined(SUBTRACT_BLENDING_ENABLED) || defined(MULTIPLICATIVE_BLENDING_ENABLED)
+	#define USE_EXTRA_BLENDING
+#endif
+
+//=============================================================================
+// シェーダ入出力構造体
+//=============================================================================
+struct DefaultVPInput
+{
+#if defined(SKINNING_ENABLED)
+
+	float3 SkinnableVertex;
+	float3 SkinnableNormal;
+#else
+	float3 Position;
+	float3 Normal;
+#endif
+
+	float2 TexCoord;
+
+#if defined(VERTEX_COLOR_ENABLED)
+	float4 Color;
+#endif
+
+#if defined(USE_TANGENTS)
+		#if defined(SKINNING_ENABLED)
+	float3 SkinnableTangent;
+		#else
+	float3 Tangent;
+		#endif
+#endif
+
+#if defined(SKINNING_ENABLED)
+	int4 SkinIndices;
+	float4 SkinWeights;
+#endif
+
+#if defined(MULTI_UV_ENANLED)
+	float2 TexCoord2;
+#endif
+#if defined(MULTI_UV2_ENANLED)
+	float2 TexCoord3;
+#endif
+};
+
+// 補足:
+// - 変換済み座標はhalfで処理（精度面で問題が出るようならfloatに戻す）。
+// - シャドウマップ計算に関わる変数はfloatで処理。
+// - テクスチャ座標はfloatで処理。ゆっくりスクロールさせたい場合などにhalfだと精度が足りずカクつくため。
+struct DefaultVPOutput
+{
+	#if defined(USE_POSITION_HALF)
+	half4 Position;
+	#else
+	float4 Position;
+	#endif
+
+	half4 Color0;
+	half4 Color1;		// xyz = スペキュラ要素総計（USE_PER_VERTEX_LIGHTING有効時のみ）, w = フォグ計算結果
+	float2 TexCoord;
+	float4 WorldPositionDepth;	// xyz = ワールド座標, w = 視線方向のZ値
+
+#if defined(DUDV_MAPPING_ENABLED)
+	float2 DuDvTexCoord;
+#elif defined(MULTI_UV_ENANLED)
+	float2 TexCoord2;
+#endif
+
+#if defined(PROJECTION_MAP_ENABLED)
+	float2 ProjMap;
+#endif
+
+#if defined(RECEIVE_SHADOWS)
+	half4 Normal;	// w = 傾斜によるシャドウマップ補正値
+#else
+	half3 Normal;
+#endif
+
+#if !defined(USE_PER_VERTEX_LIGHTING) && defined(USE_LIGHTING)
+	#if defined(USE_TANGENTS)
+	half3 Tangent;
+	#endif
+#else // !defined(USE_PER_VERTEX_LIGHTING) && defined(USE_LIGHTING)
+	#if defined(USE_LIGHTING)
+		#if defined(RIM_LIGHTING_ENABLED) && defined(USE_FORCE_VERTEX_RIM_LIGHTING)
+	half4 ShadingAmount;	// ディフィーズ要素総計
+		#else
+	half3 ShadingAmount;	// ディフィーズ要素総計
+		#endif
+	#endif
+#endif // !defined(USE_PER_VERTEX_LIGHTING) && defined(USE_LIGHTING)
+
+#if defined(MULTI_UV2_ENANLED)
+	float2 TexCoord3;
+#endif
+
+#if defined(USE_SCREEN_UV)
+	half4 ReflectionMap;
+#endif
+
+#if !defined(USE_TANGENTS) || !defined(USE_LIGHTING)
+	#if defined(SPHERE_MAPPING_ENABLED)
+	half2 SphereMap;
+	#elif defined(CUBE_MAPPING_ENABLED)
+	half4 CubeMap;
+	#endif
+#endif
+};
+
+/*-------------------------ed8_map.cgfx----------------------------*/
+
+//=============================================================================
+// サブルーチン
+//=============================================================================
+
+/*-------------------------ed8_common.cgfx----------------------------*/
+
+float4 GenerateScreenProjectedUv(float4 projPosition)
+{
+	float2 clipSpaceDivided = projPosition.xy / float2(projPosition.w, -projPosition.w);
+	float2 tc = clipSpaceDivided.xy * 0.5 + 0.5;
+	return float4(tc.x * projPosition.w, tc.y * projPosition.w, 0, projPosition.w);
+}
+
+float3 GetEyePosition()
+{
+	return scene.EyePosition;
+}
+
+float2 GetGlobalTextureFactor()
+{
+	return float2(GlobalTexcoordFactor);
+}
+
+//-----------------------------------------------------------------------------
+// フォグ
+//-----------------------------------------------------------------------------
+float EvaluateFogValue(float3 viewPosition)
+{
+	float f = saturate((-viewPosition.z - scene.FogRangeParameters.x) * scene.FogRangeParameters.z);
+	f *= scene.FogRangeParameters.w;
+	return f;
+}
+
+#if defined(RECEIVE_SHADOWS)
+//-----------------------------------------------------------------------------
+// シャドウマップ
+//-----------------------------------------------------------------------------
+// 影濃度のバイアス値を求める（深度）
+half EvaluateShadowDensityBias_Depth(CombinedCascadedShadowMap shadow, float viewDepth)
+{
+	half bias = 1.0;
+
+	//
+	// 二分割
+	//
+
+	if (viewDepth > shadow.m_splitDistances.y)
+	{
+		return 1.0;
+	}
+
+	if (viewDepth < shadow.m_splitDistances.x)
+	{
+		// 近
+		bias = 0.0;
+	}
+	else
+	{
+		// 遠
+		bias = saturate((viewDepth - shadow.m_splitDistances.x) / (shadow.m_splitDistances.y - shadow.m_splitDistances.x));
+	}
+
+	bias = pow(bias, 3);
+	return bias;
+}
+
+// 影濃度のバイアス値を求める（高さ）
+half EvaluateShadowDensityBias_Height(float y)
+{
+	if (scene.MiscParameters2.x > 0)
+	{
+		half bias = min(abs(y - scene.MiscParameters2.y) * scene.MiscParameters2.x, 1);
+		bias = pow(bias, 3);
+		return bias;
+	}
+	return 0.0;
+}
+
+// 影濃度のバイアス値を求める（傾斜）
+half EvaluateShadowDensityBias_Angle(float3 normal, float3 lightDir)
+{
+	half bias = dot(normal, lightDir);
+	bias = bias * 0.5 + 0.5;
+	bias = 1 - bias;
+	return bias;
+}
+
+#endif // defined(RECEIVE_SHADOWS)
+
+//-----------------------------------------------------------------------------
+// スキニング
+//-----------------------------------------------------------------------------
+#if defined(SKINNING_ENABLED)
+
+void EvaluateSkinPositionNormalTangent3Bones(inout float3 position, inout float3 normal, inout float3 tangent, float4 weights, int4 boneIndices, float3x4 skinTransforms[NUM_SKIN_TRANSFORMS])
+{
+	int indexArray[3] = {boneIndices.x, boneIndices.y, boneIndices.z};
+
+	float4 inPosition = float4(position, 1);
+	float4 inNormal = float4(normal, 0);
+	float4 inTangent = float4(tangent, 0);
+	float scale = 1.0 / (weights.x + weights.y + weights.z);
+	
+ 	position = 
+		mul(skinTransforms[indexArray[0]], inPosition).xyz * (weights.x * scale)
+	+	mul(skinTransforms[indexArray[1]], inPosition).xyz * (weights.y * scale)
+	+	mul(skinTransforms[indexArray[2]], inPosition).xyz * (weights.z * scale);
+	
+	normal = 
+		mul(skinTransforms[indexArray[0]], inNormal).xyz * (weights.x * scale)
+	+	mul(skinTransforms[indexArray[1]], inNormal).xyz * (weights.y * scale)
+	+	mul(skinTransforms[indexArray[2]], inNormal).xyz * (weights.z * scale);
+
+	tangent = 
+		mul(skinTransforms[indexArray[0]], inTangent).xyz * (weights.x * scale)
+	+	mul(skinTransforms[indexArray[1]], inTangent).xyz * (weights.y * scale)
+	+	mul(skinTransforms[indexArray[2]], inTangent).xyz * (weights.z * scale);
+}
+
+void EvaluateSkinPositionNormal3Bones(inout float3 position, inout float3 normal, float4 weights, int4 boneIndices, float3x4 skinTransforms[NUM_SKIN_TRANSFORMS])
+{
+	int indexArray[3] = {boneIndices.x, boneIndices.y, boneIndices.z};
+
+	float4 inPosition = float4(position, 1);
+	float4 inNormal = float4(normal, 0);
+	float scale = 1.0 / (weights.x + weights.y + weights.z);
+	
+ 	position = 
+		mul(skinTransforms[indexArray[0]], inPosition).xyz * (weights.x * scale)
+	+	mul(skinTransforms[indexArray[1]], inPosition).xyz * (weights.y * scale)
+	+	mul(skinTransforms[indexArray[2]], inPosition).xyz * (weights.z * scale);
+	
+	normal = 
+		mul(skinTransforms[indexArray[0]], inNormal).xyz * (weights.x * scale)
+	+	mul(skinTransforms[indexArray[1]], inNormal).xyz * (weights.y * scale)
+	+	mul(skinTransforms[indexArray[2]], inNormal).xyz * (weights.z * scale);
+}
+
+void EvaluateSkinPosition3Bones(inout float3 position, float4 weights, int4 boneIndices, float3x4 skinTransforms[NUM_SKIN_TRANSFORMS])
+{
+	int indexArray[3] = {boneIndices.x, boneIndices.y, boneIndices.z};
+
+	float4 inPosition = float4(position, 1);
+	float scale = 1.0 / (weights.x + weights.y + weights.z);
+ 	position = 
+		mul(skinTransforms[indexArray[0]], inPosition).xyz * (weights.x * scale)
+	+	mul(skinTransforms[indexArray[1]], inPosition).xyz * (weights.y * scale)
+	+	mul(skinTransforms[indexArray[2]], inPosition).xyz * (weights.z * scale);
+}
+
+
+#define EvaluateSkinPositionNormalTangentXBones	EvaluateSkinPositionNormalTangent3Bones
+#define EvaluateSkinPositionNormalXBones 		EvaluateSkinPositionNormal3Bones
+#define EvaluateSkinPositionXBones				EvaluateSkinPosition3Bones
+
+#endif // defined(SKINNING_ENABLED)
+
+
+//-----------------------------------------------------------------------------
+// 草ゆれ
+//-----------------------------------------------------------------------------
+#if defined(WINDY_GRASS_ENABLED)
+	#if !defined(WINDY_GRASS_TEXV_WEIGHT_ENABLED)
+float3 calcWindyGrass(float3 position, float weight)
+	#else
+float3 calcWindyGrass(float3 position)
+	#endif
+{
+	float2 curTime = GetGlobalTextureFactor();
+
+	#if defined(DCC_TOOL)
+	float k = (position.x + position.z) * (1/100.0);
+	#else
+	float k = position.x + position.z;
+	#endif
+	float a = k * (1.0 / (WindyGrassHomogenity * WindyGrassHomogenity));
+	float t = a * 0.25 + frac(a) + curTime.x * WindyGrassSpeed * FPS_MAX;
+
+	#if !defined(WINDY_GRASS_TEXV_WEIGHT_ENABLED)
+	float2 dd = WindyGrassDirection * sin(t) * WindyGrassScale * weight;
+	#else
+	float2 dd = WindyGrassDirection * sin(t) * WindyGrassScale;
+	#endif
+	#if defined(DCC_TOOL)
+	dd *= 100.0;
+	#endif
+	return position.xyz + float3(dd.x, 0, dd.y);
+}
+#endif // defined(WINDY_GRASS_ENABLED)
+/*-------------------------ed8_common.cgfx----------------------------*/
+
+
+/*-------------------------ed8_map_vp.h----------------------------*/
+
+#ifdef main_DefaultVPShader
+DefaultVPOutput DefaultVPShader(DefaultVPInput IN)
+{
+	DefaultVPOutput OUT;
+
+#if defined(USE_TANGENTS)
+	#if defined(SKINNING_ENABLED)
+		float3 tangent = IN.SkinnableTangent;
+	#else
+		float3 tangent = IN.Tangent;
+	#endif
+#endif
+
+#if defined(SKINNING_ENABLED)
+	float3 normal = IN.SkinnableNormal;
+#else
+	float3 normal = IN.Normal;
+#endif
+
+#if defined(SKINNING_ENABLED)
+	float3 position = IN.SkinnableVertex.xyz;
+#else
+	float3 position = IN.Position.xyz;
+#endif
+
+#if defined(SKINNING_ENABLED)
+
+	#if defined(USE_LIGHTING)
+		#if defined(USE_TANGENTS)
+			EvaluateSkinPositionNormalTangentXBones(position, normal, tangent, IN.SkinWeights, int4(IN.SkinIndices), BoneTransforms);
+		#else
+			EvaluateSkinPositionNormalXBones(position, normal, IN.SkinWeights, int4(IN.SkinIndices), BoneTransforms);
+		#endif
+	#else
+		EvaluateSkinPositionXBones(position, IN.SkinWeights, int4(IN.SkinIndices), BoneTransforms);
+	#endif
+
+	float3 worldSpacePosition = position;
+	float3 worldSpaceNormal = normalize(normal);
+
+	#if !defined(USE_PER_VERTEX_LIGHTING) && defined(USE_LIGHTING)
+		#if defined(USE_TANGENTS)
+			tangent = normalize(tangent);
+		#endif
+	#endif
+
+#else // defined(SKINNING_ENABLED)
+
+	float3 worldSpacePosition = _mul(World, float4(position, 1)).xyz;
+	float3 worldSpaceNormal = normalize(_mul(World, float4(normal, 0)).xyz);
+	#if !defined(USE_PER_VERTEX_LIGHTING) && defined(USE_LIGHTING)
+		#if defined(USE_TANGENTS)
+			tangent = normalize(_mul(World, float4(tangent, 0)).xyz);
+		#endif
+	#endif
+
+#endif // defined(SKINNING_ENABLED)
+
+#if defined(WINDY_GRASS_ENABLED)
+	#if !defined(WINDY_GRASS_TEXV_WEIGHT_ENABLED)
+		worldSpacePosition = calcWindyGrass(worldSpacePosition.xyz, IN.TexCoord.y);
+	#else
+		worldSpacePosition = calcWindyGrass(worldSpacePosition.xyz);
+	#endif
+#endif
+
+	OUT.Position = _mul(scene.ViewProjection, float4(worldSpacePosition, 1));
+	OUT.WorldPositionDepth = float4(worldSpacePosition.xyz, -_mul(scene.View, float4(worldSpacePosition, 1)).z);
+#if defined(RECEIVE_SHADOWS)
+	OUT.Normal = half4(half3(worldSpaceNormal), 0);
+#else
+	OUT.Normal = half3(worldSpaceNormal);
+#endif
+#if !defined(USE_PER_VERTEX_LIGHTING) && defined(USE_LIGHTING)
+	#if defined(USE_TANGENTS)
+	OUT.Tangent = half3(tangent);
+	#endif
+#endif
+
+	float3 viewSpacePosition = _mul(scene.View, float4(worldSpacePosition, 1)).xyz;
+
+	OUT.TexCoord.xy = half2(IN.TexCoord.xy) * half2(GameMaterialTexcoord.zw) + half2(GameMaterialTexcoord.xy);
+
+
+	// マルチUV
+#if defined(DUDV_MAPPING_ENABLED)
+
+	OUT.DuDvTexCoord.xy = IN.TexCoord.xy * half2(UVaDuDvTexcoord.zw) + half2(UVaDuDvTexcoord.xy);
+
+#elif defined(MULTI_UV_ENANLED)
+
+	OUT.TexCoord2.xy = IN.TexCoord2.xy * half2(UVaMUvTexcoord.zw) + half2(UVaMUvTexcoord.xy);
+
+#endif // defined(DUDV_MAPPING_ENABLED)
+
+	// マルチUV2
+#if defined(MULTI_UV2_ENANLED)
+	OUT.TexCoord3.xy = IN.TexCoord3.xy * half2(UVaMUv2Texcoord.zw) + half2(UVaMUv2Texcoord.xy);
+
+#endif // defined(MULTI_UV2_ENANLED)
+
+	// 射影マップ
+#if defined(PROJECTION_MAP_ENABLED)
+
+	OUT.ProjMap.xy = half2(worldSpacePosition.xz / ProjectionScale) + UVaProjTexcoord.xy;
+	
+#endif // defined(PROJECTION_MAP_ENABLED)
+
+	// 頂点カラー
+#if defined(VERTEX_COLOR_ENABLED)
+	OUT.Color0 = min(half4(1, 1, 1, 1), half4(IN.Color.r, IN.Color.g, IN.Color.b, IN.Color.a));
+#else
+	OUT.Color0 = half4(1);
+#endif
+
+	// フォグ
+	OUT.Color1.rgb = half3(0);
+#if defined(FOG_ENABLED)
+	OUT.Color1.a = EvaluateFogValue(viewSpacePosition);
+#else
+	OUT.Color1.a = 0.0;
+#endif
+
+	float3 worldSpaceEyeDirection = normalize(GetEyePosition() - worldSpacePosition);
+
+	float3 light0dir;
+#if ((defined(USE_LIGHTING) && !defined(USE_PER_VERTEX_LIGHTING)) || defined(RECEIVE_SHADOWS))
+	#define VP_LIGHTPROCESS
+#endif
+#if defined(VP_LIGHTPROCESS)
+	light0dir = Light0.m_direction;
+#else
+	light0dir = float3(0, -1, 0);
+#endif
+
+	// 視線と法線の内積
+#if !defined(USE_PER_VERTEX_LIGHTING) && defined(USE_LIGHTING)
+#else
+	#if defined(RIM_LIGHTING_ENABLED) && defined(USE_FORCE_VERTEX_RIM_LIGHTING)
+		#define VP_NDOTE_1
+	#endif
+#endif
+#if !defined(USE_TANGENTS) || !defined(USE_LIGHTING)
+	#if defined(SPHERE_MAPPING_ENABLED) || defined(CUBE_MAPPING_ENABLED)
+		#define VP_NDOTE_2
+	#endif
+#endif
+#if defined(VP_NDOTE_1) || defined(VP_NDOTE_2)
+	half ndote = dot(worldSpaceNormal, worldSpaceEyeDirection);
+#endif
+
+#if !defined(USE_PER_VERTEX_LIGHTING) && defined(USE_LIGHTING)
+#else // !defined(USE_PER_VERTEX_LIGHTING) && defined(USE_LIGHTING)
+	#if defined(USE_LIGHTING)
+	EvaluateLightingPerVertexVP(OUT.ShadingAmount.rgb, OUT.Color1.rgb, light0dir, IN, worldSpacePosition, worldSpaceNormal
+		#if defined(SPECULAR_ENABLED)
+	, worldSpaceEyeDirection
+		#endif
+	);
+		#if defined(RIM_LIGHTING_ENABLED) && defined(USE_FORCE_VERTEX_RIM_LIGHTING)
+			#if defined(RIM_TRANSPARENCY_ENABLED)
+				OUT.ShadingAmount.a = EvaluateRimLightValue(ndote);
+			#else
+				OUT.ShadingAmount.a = EvaluateRimLightValue(ndote);
+			#endif
+		#endif
+	#endif // defined(USE_LIGHTING)
+#endif // !defined(USE_PER_VERTEX_LIGHTING) && defined(USE_LIGHTING)
+
+	// 水面
+#if defined(USE_SCREEN_UV)
+	OUT.ReflectionMap = GenerateScreenProjectedUv(OUT.Position);
+#endif
+
+	// スフィア／キューブマップ（頂点単位）
+#if !defined(USE_TANGENTS) || !defined(USE_LIGHTING)
+	#if defined(SPHERE_MAPPING_ENABLED)
+		float3 viewSpaceNormal = float3(_mul(float3x3(scene.View), worldSpaceNormal));
+		OUT.SphereMap = viewSpaceNormal.xy * 0.5 + half2(0.5, 0.5);
+	#elif defined(CUBE_MAPPING_ENABLED)
+		OUT.CubeMap = half4(reflect(-worldSpaceEyeDirection, worldSpaceNormal), 1.0 - max(0, ndote) * CubeMapFresnel);
+	#endif
+#endif // !defined(USE_TANGENTS) || !defined(USE_LIGHTING)
+
+	// シャドウマップ
+#if defined(RECEIVE_SHADOWS)
+	half shadowDensityBias = EvaluateShadowDensityBias_Depth(LightShadow0, OUT.WorldPositionDepth.w);
+	shadowDensityBias += EvaluateShadowDensityBias_Height(OUT.WorldPositionDepth.y);
+	shadowDensityBias += EvaluateShadowDensityBias_Angle(worldSpaceNormal, scene.MiscParameters1.xyz);
+	OUT.Normal.w = min(1, shadowDensityBias);
+#endif // defined(RECEIVE_SHADOWS)
+
+	return OUT;
+}
+
+#undef VP_LIGHTPROCESS
+#undef VP_NDOTE_1
+#undef VP_NDOTE_2
+
+
+//Main関数
+
+in	DefaultVPInput IN;
+out	DefaultVPOutput OUT;
+out gl_PerVertex
+{
+    vec4 gl_Position;
+};
+void main()
+{
+	DefaultVPInput IN_ = IN;
+	OUT = DefaultVPShader(IN_);
+
+	gl_Position	= OUT.Position;
+}
+
+
+#endif // main_DefaultVPShader
+
+/*-------------------------ed8_map_vp.h----------------------------*/
+

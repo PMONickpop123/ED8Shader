@@ -1,0 +1,250 @@
+layout(std140) uniform Param
+{
+uniform SceneWideParameters scene;
+
+uniform float MaskEps;
+uniform float4x4 World;
+};
+
+//-----------------------------------------------------------------------------
+// 深度
+//-----------------------------------------------------------------------------
+float3 encodeDepth(float depth)
+{
+#if defined(__ORBIS__)
+	depth = depth * 0.5 + 0.5;
+#endif
+	float4 unpacked_depth = float4(0, 0, 256.0f, 256.0f);
+	unpacked_depth.g = modf(depth * 256.0f, unpacked_depth.r);
+	unpacked_depth.b *= modf(unpacked_depth.g * 256.0f, unpacked_depth.g);
+	unpacked_depth /= 256.0f;	// 最後にまとめて割り算する方が速い
+	return unpacked_depth.rgb;	// float型の仮数部が23bitの精度しかないため、24bit目まで計算すれば十分
+}
+
+float decodeDepth(float3 color)
+{
+	float depth = color.r + (color.g + color.b / 256.0f) / 256.0f;
+#if defined(__ORBIS__)
+	depth = depth * 2.0 - 1.0;
+#endif
+	return depth;
+}
+
+//-----------------------------------------------------------------------------
+// マスク
+//-----------------------------------------------------------------------------
+#define GBUF_MASK_NONE		0x00
+#define GBUF_MASK_CHR		0x01
+#define GBUF_MASK_NO_SSAO	0x02
+#define GBUF_MASK_OUTLINE	0x04
+#define GBUF_MASK_NO_LIGHT	0x08
+
+float encodeMask(uint mask)
+{
+//	return float(mask) * (1.0/255.0) + 0.00001;
+	return float(mask) * (1.0/255.0) + MaskEps;
+}
+
+uint decodeMask(float mask)
+{
+	return uint(mask * 255.00001);
+}
+
+//-----------------------------------------------------------------------------
+// 法線
+//-----------------------------------------------------------------------------
+float3 encodeNormal(float3 normal)
+{
+	return normal * 0.5 + 0.5;
+}
+
+float3 decodeNormal(float3 normal)
+{
+	return normal * 2.0 - 1.0;
+}
+
+//-----------------------------------------------------------------------------
+// 速度
+//-----------------------------------------------------------------------------
+#define GBUF_VEL_ZERO	(7<<4 | 7)
+
+float encodeVelocity(float2 velocity)
+{
+	velocity = velocity * 0.5 + 0.5;
+	float2 n = float2(velocity * 15);
+	uint bit = (uint(n.x) << 4) | uint(n.y);
+	return encodeMask(bit);
+}
+
+float2 _decodeVelocity(uint bit)
+{
+	float2 n = float2((int(bit) >> 4) & 0xF, int(bit) & 0xF);
+	float2 v = float2(n) * (1.0/15.0);
+	v = min(float2(2.0,2.0), v / (7.0/15.0)) / 2;	//正の方向だけ少し長いことに対する補正
+	return v * 2.0 - 1.0;
+}
+
+float2 decodeVelocity(float velocity)
+{
+	return _decodeVelocity(decodeMask(velocity));
+}
+
+#define INSTANCING_ENABLED
+
+uniform sampler2D MovieTexture;		// rgb = 法線（0.0～1.0に正規化）, a = ライティング上限
+uniform sampler2D MovieTexture2;	// rgb = 深度（精度維持のためエンコード）, a = マスク
+
+//=============================================================================
+// 構造体
+//=============================================================================
+#if defined(INSTANCING_ENABLED)
+
+// InstanceTransform0～2、InstanceColorはシステム定義名なので変えてはいけない
+struct InstancingInput
+{
+	float4 InstanceTransform0;
+	float4 InstanceTransform1;
+	float4 InstanceTransform2;
+	float4 InstanceColor;
+};
+layout (location = 12) in InstancingInput instancingInput;
+
+#endif // defined(INSTANCING_ENABLED)
+
+struct VPInput
+{
+	float3 Position;
+#if defined(INSTANCING_ENABLED)
+	InstancingInput instancingInput;
+#endif
+};
+
+struct VPOutput
+{
+	float4 Position;
+	float4 LightCenter;
+	float4 LightParams;
+};
+
+//=============================================================================
+// サブルーチン
+//=============================================================================
+
+//=============================================================================
+// シェーダ
+//=============================================================================
+#ifdef main_PointLightVolumeVP
+VPOutput PointLightVolumeVP(VPInput IN)
+{
+	VPOutput OUT;
+	float3 position = IN.Position.xyz;
+#if defined(INSTANCING_ENABLED)
+	float3 instanceTransformedPosition;
+	instanceTransformedPosition.x = dot(IN.instancingInput.InstanceTransform0, float4(position, 1));
+	instanceTransformedPosition.y = dot(IN.instancingInput.InstanceTransform1, float4(position, 1));
+	instanceTransformedPosition.z = dot(IN.instancingInput.InstanceTransform2, float4(position, 1));
+	position = instanceTransformedPosition;
+#endif
+	float3 worldSpacePosition = _mul(World, float4(position, 1)).xyz;
+	OUT.Position = _mul(scene.ViewProjection, float4(worldSpacePosition, 1));
+#if defined(INSTANCING_ENABLED)
+	// 光源の半径は姿勢行列の拡縮成分から求める。XYZに同じスケール値が入ってるのでどれでもいい
+	float radius = length(float3(IN.instancingInput.InstanceTransform0.x, IN.instancingInput.InstanceTransform1.x, IN.instancingInput.InstanceTransform2.x));
+	OUT.LightCenter = float4(IN.instancingInput.InstanceTransform0.w, IN.instancingInput.InstanceTransform1.w, IN.instancingInput.InstanceTransform2.w, radius);
+	OUT.LightParams = IN.instancingInput.InstanceColor;
+#else
+	OUT.LightCenter = float4(0,0,0,0);
+	OUT.LightParams = float4(0,0,0,0);
+#endif
+	return OUT;
+}
+
+in	VPInput IN;
+out	VPOutput OUT;
+out gl_PerVertex
+{
+    vec4 gl_Position;
+};
+void main()
+{
+	VPInput IN_ = IN;
+#ifdef INSTANCING_ENABLED
+	IN_.instancingInput	= instancingInput;
+#endif
+
+	OUT = PointLightVolumeVP(IN_);
+
+	gl_Position		= OUT.Position;
+}
+#endif
+
+#ifdef main_PointLightVolumeFP
+half4 PointLightVolumeFP(VPOutput IN, float4 ScreenPosition)
+{
+	float4 screenUv = float4(ScreenPosition.x / scene.ViewportWidthHeight.x * ScreenPosition.w, ScreenPosition.y / scene.ViewportWidthHeight.y * ScreenPosition.w, 0, ScreenPosition.w);
+	screenUv.xy /= screenUv.w;
+
+	// 深度値からワールド空間上の座標を求める
+	float4 depthAndMask = _tex2Dlod(PointClampSamplerState, MovieTexture2, screenUv.xy, 0);
+	float depth = decodeDepth(depthAndMask.rgb);
+	float2 screenPos = screenUv.xy * float2(2.0,  2.0) + float2(-1.0, -1.0);
+	float4 viewProjInvPos = _mul(scene.ViewInverse, float4(_mul(scene.ProjectionInverse, float4(screenPos, depth, 1.0))));
+	float3 worldPos = viewProjInvPos.xyz / viewProjInvPos.w;
+
+#if defined(SHOW_LIGHT_VOL)
+	return half4(1,0,0, 0.25);
+#else
+	// 光源の範囲内ならライティング
+	half4 resultColor = half4(0,0,0,0);
+	float3 offset = IN.LightCenter.xyz - worldPos;
+	float vecLengthSqr = dot(offset, offset);
+	if (vecLengthSqr > IN.LightCenter.w * IN.LightCenter.w) {
+		discard;	// 光源の外なのでライティングをスキップ
+	}
+
+	// 光量の補正
+	half4 normalAndVelocity = _h4tex2Dlod(PointClampSamplerState, MovieTexture, screenUv.xy, 0);
+	const uint mask = decodeMask(depthAndMask.a);
+	const uint isChr = (mask & GBUF_MASK_CHR) != 0 ? 0x01 : 0x00;
+	const uint isMap = (~isChr & GBUF_MASK_CHR) << 1;
+	const uint isOutline = (mask & GBUF_MASK_OUTLINE) != 0 ? 0x01 : 0x00;
+	float lightRatio = lerp(1.0, 0.5, float(isChr)) * float(0x01 - isOutline);	// キャラは抑え目に照らす
+	const uint lightMask = decodeMask(IN.LightParams.w);
+	const uint needLight = min(1, (isChr & lightMask) + (isMap & lightMask));	// キャラ/マップのみ照らすかどうかの判定
+	const uint isNoLight = (mask & GBUF_MASK_NO_LIGHT) != 0 ? 0x01 : 0x00;
+	lightRatio *= float(needLight) * float(0x01 - isNoLight);
+	
+	// ライティング
+	vecLengthSqr = max(vecLengthSqr, 0.000001);
+	float vecLength = sqrt(vecLengthSqr);
+	float3 lightDir = offset / vecLength;
+	float atten = min(vecLength / IN.LightCenter.w, 1);
+#if 0
+	atten = pow(1 - atten, 0.75);
+#else
+	atten = 1 - atten * atten;
+#endif
+	float3 normal = decodeNormal(normalAndVelocity.rgb);
+	float NdotL = dot(normal, lightDir);
+#if 1
+	NdotL = NdotL * 0.5 + 0.5;
+	NdotL *= NdotL;
+//x	NdotL *= NdotL;	// のぺっとしたライティングになることへの抵抗	←光が急激に減衰するので良くない
+#else
+	NdotL = max(NdotL, 0);
+#endif
+	resultColor.rgb = half3(IN.LightParams.xyz);
+	resultColor.a = atten * NdotL * lightRatio;
+	return resultColor;
+//	return half4((isChr > 0) ? 1 : 0, (isMap > 0) ? 1 : 0, 0, 1);
+//	return half4((lightMask & 0x01) ? 1 : 0, (lightMask & 0x02) ? 1 : 0, 0, 1);
+#endif
+}
+
+in	VPOutput OUT;
+out vec4 out_FragColor;
+void main()
+{
+	out_FragColor = PointLightVolumeFP(OUT, gl_FragCoord);
+}
+#endif

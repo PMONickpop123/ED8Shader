@@ -1,0 +1,542 @@
+#define FPS_MAX	30
+struct DirectionalLight
+{
+	half3 m_direction;
+	half3 m_colorIntensity;
+};
+
+// 影受けバイアス値
+#define SHADOW_LIGHTDIR_BIAS	0.05
+#define SHADOW_NORMALDIR_BIAS	0.05
+
+struct CombinedCascadedShadowMap
+{
+	// 二分割
+	float4x4 m_split0Transform;
+	float4x4 m_split1Transform;
+
+	float4 m_splitDistances;
+};
+
+#define NUM_SKIN_TRANSFORMS	160
+layout(std140) uniform Param
+{
+uniform SceneWideParameters scene;
+
+uniform float4x4 World;
+uniform float4x4 WorldViewProjection;
+uniform float GlobalTexcoordFactor;
+
+uniform DirectionalLight Light0;
+uniform CombinedCascadedShadowMap LightShadow0;
+
+uniform float4 GameMaterialDiffuse;
+uniform float4 GameMaterialEmission;
+uniform float GameMaterialMonotone;
+uniform float4 GameMaterialTexcoord;
+
+uniform float4 UVaMUvColor;
+uniform float4 UVaProjTexcoord;
+uniform float4 UVaMUvTexcoord;
+uniform float4 UVaMUv2Texcoord;
+uniform float4 UVaDuDvTexcoord;
+
+uniform float AlphaThreshold;
+
+uniform float Shininess;
+uniform float SpecularPower;
+uniform float3 SpecularColor;
+uniform float3 RimLitColor;
+uniform float RimLitIntensity;
+uniform float RimLitPower;
+
+uniform float BlendMulScale2;
+uniform float BlendMulScale3;
+uniform float SphereMapIntensity;
+uniform float CubeMapIntensity;
+uniform float CubeMapFresnel;
+
+uniform float2 ProjectionScale;
+
+uniform float2 DuDvMapImageSize;
+uniform float2 DuDvScale;
+
+uniform float2 WindyGrassDirection;
+uniform float WindyGrassSpeed;
+uniform float WindyGrassHomogenity;
+uniform float WindyGrassScale;
+
+uniform float BloomIntensity;
+uniform float GlareIntensity;
+uniform float ReflectionIntensity;
+
+uniform float4 PointLightParams;
+uniform float4 PointLightColor;
+
+uniform float4x4 BoneTransforms[NUM_SKIN_TRANSFORMS];
+};
+
+/*-------------------------ed8_map.cgfx----------------------------*/
+
+//=============================================================================
+// マテリアルスイッチのプリプロセス(copy from ed8_map.cgfx)
+//=============================================================================
+
+// ブルームは常時ON
+#define BLOOM_ENABLED
+
+// Maya上では機能しないスイッチを無効化
+#if defined(DCC_TOOL)
+	#undef CASTS_SHADOWS
+	#undef RECEIVE_SHADOWS
+#endif
+
+// DUDVとマルチテクスチャは排他
+#if defined(DUDV_MAPPING_ENABLED)
+	#undef MULTI_UV_ENANLED
+	#undef MULTI_UV2_ENANLED
+#endif
+
+// 非マルチテクスチャなら関連スイッチを無効化
+#if !defined(MULTI_UV_ENANLED)
+	#undef MULTI_UV_ADDITIVE_BLENDING_ENANLED
+	#undef MULTI_UV_MULTIPLICATIVE_BLENDING_ENANLED
+	#undef MULTI_UV_MULTIPLICATIVE_BLENDING_LM_ENANLED
+	#undef MULTI_UV_NORMAL_MAPPING_ENABLED
+	#undef MULTI_UV_SPECULAR_MAPPING_ENABLED
+	#undef MULTI_UV_GLARE_MAP_ENABLED
+	#undef MULTI_UV2_ENANLED
+	#undef MULTI_UV2_ADDITIVE_BLENDING_ENANLED
+	#undef MULTI_UV2_MULTIPLICATIVE_BLENDING_ENANLED
+	#undef MULTI_UV2_MULTIPLICATIVE_BLENDING_LM_ENANLED
+#endif // !defined(MULTI_UV_ENANLED)
+
+// マルチUV2と排他なものを無効化
+#if defined(MULTI_UV2_ENANLED)
+	#undef SPHERE_MAPPING_ENABLED
+	#undef CUBE_MAPPING_ENABLED
+#endif
+
+#if defined(WATER_SURFACE_ENABLED)
+	#if !defined(DCC_TOOL)
+		#undef ALPHA_BLENDING_ENABLED
+	#else
+		#if !defined(ALPHA_BLENDING_ENABLED)
+			#define ALPHA_BLENDING_ENABLED
+		#endif
+	#endif
+	#undef ADDITIVE_BLENDING_ENABLED
+	#undef SUBTRACT_BLENDING_ENABLED
+	#undef MULTIPLICATIVE_BLENDING_ENABLED
+#endif // defined(WATER_SURFACE_ENABLED)
+
+#if defined(WATER_SURFACE_ENABLED) || defined(DUDV_MAPPING_ENABLED)
+	#define USE_SCREEN_UV
+#endif
+
+#if !defined(ALPHA_BLENDING_ENABLED)
+	#undef ADDITIVE_BLENDING_ENABLED
+	#undef SUBTRACT_BLENDING_ENABLED
+	#undef MULTIPLICATIVE_BLENDING_ENABLED
+#endif
+
+// Vita向け高速化
+#if defined(__psp2__)
+	// 可能な限り頂点単位でライト計算する
+	#if !(defined(NORMAL_MAPPING_ENABLED) || defined(MULTI_UV_NORMAL_MAPPING_ENABLED))
+		#define USE_PER_VERTEX_LIGHTING
+	#endif
+	// リムライトを頂点単位で計算（リム透明度の場合は見栄えが悪くなるのでやらない）
+	#if defined(RIM_LIGHTING_ENABLED) && !defined(RIM_TRANSPARENCY_ENABLED) 
+		#define USE_FORCE_VERTEX_RIM_LIGHTING
+	#endif
+#endif // defined(__psp2__)
+
+#if !defined(DCC_TOOL)
+	#define GAME_MATERIAL_ENABLED
+	#define UVA_SCRIPT_ENABLED
+#endif
+
+#define USE_POSITION_HALF	// 変換済み座標をhalfで処理
+
+#if defined(NUM_LIGHTS)
+	#if (NUM_LIGHTS > 0) && !defined(NOTHING_ENABLED) && !defined(NO_ALL_LIGHTING_ENABLED)
+		#define USE_LIGHTING
+	#endif
+#endif
+
+#if defined(RECEIVE_SHADOWS)
+	#if defined(NUM_LIGHTS)
+		#if NUM_LIGHTS == 0
+			#undef RECEIVE_SHADOWS
+		#endif
+	#else
+		#undef RECEIVE_SHADOWS
+	#endif
+	#if !defined(SHADOWTYPE_0)
+		#undef RECEIVE_SHADOWS
+	#endif
+#endif // defined(RECEIVE_SHADOWS)
+
+#if defined(NORMAL_MAPPING_ENABLED) || defined(MULTI_UV_NORMAL_MAPPING_ENABLED)
+	#define USE_TANGENTS
+#endif
+
+#if defined(ADDITIVE_BLENDING_ENABLED) || defined(SUBTRACT_BLENDING_ENABLED) || defined(MULTIPLICATIVE_BLENDING_ENABLED)
+	#define USE_EXTRA_BLENDING
+#endif
+
+//=============================================================================
+// グローバルシェーダパラメータ
+//=============================================================================
+
+//-----------------------------------------------------------------------------
+// テクスチャ
+//-----------------------------------------------------------------------------
+uniform sampler2D DiffuseMapSampler;
+
+//=============================================================================
+// シェーダ入出力構造体
+//=============================================================================
+struct DepthVPInput
+{
+#if defined(SKINNING_ENABLED)
+	float3 SkinnableVertex;
+#else
+	float3 Position;
+#endif
+
+#if defined(SKINNING_ENABLED)
+	int4 SkinIndices;
+	float4 SkinWeights;
+#endif
+
+#if defined(WINDY_GRASS_ENABLED)
+	float2 TexCoord;
+#endif
+};
+
+struct DepthVPOutput
+{
+	float4 Position;
+};
+
+struct ShadowTexturedVPInput
+{
+#if defined(SKINNING_ENABLED)
+	float3 SkinnableVertex;
+#else
+	float3 Position;
+#endif
+
+	float2 TexCoord;
+
+#if defined(SKINNING_ENABLED)
+	int4 SkinIndices;
+	float4 SkinWeights;
+#endif
+};
+
+struct ShadowTexturedVPOutput
+{
+	#if defined(USE_POSITION_HALF)
+	half4 Position;
+	#else
+	float4 Position;
+	#endif
+
+	half2 TexCoord;
+};
+
+/*-------------------------ed8_map.cgfx----------------------------*/
+
+
+//=============================================================================
+// サブルーチン
+//=============================================================================
+
+
+/*-------------------------ed8_common.cgfx----------------------------*/
+
+float2 GetGlobalTextureFactor()
+{
+	return float2(GlobalTexcoordFactor);
+}
+
+
+//-----------------------------------------------------------------------------
+// スキニング
+//-----------------------------------------------------------------------------
+#if defined(SKINNING_ENABLED)
+
+void EvaluateSkinPositionNormalTangent3Bones(inout float3 position, inout float3 normal, inout float3 tangent, float4 weights, int4 boneIndices, float3x4 skinTransforms[NUM_SKIN_TRANSFORMS])
+{
+	int indexArray[3] = {boneIndices.x, boneIndices.y, boneIndices.z};
+
+	float4 inPosition = float4(position, 1);
+	float4 inNormal = float4(normal, 0);
+	float4 inTangent = float4(tangent, 0);
+	float scale = 1.0 / (weights.x + weights.y + weights.z);
+	
+ 	position = 
+		mul(skinTransforms[indexArray[0]], inPosition).xyz * (weights.x * scale)
+	+	mul(skinTransforms[indexArray[1]], inPosition).xyz * (weights.y * scale)
+	+	mul(skinTransforms[indexArray[2]], inPosition).xyz * (weights.z * scale);
+	
+	normal = 
+		mul(skinTransforms[indexArray[0]], inNormal).xyz * (weights.x * scale)
+	+	mul(skinTransforms[indexArray[1]], inNormal).xyz * (weights.y * scale)
+	+	mul(skinTransforms[indexArray[2]], inNormal).xyz * (weights.z * scale);
+
+	tangent = 
+		mul(skinTransforms[indexArray[0]], inTangent).xyz * (weights.x * scale)
+	+	mul(skinTransforms[indexArray[1]], inTangent).xyz * (weights.y * scale)
+	+	mul(skinTransforms[indexArray[2]], inTangent).xyz * (weights.z * scale);
+}
+
+void EvaluateSkinPositionNormal3Bones(inout float3 position, inout float3 normal, float4 weights, int4 boneIndices, float3x4 skinTransforms[NUM_SKIN_TRANSFORMS])
+{
+	int indexArray[3] = {boneIndices.x, boneIndices.y, boneIndices.z};
+
+	float4 inPosition = float4(position, 1);
+	float4 inNormal = float4(normal, 0);
+	float scale = 1.0 / (weights.x + weights.y + weights.z);
+	
+ 	position = 
+		mul(skinTransforms[indexArray[0]], inPosition).xyz * (weights.x * scale)
+	+	mul(skinTransforms[indexArray[1]], inPosition).xyz * (weights.y * scale)
+	+	mul(skinTransforms[indexArray[2]], inPosition).xyz * (weights.z * scale);
+	
+	normal = 
+		mul(skinTransforms[indexArray[0]], inNormal).xyz * (weights.x * scale)
+	+	mul(skinTransforms[indexArray[1]], inNormal).xyz * (weights.y * scale)
+	+	mul(skinTransforms[indexArray[2]], inNormal).xyz * (weights.z * scale);
+}
+
+void EvaluateSkinPosition3Bones(inout float3 position, float4 weights, int4 boneIndices, float3x4 skinTransforms[NUM_SKIN_TRANSFORMS])
+{
+	int indexArray[3] = {boneIndices.x, boneIndices.y, boneIndices.z};
+
+	float4 inPosition = float4(position, 1);
+	float scale = 1.0 / (weights.x + weights.y + weights.z);
+ 	position = 
+		mul(skinTransforms[indexArray[0]], inPosition).xyz * (weights.x * scale)
+	+	mul(skinTransforms[indexArray[1]], inPosition).xyz * (weights.y * scale)
+	+	mul(skinTransforms[indexArray[2]], inPosition).xyz * (weights.z * scale);
+}
+
+
+#define EvaluateSkinPositionNormalTangentXBones	EvaluateSkinPositionNormalTangent3Bones
+#define EvaluateSkinPositionNormalXBones 		EvaluateSkinPositionNormal3Bones
+#define EvaluateSkinPositionXBones				EvaluateSkinPosition3Bones
+
+#endif // defined(SKINNING_ENABLED)
+
+
+//-----------------------------------------------------------------------------
+// 草ゆれ
+//-----------------------------------------------------------------------------
+#if defined(WINDY_GRASS_ENABLED)
+	#if !defined(WINDY_GRASS_TEXV_WEIGHT_ENABLED)
+float3 calcWindyGrass(float3 position, float weight)
+	#else
+float3 calcWindyGrass(float3 position)
+	#endif
+{
+	float2 curTime = GetGlobalTextureFactor();
+
+	#if defined(DCC_TOOL)
+	float k = (position.x + position.z) * (1/100.0);
+	#else
+	float k = position.x + position.z;
+	#endif
+	float a = k * (1.0 / (WindyGrassHomogenity * WindyGrassHomogenity));
+	float t = a * 0.25 + frac(a) + curTime.x * WindyGrassSpeed * FPS_MAX;
+
+	#if !defined(WINDY_GRASS_TEXV_WEIGHT_ENABLED)
+	float2 dd = WindyGrassDirection * sin(t) * WindyGrassScale * weight;
+	#else
+	float2 dd = WindyGrassDirection * sin(t) * WindyGrassScale;
+	#endif
+	#if defined(DCC_TOOL)
+	dd *= 100.0;
+	#endif
+	return position.xyz + float3(dd.x, 0, dd.y);
+}
+#endif // defined(WINDY_GRASS_ENABLED)
+
+/*-------------------------ed8_common.cgfx----------------------------*/
+
+/*-------------------------ed8_common.cgfx----------------------------*/
+//=============================================================================
+// 頂点・フラグメントシェーダ
+//=============================================================================
+
+//=============================================================================
+// 影用シェーダ
+//=============================================================================
+
+//-----------------------------------------------------------------------------
+// テクスチャなし
+//-----------------------------------------------------------------------------
+
+#ifdef main_ShadowVPShader		//メイン関数_ShadowVPShader
+
+DepthVPOutput ShadowVPShader(DepthVPInput IN)
+{
+	DepthVPOutput OUT;
+
+		#if defined(SKINNING_ENABLED)
+
+	float3 position = IN.SkinnableVertex.xyz;
+
+
+	EvaluateSkinPositionXBones(position.xyz, IN.SkinWeights, int4(IN.SkinIndices), BoneTransforms);
+
+			#if defined(WINDY_GRASS_ENABLED)
+				#if !defined(WINDY_GRASS_TEXV_WEIGHT_ENABLED)
+	position = calcWindyGrass(position.xyz, IN.TexCoord.y);
+				#else
+	position = calcWindyGrass(position.xyz);
+				#endif
+			#endif
+
+	OUT.Position = _mul(scene.ViewProjection, float4(position.xyz, 1));
+
+		#else // defined(SKINNING_ENABLED)
+
+			#if defined(WINDY_GRASS_ENABLED)
+	float3 worldSpacePosition = _mul(World, float4(IN.Position.xyz, 1)).xyz;
+				#if !defined(WINDY_GRASS_TEXV_WEIGHT_ENABLED)
+	worldSpacePosition = calcWindyGrass(worldSpacePosition.xyz, IN.TexCoord.y);
+				#else
+	worldSpacePosition = calcWindyGrass(worldSpacePosition.xyz);
+				#endif
+	OUT.Position = _mul(scene.ViewProjection, float4(worldSpacePosition.xyz, 1));
+			#else // defined(WINDY_GRASS_ENABLED)
+	OUT.Position = _mul(WorldViewProjection, float4(IN.Position.xyz, 1));
+			#endif // defined(WINDY_GRASS_ENABLED)
+
+		#endif // defined(SKINNING_ENABLED)
+
+	return OUT;
+}
+
+in	DepthVPInput IN;
+out	DepthVPOutput OUT;
+out gl_PerVertex
+{
+    vec4 gl_Position;
+};
+void main()
+{
+	DepthVPInput IN_ = IN;
+
+	OUT = ShadowVPShader(IN_);
+
+	gl_Position	= OUT.Position;
+}
+
+#endif	//メイン関数_ShadowVPShader
+
+#ifdef main_ShadowFPShader	//メイン関数_ShadowFPShader
+
+in	DepthVPOutput OUT;
+out vec4 out_FragColor;
+
+void main()
+{
+	out_FragColor = float4(0.0,0.0,0.0,0.0);
+}
+
+#endif
+
+//-----------------------------------------------------------------------------
+// テクスチャあり
+//-----------------------------------------------------------------------------
+
+#ifdef main_ShadowTexturedVPShader		//メイン関数_ShadowTexturedVPShader
+
+ShadowTexturedVPOutput ShadowTexturedVPShader(ShadowTexturedVPInput IN)
+{
+	ShadowTexturedVPOutput OUT;	
+
+		#if defined(SKINNING_ENABLED)
+
+	float3 position = IN.SkinnableVertex.xyz;
+
+	EvaluateSkinPositionXBones(position.xyz, IN.SkinWeights, int4(IN.SkinIndices), BoneTransforms);
+
+			#if defined(WINDY_GRASS_ENABLED)
+				#if !defined(WINDY_GRASS_TEXV_WEIGHT_ENABLED)
+	position = calcWindyGrass(position.xyz, IN.TexCoord.y);
+				#else
+	position = calcWindyGrass(position.xyz);
+				#endif
+			#endif
+
+	OUT.Position = _mul(scene.ViewProjection, float4(position.xyz, 1));
+
+		#else  // defined(SKINNING_ENABLED)
+
+			#if defined(WINDY_GRASS_ENABLED)
+	float3 worldSpacePosition = _mul(World, float4(IN.Position.xyz, 1)).xyz;
+				#if !defined(WINDY_GRASS_TEXV_WEIGHT_ENABLED)
+	worldSpacePosition = calcWindyGrass(worldSpacePosition.xyz, IN.TexCoord.y);
+				#else
+	worldSpacePosition = calcWindyGrass(worldSpacePosition.xyz);
+				#endif
+	OUT.Position = _mul(scene.ViewProjection, float4(worldSpacePosition.xyz, 1));
+			#else // defined(WINDY_GRASS_ENABLED)
+	OUT.Position = _mul(WorldViewProjection, float4(IN.Position.xyz, 1));
+			#endif // defined(WINDY_GRASS_ENABLED)
+
+		#endif // defined(SKINNING_ENABLED)
+
+	OUT.TexCoord.xy = IN.TexCoord.xy * half2(GameMaterialTexcoord.zw) + half2(GameMaterialTexcoord.xy);
+
+	return OUT;
+}
+
+in	ShadowTexturedVPInput IN;
+out	ShadowTexturedVPOutput OUT;
+out gl_PerVertex
+{
+    vec4 gl_Position;
+};
+void main()
+{
+	ShadowTexturedVPInput IN_ = IN;
+
+	OUT = ShadowTexturedVPShader(IN_);
+
+	gl_Position	= OUT.Position;
+}
+
+#endif	//メイン関数_ShadowTexturedVPShader
+
+//=============================================================================
+
+#ifdef main_ShadowTexturedFPShader	//メイン関数_ShadowTexturedFPShader
+
+in	ShadowTexturedVPOutput OUT;
+out vec4 out_FragColor;
+
+float4 ShadowTexturedFPShader(ShadowTexturedVPOutput IN)
+{
+		#if defined(ALPHA_BLENDING_ENABLED) || defined(ALPHA_TESTING_ENABLED)
+	half4 diffuseAmt = _h4tex2D(DiffuseMapSamplerSampler, DiffuseMapSampler, IN.TexCoord.xy);
+	clip(diffuseAmt.a - AlphaThreshold);
+		#endif
+
+	return float4(0,0,0,0);
+}
+
+void main()
+{
+	out_FragColor = ShadowTexturedFPShader(OUT);
+}
+
+#endif	//メイン関数_ShadowTexturedFPShaderr
+
+/*-------------------------ed8_common.cgfx----------------------------*/

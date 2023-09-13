@@ -1,0 +1,746 @@
+
+#define FPS_MAX	30
+
+struct DirectionalLight
+{
+	half3 m_direction;
+	half3 m_colorIntensity;
+};
+
+// 影受けバイアス値
+#define SHADOW_LIGHTDIR_BIAS	0.05
+#define SHADOW_NORMALDIR_BIAS	0.05
+
+struct CombinedCascadedShadowMap
+{
+	// 二分割
+	float4x4 m_split0Transform;
+	float4x4 m_split1Transform;
+
+	float4 m_splitDistances;
+};
+
+#define NUM_SKIN_TRANSFORMS	160
+layout(std140) uniform Param
+{
+uniform SceneWideParameters scene;
+
+uniform float4x4 World;
+uniform float4x4 WorldViewProjection;
+uniform float4x4 WorldViewProjectionPrev;
+uniform float FogRatio;
+
+uniform float GlobalTexcoordFactor;
+uniform DirectionalLight Light0;
+uniform CombinedCascadedShadowMap LightShadow0;
+uniform float PerMaterialMainLightClampFactor;
+uniform float3 LightDirForChar;
+uniform float4 GameMaterialDiffuse;
+uniform float4 GameMaterialEmission;
+uniform float GameMaterialMonotone;
+uniform float4 GameMaterialTexcoord;
+uniform float4 UVaMUvColor;
+uniform float4 UVaProjTexcoord;
+uniform float4 UVaMUvTexcoord;
+uniform float4 UVaMUv2Texcoord;
+uniform float4 UVaDuDvTexcoord;
+uniform float AlphaThreshold;
+uniform float3 ShadowColorShift;
+uniform float Shininess;
+uniform float SpecularPower;
+uniform float3 SpecularColor;
+uniform float3 RimLitColor;
+uniform float RimLitIntensity;
+uniform float RimLitPower;
+uniform float RimLightClampFactor;
+uniform float ShadowReceiveOffset;
+uniform float SphereMapIntensity;
+uniform float CubeMapIntensity;
+uniform float CubeMapFresnel;
+uniform float2 DuDvMapImageSize;
+uniform float2 DuDvScale;
+uniform float BloomIntensity;
+uniform float GlareIntensity;
+uniform float4 GameEdgeParameters;
+uniform float4 OutlineColorFactor;
+uniform float3 OutlineColor;
+uniform float MaskEps;
+uniform float4 PointLightParams;
+uniform float4 PointLightColor;
+
+uniform float4x4 BoneTransforms[NUM_SKIN_TRANSFORMS];
+};
+
+//=============================================================================
+// マテリアルスイッチのプリプロセス
+//=============================================================================
+
+// 非マルチテクスチャなら関連スイッチを無効化
+#if !defined(MULTI_UV_ENANLED)
+	#undef MULTI_UV_ADDITIVE_BLENDING_ENANLED
+	#undef MULTI_UV_MULTIPLICATIVE_BLENDING_ENANLED
+	#undef MULTI_UV_MULTIPLICATIVE_BLENDING_EX_ENANLED
+	#undef MULTI_UV_NORMAL_MAPPING_ENABLED
+	#undef MULTI_UV_SPECULAR_MAPPING_ENABLED
+	#undef MULTI_UV_GLARE_MAP_ENABLED
+	#undef MULTI_UV_NO_DIFFUSE_MAPPING_ENANLED
+	#undef MULTI_UV2_ENANLED
+	#undef MULTI_UV2_ADDITIVE_BLENDING_ENANLED
+	#undef MULTI_UV2_MULTIPLICATIVE_BLENDING_ENANLED
+	#undef MULTI_UV2_MULTIPLICATIVE_BLENDING_EX_ENANLED
+	#undef MULTI_UV2_NORMAL_MAPPING_ENABLED
+	#undef MULTI_UV2_SPECULAR_MAPPING_ENABLED
+#endif // !defined(MULTI_UV_ENANLED)
+
+#if defined(NORMAL_MAPPING_ENABLED) || defined(MULTI_UV_NORMAL_MAPPING_ENABLED)
+	#define USE_TANGENTS
+#endif
+
+//=============================================================================
+// グローバルシェーダパラメータ
+//=============================================================================
+
+#if defined(SKINNING_ENABLED)
+#define NUM_SKIN_TRANSFORMS	160
+#define BoneTransformsPrev BoneTransforms
+#endif // defined(SKINNING_ENABLED)
+
+//=============================================================================
+// シェーダ入出力構造体
+//=============================================================================
+#if defined(INSTANCING_ENABLED)
+struct InstancingInput
+{
+	float4 InstanceTransform0;
+	float4 InstanceTransform1;
+	float4 InstanceTransform2;
+	float4 InstanceColor;
+};
+layout (location = 12) in InstancingInput instancingInput;
+#endif // defined(INSTANCING_ENABLED)
+
+struct DefaultVPInput
+{
+#if defined(SKINNING_ENABLED)
+	float3 SkinnableVertex;
+	float3 SkinnableNormal;
+#else
+	float3 Position;
+	float3 Normal;
+#endif
+	float2 TexCoord;
+#if defined(VERTEX_COLOR_ENABLED)
+	float4 Color;
+#endif
+
+#if defined(USE_TANGENTS)
+		#if defined(SKINNING_ENABLED)
+	float3 SkinnableTangent;
+		#else
+	float3 Tangent;
+		#endif
+#endif
+
+#if defined(SKINNING_ENABLED)
+	int4 SkinIndices;
+	float4 SkinWeights;
+#endif
+
+#if defined(MULTI_UV_ENANLED)
+	float2 TexCoord2;
+#endif
+#if defined(MULTI_UV2_ENANLED)
+	float2 TexCoord3;
+#endif
+
+#ifdef INSTANCING_ENABLED
+	InstancingInput instancingInput;
+#endif
+};
+
+struct DefaultVPOutput
+{
+	float4 Position;
+	half4 Color0;
+	half4 Color1;		// xyz = 未使用, w = フォグ計算結果
+	float2 TexCoord;
+	float4 WorldPositionDepth;	// xyz = ワールド座標, w = 視線方向のZ値
+
+	float2 TexCoord2;
+
+	float3 Normal;
+
+	float2 DuDvTexCoord;
+
+	float3 Tangent;
+
+	float2 TexCoord3;
+
+	float2 Velocity;
+	float4 wvpPos;
+};
+
+//-----------------------------------------------------------------------------
+// 輪郭用
+//-----------------------------------------------------------------------------
+struct OutlineVPInput
+{
+#if defined(SKINNING_ENABLED)
+	float3 SkinnableVertex;
+	float3 SkinnableNormal;
+#else
+	float3 Position;
+	float3 Normal;
+#endif
+#if defined(VERTEX_COLOR_ENABLED)
+	float4 Color;
+#endif
+	float2 TexCoord;
+
+#if defined(SKINNING_ENABLED)
+	int4 SkinIndices;
+	float4 SkinWeights;
+#endif
+
+#ifdef INSTANCING_ENABLED
+	InstancingInput instancingInput;
+#endif
+};
+
+struct OutlineVPOutput
+{
+	float4 Position;
+	half4 Color0;
+	half4 Color1;		// フォグ
+	float2 TexCoord;	// xy = テクスチャ座標, z = Fog
+	float4 WorldPosition;	// xyz = ワールド座標, w = 未使用
+
+#if defined(USE_MRT)
+	float3 Normal;
+	float2 Velocity;
+	float4 wvpPos;
+#endif
+};
+
+//-----------------------------------------------------------------------------
+// 深度値用
+//-----------------------------------------------------------------------------
+struct TransparentDepthVPOutput
+{
+	float4 Position;
+	half4 Color0;
+	float2 TexCoord;	// xy = テクスチャ座標, z = Fog
+};
+
+//=============================================================================
+// サブルーチン
+//=============================================================================
+
+
+float3 GetEyePosition()
+{
+	return float3(scene.EyePosition);
+}
+
+//-----------------------------------------------------------------------------
+// アニメパース表現
+//-----------------------------------------------------------------------------
+void ApplyAnimPersTransform(inout float3 worldPos)
+{
+	//カメラに近い頂点ほど、カメラ方向へのバイアスを掛ける
+	float3 eyeDir = -float3(scene.EyeDirection);	//何故か反転してる
+	float3 eyePos = GetEyePosition();
+	float3 toEye = eyePos - worldPos;
+	float len = length(toEye);
+	float maxlen = PointLightParams.y;	//バイアスが掛かり始める距離
+	len = min(len, maxlen) / maxlen;
+	len = pow(1 - len, 4.0);
+	float factor = PointLightParams.x;	//パースの強さ
+	float3 offset = -eyeDir * len * factor;
+	worldPos += offset;
+}
+
+//-----------------------------------------------------------------------------
+// 速度計算
+//-----------------------------------------------------------------------------
+float2 CalcVelocity(float3 pos, float3 posPrev)
+{
+#if defined(SKINNING_ENABLED)
+	float4 posProj = _mul(scene.ViewProjection, float4(pos, 1));
+	float4 posProjPrev = _mul(scene.ViewProjectionPrev, float4(posPrev, 1));
+#else
+	float4 posProj = _mul(WorldViewProjection, float4(pos, 1));
+	float4 posProjPrev = _mul(WorldViewProjectionPrev, float4(posPrev, 1));
+#endif
+	float2 vel = ((posProj.xy / posProj.w) - (posProjPrev.xy / posProjPrev.w));
+	vel *= 0.5;
+	float velLen = length(vel);
+	if (velLen > 0) {
+		float2 velDir = normalize(vel);
+		velLen = max(0, velLen - scene.MiscParameters7.y);
+		velLen = min(1, velLen / scene.MiscParameters7.x);
+#if !defined(SKINNING_ENABLED)
+		float viewZ = -_mul(scene.View, float4(_mul(World, float4(pos, 1)).xyz, 1)).z;
+		velLen *= 1 - min(1, viewZ / scene.MiscParameters7.z);
+#endif
+		return clamp(velDir * velLen, -1.0, 1.0);
+	}
+	return float2(0, 0);
+}
+
+//-----------------------------------------------------------------------------
+// インスタンシング
+//-----------------------------------------------------------------------------
+#if defined(INSTANCING_ENABLED)
+void ApplyInstanceTransformVertex(InstancingInput IN, inout float3 toTransform)
+{
+	float3 instanceTransformedPosition;
+	instanceTransformedPosition.x = dot(IN.InstanceTransform0, float4(toTransform,1));
+	instanceTransformedPosition.y = dot(IN.InstanceTransform1, float4(toTransform,1));
+	instanceTransformedPosition.z = dot(IN.InstanceTransform2, float4(toTransform,1));
+	toTransform = instanceTransformedPosition;
+}
+
+void ApplyInstanceTransformNormal(InstancingInput IN, inout float3 toTransform)
+{
+	float3 instanceTransformedNormal;
+	instanceTransformedNormal.x = dot(IN.InstanceTransform0.xyz, toTransform);
+	instanceTransformedNormal.y = dot(IN.InstanceTransform1.xyz, toTransform);
+	instanceTransformedNormal.z = dot(IN.InstanceTransform2.xyz, toTransform);
+	toTransform = instanceTransformedNormal;
+}
+#endif // defined(INSTANCING_ENABLED)
+
+//-----------------------------------------------------------------------------
+// フォグ
+//-----------------------------------------------------------------------------
+float EvaluateFogValue(float3 viewPosition, float worldY)
+{
+	float f = saturate((-viewPosition.z - scene.FogRangeParameters.x) * scene.FogRangeParameters.z);
+	float h = saturate((worldY - scene.MiscParameters3.x) * scene.MiscParameters3.y);
+	h *= min(1, f + scene.MiscParameters3.z);
+	f = min(1, f + h);
+	#if defined(FOG_RATIO_ENABLED)
+	f *= FogRatio;
+	#endif
+	f *= scene.FogRangeParameters.w;
+	return f;
+}
+
+//-----------------------------------------------------------------------------
+// スキニング
+//-----------------------------------------------------------------------------
+#if defined(SKINNING_ENABLED)
+
+void EvaluateSkinPositionNormalTangent4Bones(inout float3 position, inout float3 normal, inout float3 tangent, float4 weights, int4 boneIndices, float4x4 skinTransforms[NUM_SKIN_TRANSFORMS])
+{
+	int indexArray[4] = int[](boneIndices.x, boneIndices.y, boneIndices.z, boneIndices.w);
+
+	float4 inPosition = float4(position, 1);
+	float4 inNormal = float4(normal, 0);
+	float4 inTangent = float4(tangent, 0);
+	
+ 	position = 
+		mul(skinTransforms[indexArray[0]], inPosition).xyz * weights.x
+	+	mul(skinTransforms[indexArray[1]], inPosition).xyz * weights.y
+	+	mul(skinTransforms[indexArray[2]], inPosition).xyz * weights.z
+	+	mul(skinTransforms[indexArray[3]], inPosition).xyz * weights.w;
+	
+	normal = 
+		mul(skinTransforms[indexArray[0]], inNormal).xyz * weights.x
+	+	mul(skinTransforms[indexArray[1]], inNormal).xyz * weights.y
+	+	mul(skinTransforms[indexArray[2]], inNormal).xyz * weights.z
+	+	mul(skinTransforms[indexArray[3]], inNormal).xyz * weights.w;
+
+	tangent = 
+		mul(skinTransforms[indexArray[0]], inTangent).xyz * weights.x
+	+	mul(skinTransforms[indexArray[1]], inTangent).xyz * weights.y
+	+	mul(skinTransforms[indexArray[2]], inTangent).xyz * weights.z
+	+	mul(skinTransforms[indexArray[3]], inTangent).xyz * weights.w;
+}
+
+void EvaluateSkinPositionNormal4Bones(inout float3 position, inout float3 normal, float4 weights, int4 boneIndices, float4x4 skinTransforms[NUM_SKIN_TRANSFORMS])
+{
+	int indexArray[4] = int[](boneIndices.x, boneIndices.y, boneIndices.z, boneIndices.w);
+
+	float4 inPosition = float4(position, 1);
+	float4 inNormal = float4(normal, 0);
+	
+ 	position = 
+		mul(skinTransforms[indexArray[0]], inPosition).xyz * weights.x
+	+	mul(skinTransforms[indexArray[1]], inPosition).xyz * weights.y
+	+	mul(skinTransforms[indexArray[2]], inPosition).xyz * weights.z
+	+	mul(skinTransforms[indexArray[3]], inPosition).xyz * weights.w;
+	
+	normal = 
+		mul(skinTransforms[indexArray[0]], inNormal).xyz * weights.x
+	+	mul(skinTransforms[indexArray[1]], inNormal).xyz * weights.y
+	+	mul(skinTransforms[indexArray[2]], inNormal).xyz * weights.z
+	+	mul(skinTransforms[indexArray[3]], inNormal).xyz * weights.w;
+}
+
+void EvaluateSkinPosition4Bones(inout float3 position, float4 weights, int4 boneIndices, float4x4 skinTransforms[NUM_SKIN_TRANSFORMS])
+{
+	int indexArray[4] = int[](boneIndices.x, boneIndices.y, boneIndices.z, boneIndices.w);
+
+	float4 inPosition = float4(position, 1);
+	
+ 	position = 
+		mul(skinTransforms[indexArray[0]], inPosition).xyz * weights.x
+	+	mul(skinTransforms[indexArray[1]], inPosition).xyz * weights.y
+	+	mul(skinTransforms[indexArray[2]], inPosition).xyz * weights.z
+	+	mul(skinTransforms[indexArray[3]], inPosition).xyz * weights.w;
+}
+
+#define EvaluateSkinPositionNormalTangentXBones	EvaluateSkinPositionNormalTangent4Bones
+#define EvaluateSkinPositionNormalXBones 		EvaluateSkinPositionNormal4Bones
+#define EvaluateSkinPositionXBones				EvaluateSkinPosition4Bones
+
+#endif // defined(SKINNING_ENABLED)
+
+//=============================================================================
+// 頂点・フラグメントシェーダ
+//=============================================================================
+
+#if defined(main_DefaultVPShader) || defined(main_PortraitVPShader)
+
+#if defined(main_DefaultVPShader)
+#define VP_DEFAULT
+DefaultVPOutput DefaultVPShader(DefaultVPInput IN)
+#endif
+#if defined(main_PortraitVPShader)
+#define VP_PORTRAIT
+DefaultVPOutput PortraitVPShader(DefaultVPInput IN)
+#endif
+{
+	DefaultVPOutput OUT;
+
+#if defined(USE_TANGENTS)
+	#if defined(SKINNING_ENABLED)
+	float3 tangent = IN.SkinnableTangent;
+	#else
+	float3 tangent = IN.Tangent;
+	#endif
+#endif
+
+#if defined(SKINNING_ENABLED)
+	float3 normal = IN.SkinnableNormal;
+#else
+	float3 normal = IN.Normal;
+#endif
+
+#if defined(SKINNING_ENABLED)
+	float3 position = IN.SkinnableVertex.xyz;
+#else
+	float3 position = IN.Position.xyz;
+#endif
+#if defined(USE_MRT)
+	float3 positionPrev = position;
+#endif
+
+#if defined(SKINNING_ENABLED)
+	#if defined(USE_TANGENTS)
+	EvaluateSkinPositionNormalTangentXBones(position, normal, tangent, IN.SkinWeights, int4(IN.SkinIndices), BoneTransforms);
+	#else
+	EvaluateSkinPositionNormalXBones(position, normal, IN.SkinWeights, int4(IN.SkinIndices), BoneTransforms);
+	#endif
+	#if defined(USE_MRT)
+	EvaluateSkinPositionXBones(positionPrev, IN.SkinWeights, int4(IN.SkinIndices), BoneTransformsPrev);
+	#endif
+#endif // defined(SKINNING_ENABLED)
+
+#if defined(INSTANCING_ENABLED)
+	ApplyInstanceTransformVertex(IN.instancingInput, position);
+	ApplyInstanceTransformNormal(IN.instancingInput, normal);
+	#if defined(USE_TANGENTS)
+	ApplyInstanceTransformNormal(IN.instancingInput, tangent);
+	#endif
+#endif // defined(INSTANCING_ENABLED)
+
+#if defined(SKINNING_ENABLED)
+
+	float3 worldSpacePosition = position;
+	float3 worldSpaceNormal = normalize(normal);
+	#if defined(USE_TANGENTS)
+	tangent = normalize(tangent);
+	#endif
+
+#else // defined(SKINNING_ENABLED)
+
+	float3 worldSpacePosition = _mul(World, float4(position, 1)).xyz;
+	float3 worldSpaceNormal = normalize(_mul(World, float4(normal, 0)).xyz);
+	#if defined(USE_TANGENTS)
+	tangent = normalize(_mul(World, float4(tangent, 0)).xyz);
+	#endif
+
+#endif // defined(SKINNING_ENABLED)
+
+#if defined(USE_MRT)
+	#if defined(INSTANCING_ENABLED)
+	OUT.Velocity = float2(0, 0);
+	#else
+	OUT.Velocity = CalcVelocity(position, positionPrev);
+	#endif
+#endif
+
+#if !defined(VP_PORTRAIT)
+	ApplyAnimPersTransform(worldSpacePosition);
+#endif
+
+	OUT.Position = _mul(scene.ViewProjection, float4(worldSpacePosition, 1));
+	OUT.WorldPositionDepth = float4(worldSpacePosition.xyz, -_mul(scene.View, float4(worldSpacePosition, 1)).z);
+#if defined(USE_MRT)
+	OUT.wvpPos = OUT.Position;
+#endif
+	OUT.Normal = half3(worldSpaceNormal);
+#if defined(USE_TANGENTS)
+	OUT.Tangent = half3(tangent);
+#endif
+
+	float3 viewSpacePosition = _mul(scene.View, float4(worldSpacePosition, 1)).xyz;
+
+	OUT.TexCoord.xy = half2(IN.TexCoord.xy) * half2(GameMaterialTexcoord.zw) + half2(GameMaterialTexcoord.xy);
+
+	// DUDV
+#if defined(DUDV_MAPPING_ENABLED)
+	OUT.DuDvTexCoord.xy = IN.TexCoord.xy * half2(UVaDuDvTexcoord.zw) + half2(UVaDuDvTexcoord.xy);
+#endif // defined(DUDV_MAPPING_ENABLED)
+
+	// マルチUV
+#if defined(MULTI_UV_ENANLED)
+	OUT.TexCoord2.xy = IN.TexCoord2.xy * half2(UVaMUvTexcoord.zw) + half2(UVaMUvTexcoord.xy);
+#endif // defined(MULTI_UV_ENANLED)
+
+	// マルチUV2
+#if defined(MULTI_UV2_ENANLED)
+	OUT.TexCoord3.xy = IN.TexCoord3.xy * half2(UVaMUv2Texcoord.zw) + half2(UVaMUv2Texcoord.xy);
+#endif // defined(MULTI_UV2_ENANLED)
+
+	// 頂点カラー
+#if defined(VERTEX_COLOR_ENABLED)
+	OUT.Color0 = min(half4(1, 1, 1, 1), half4(IN.Color.r, IN.Color.g, IN.Color.b, IN.Color.a));
+#else
+	OUT.Color0 = float4(1.0);
+#endif
+
+	// フォグ
+	OUT.Color1.rgb = float3(0.0);
+#if defined(FOG_ENABLED)
+	OUT.Color1.a = EvaluateFogValue(viewSpacePosition, worldSpacePosition.y);
+#else
+	OUT.Color1.a = 0.0;
+#endif
+
+	return OUT;
+}
+
+in	DefaultVPInput IN;
+out	DefaultVPOutput OUT;
+out gl_PerVertex
+{
+    vec4 gl_Position;
+};
+
+void main()
+{
+	DefaultVPInput IN_ = IN;
+#ifdef INSTANCING_ENABLED
+	IN_.instancingInput	= instancingInput;
+#endif
+
+#if defined(main_DefaultVPShader)
+	OUT = DefaultVPShader(IN_);
+#else
+	OUT = PortraitVPShader(IN_);
+#endif
+
+	gl_Position	= OUT.Position;
+}
+
+#endif
+
+//-----------------------------------------------------------------------------
+// 輪郭用
+//-----------------------------------------------------------------------------
+#ifdef main_OutlineDefaultVPShader
+
+OutlineVPOutput OutlineDefaultVPShader(OutlineVPInput IN)
+{
+	OutlineVPOutput OUT;
+
+#if defined(SKINNING_ENABLED)
+	float3 normal = IN.SkinnableNormal;
+#else
+	float3 normal = IN.Normal;
+#endif
+
+#if defined(SKINNING_ENABLED)
+	float3 position = IN.SkinnableVertex.xyz;
+#else
+	float3 position = IN.Position.xyz;
+#endif
+#if defined(USE_MRT)
+	float3 positionPrev = position;
+#endif
+
+#if defined(SKINNING_ENABLED)
+	EvaluateSkinPositionNormalXBones(position, normal, IN.SkinWeights, int4(IN.SkinIndices), BoneTransforms);
+	#if defined(USE_MRT)
+	EvaluateSkinPositionXBones(positionPrev, IN.SkinWeights, int4(IN.SkinIndices), BoneTransformsPrev);
+	#endif
+#endif // defined(SKINNING_ENABLED)
+
+#if defined(INSTANCING_ENABLED)
+	ApplyInstanceTransformVertex(IN.instancingInput, position);
+	ApplyInstanceTransformNormal(IN.instancingInput, normal);
+#endif
+
+#if defined(SKINNING_ENABLED)
+	float3 worldSpacePosition = position;
+	float3 worldSpaceNormal = normalize(normal);
+#else
+	float3 worldSpacePosition = _mul(World, float4(position, 1)).xyz;
+	float3 worldSpaceNormal = normalize(_mul(World, float4(normal, 0)).xyz);
+#endif
+
+#if defined(USE_MRT)
+	#if defined(INSTANCING_ENABLED)
+	OUT.Velocity = float2(0, 0);
+	#else
+	OUT.Velocity = CalcVelocity(position, positionPrev);
+	#endif
+#endif
+
+	ApplyAnimPersTransform(worldSpacePosition);
+
+	// 線の太さを維持（手前はやや太くなるように調整）
+	float thickness = _mul(scene.ViewProjection, float4(worldSpacePosition, 1)).w;
+	thickness = GameEdgeParameters.w * clamp(thickness, 0.3,1.0);
+	if (OutlineColorFactor.w > 0)
+	{
+		thickness = OutlineColorFactor.w;
+	}
+	worldSpacePosition += (worldSpaceNormal * thickness);
+
+	// 髪の毛など一枚ポリでは前面に出ることがあるため奥に少しずらす。
+	worldSpacePosition += normalize(worldSpacePosition - GetEyePosition()) * (GameEdgeParameters.w + 0.001);
+
+	OUT.WorldPosition = float4(worldSpacePosition.xyz, 0);
+	OUT.Position = _mul(scene.ViewProjection, float4(worldSpacePosition, 1));
+#if defined(USE_MRT)
+	OUT.Normal = worldSpaceNormal;
+	OUT.wvpPos = OUT.Position;
+#endif
+
+	OUT.TexCoord.xy = IN.TexCoord.xy;
+	
+	// 輪郭色
+#if defined(USE_OUTLINE_COLOR)		
+	float4	outlineColor = float4(OutlineColor,1);				// MAYA指定色
+#else
+	float4	outlineColor = float4(GameEdgeParameters.xyz,1);	// デフォルト色
+#endif // define(USE_OUTLINE_COLOR)	
+	
+	// 環境＋平行光の影響
+	half3 ambientColor = OutlineColorFactor.rgb;
+	outlineColor.rgb = outlineColor.rgb * ambientColor.rgb;
+	
+	OUT.Color0 = outlineColor;
+	
+	// フォグ
+	OUT.Color1.rgb = half3(0);
+#if defined(FOG_ENABLED)
+	float3 viewSpacePosition = _mul(scene.View, float4(worldSpacePosition, 1)).xyz;
+	OUT.Color1.a = EvaluateFogValue(viewSpacePosition, worldSpacePosition.y);
+#else
+	OUT.Color1.a = 0;
+#endif
+
+	return OUT;
+}
+
+in	OutlineVPInput IN;
+out	OutlineVPOutput OUT;
+out gl_PerVertex
+{
+    vec4 gl_Position;
+};
+
+void main()
+{
+	OutlineVPInput IN_ = IN;
+#ifdef INSTANCING_ENABLED
+	IN_.instancingInput	= instancingInput;
+#endif
+	
+	OUT = OutlineDefaultVPShader(IN_);
+	
+	gl_Position		= OUT.Position;
+}
+
+#endif
+
+//-----------------------------------------------------------------------------
+// 深度値のみ書き込み用(DefaultVPShaderの形状計算のみ）
+//-----------------------------------------------------------------------------
+#ifdef main_ForceTransparentDepthVPShader
+
+TransparentDepthVPOutput ForceTransparentDepthVPShader(DefaultVPInput IN)
+{
+	TransparentDepthVPOutput OUT;
+	
+#if defined(SKINNING_ENABLED)
+	float3 position = IN.SkinnableVertex.xyz;
+#else
+	float3 position = IN.Position.xyz;
+#endif
+
+#if defined(SKINNING_ENABLED)
+	EvaluateSkinPositionXBones(position, IN.SkinWeights, int4(IN.SkinIndices), BoneTransforms);
+#endif // defined(SKINNING_ENABLED)
+
+#if defined(INSTANCING_ENABLED)
+	ApplyInstanceTransformVertex(IN.instancingInput, position);
+#endif
+
+#if defined(SKINNING_ENABLED)
+	float3 worldSpacePosition = position;
+#else
+	float3 worldSpacePosition = _mul(World, float4(position, 1)).xyz;
+#endif
+
+	ApplyAnimPersTransform(worldSpacePosition);
+
+	OUT.Position = _mul(scene.ViewProjection, float4(worldSpacePosition, 1));
+	OUT.TexCoord.xy = IN.TexCoord.xy;
+	
+	// 頂点カラー
+#if defined(VERTEX_COLOR_ENABLED)
+	OUT.Color0 = min(half4(1, 1, 1, 1), half4(IN.Color.r, IN.Color.g, IN.Color.b, IN.Color.a));
+#else
+	OUT.Color0 = half4(1);
+#endif
+
+	return OUT;
+}
+
+in	DefaultVPInput IN;
+out	TransparentDepthVPOutput OUT;
+out gl_PerVertex
+{
+    vec4 gl_Position;
+};
+
+void main()
+{
+	DefaultVPInput IN_ = IN;
+#ifdef INSTANCING_ENABLED
+	IN_.instancingInput	= instancingInput;
+#endif
+	
+	OUT = ForceTransparentDepthVPShader(IN_);
+	
+	gl_Position		= OUT.Position;
+}
+
+#endif

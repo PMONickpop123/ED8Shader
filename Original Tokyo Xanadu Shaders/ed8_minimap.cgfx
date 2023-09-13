@@ -1,0 +1,128 @@
+//=============================================================================
+// ミニマップ用シェーダ
+//=============================================================================
+
+#define USE_VECTOR_PROCESS
+
+layout(std140) uniform Param
+{
+uniform float4x4 World;
+uniform float4x4 WorldViewProjection;
+
+uniform float3 lookPosition;	// ミニマップの注目点（エリアマップ表示時にユーザーが変更可能）
+uniform float2 inputHeight;		// 半透明化する高さ(3～8)で透明になり0となる
+uniform float inputColorShiftHeight;	// マップの高低差で色を変える
+uniform float inputAlphaThreshold;
+};
+
+// ディフューズテクスチャ
+uniform sampler2D MinimapTextureSampler;
+
+//=============================================================================
+// 構造体
+//=============================================================================
+struct MinimapVPInput
+{
+	float3 Position;
+	half3  viNormal;
+	float2 viTexCoord;
+	half4  viColor;
+};
+
+struct MinimapVPOutput
+{
+	float4 Position;
+	half4 Color0;
+	float2 TexCoord;
+};
+
+//=============================================================================
+// シェーダ
+//=============================================================================
+#ifdef main_MinimapVPShader
+MinimapVPOutput MinimapVPShader(MinimapVPInput IN)
+{
+	MinimapVPOutput OUT;
+
+	float4 localPosition = float4(IN.Position.xyz,1.0);	
+	float4 worldSpacePosition = _mul(World,               localPosition);
+	float4 pos                = _mul(WorldViewProjection, localPosition);
+	half4 color = IN.viColor;
+
+#if !defined(DCC_TOOL)	//高さで透明度を変更
+
+	float dy    = worldSpacePosition.y - lookPosition.y;
+	float dh    = clamp(inputHeight.y-inputHeight.x, 0.0001, 100.0);	//0除算しないように最低値を入れておく
+
+	dy          = abs(dy);	//高さの差
+
+	#if !defined(USE_VECTOR_PROCESS)
+
+		//高さによって色を変える(立体交差や重なりを分かりやすくする）
+		float dyc   = 1.0 - (dy / inputColorShiftHeight);
+		half dark1  = clamp( dyc, 0.5, 1.0 );
+	    color.xyz  *= dark1;
+	
+		//高さによって透明度を変える
+	//	dy          = 1.0 - ((dy-3.0) / 7.0);		//消える高さは 3+7
+		dy          = 1.0 - ((dy-inputHeight.x) / dh);		//消える高さは 3+7
+		half  dark  = clamp( dy, 0.0, 1.0 );
+		color.w    *= dark;
+	//	color.xyz  *= dark;
+	
+
+		//坂を分かりやすくする
+		half dd    = clamp( IN.viNormal.y, 0.5, 1.0);	//垂直な坂（ハシゴ）で黒くならないように。
+		color.xyz  *= dd;
+
+	#else // !defined(USE_VECTOR_PROCESS)
+
+		// ↑をベクトル処理
+		float2 tmp = clamp(float2(1.0, 1.0) - float2(dy, dy-inputHeight.x) / float2(inputColorShiftHeight, dh), float2(0.5, 0.0), float2(1.0, 1.0));
+		color *= half4(tmp.xxxy);
+		color.xyz *= half3(clamp( IN.viNormal.y, 0.5, 1.0 ));//垂直な坂（ハシゴ）で黒くならないように。
+
+	#endif // !defined(USE_VECTOR_PROCESS)
+
+#endif // !defined(DCC_TOOL)
+
+	OUT.Position = pos;
+	OUT.Color0   = color;
+	OUT.TexCoord = IN.viTexCoord;
+	return OUT;
+};
+
+in	MinimapVPInput IN;
+out	MinimapVPOutput OUT;
+out gl_PerVertex
+{
+    vec4 gl_Position;
+};
+void main()
+{
+	OUT = MinimapVPShader(IN);
+
+	gl_Position		= OUT.Position;
+}
+#endif
+
+#ifdef main_MinimapFPShader
+half4 MinimapFPShader(MinimapVPOutput IN)
+{	
+	half4 color = _tex2D(LinearWrapSamplerState, MinimapTextureSampler, IN.TexCoord);
+	color *= IN.Color0;
+	
+#if !defined(DCC_TOOL)
+	clip(color.a - inputAlphaThreshold);	//αテスト(Vitaで必要)
+#endif
+	
+	return color;
+}
+
+in	MinimapVPOutput OUT;
+out vec4 out_FragColor;
+void main()
+{
+	out_FragColor = MinimapFPShader(OUT);
+}
+#endif

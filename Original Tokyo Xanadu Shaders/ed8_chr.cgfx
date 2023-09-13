@@ -1,0 +1,453 @@
+
+#define FPS_MAX	30
+
+struct DirectionalLight
+{
+	half3 m_direction;
+	half3 m_colorIntensity;
+};
+
+// 影受けバイアス値
+#define SHADOW_LIGHTDIR_BIAS	0.05
+#define SHADOW_NORMALDIR_BIAS	0.05
+
+struct CombinedCascadedShadowMap
+{
+	// 二分割
+	float4x4 m_split0Transform;
+	float4x4 m_split1Transform;
+
+	float4 m_splitDistances;
+};
+
+#define NUM_SKIN_TRANSFORMS	160
+layout(std140) uniform Param
+{
+uniform SceneWideParameters scene;
+
+uniform float4x4 World;
+uniform float4x4 WorldViewProjection;
+uniform DirectionalLight Light0;
+uniform CombinedCascadedShadowMap LightShadow0;
+uniform float PerMaterialMainLightClampFactor;
+uniform float3 LightDirForChar;
+
+uniform float4 GameMaterialDiffuse;
+uniform float4 GameMaterialEmission;
+uniform float GameMaterialMonotone;
+uniform float4 GameMaterialTexcoord;
+
+uniform float4 UVaMUvColor;
+uniform float4 UVaProjTexcoord;
+uniform float4 UVaMUvTexcoord;
+uniform float4 UVaMUv2Texcoord;
+uniform float4 UVaDuDvTexcoord;
+
+uniform float AlphaThreshold;
+uniform float3 ShadowColorShift;
+
+uniform float Shininess;
+uniform float SpecularPower;
+uniform float3 SpecularColor;
+
+uniform float3 RimLitColor;
+uniform float RimLitIntensity;
+uniform float RimLitPower;
+uniform float RimLightClampFactor;
+
+uniform float ShadowReceiveOffset;
+
+uniform float SphereMapIntensity;
+uniform float CubeMapIntensity;
+uniform float CubeMapFresnel;
+
+uniform float2 DuDvMapImageSize;
+uniform float2 DuDvScale;
+
+uniform float BloomIntensity;
+uniform float GlareIntensity;
+
+uniform float4 GameEdgeParameters;
+uniform float4 OutlineColorFactor;
+
+uniform float4 PointLightParams;
+uniform float4 PointLightColor;
+
+uniform float4x4 BoneTransforms[NUM_SKIN_TRANSFORMS];
+};
+
+/*-------------------------ed8_chr.cgfx----------------------------*/
+
+//=============================================================================
+// マテリアルスイッチのプリプロセス(copy from ed8_chr.cgfx)
+//=============================================================================
+
+// ブルームは常時ON
+#define BLOOM_ENABLED
+
+// Maya上では機能しないスイッチを無効化
+#if defined(DCC_TOOL)
+	#undef CASTS_SHADOWS
+	#undef RECEIVE_SHADOWS
+	#undef USE_OUTLINE
+#endif
+
+// DUDVとマルチテクスチャは排他
+#if defined(DUDV_MAPPING_ENABLED)
+	#undef MULTI_UV_ENANLED
+	#undef MULTI_UV2_ENANLED
+#endif
+
+// 非マルチテクスチャなら関連スイッチを無効化
+#if !defined(MULTI_UV_ENANLED)
+	#undef MULTI_UV_ADDITIVE_BLENDING_ENANLED
+	#undef MULTI_UV_MULTIPLICATIVE_BLENDING_ENANLED
+	#undef MULTI_UV_NORMAL_MAPPING_ENABLED
+	#undef MULTI_UV_SPECULAR_MAPPING_ENABLED
+	#undef MULTI_UV_GLARE_MAP_ENABLED
+	#undef MULTI_UV_NO_DIFFUSE_MAPPING_ENANLED
+	#undef MULTI_UV2_ENANLED
+	#undef MULTI_UV2_ADDITIVE_BLENDING_ENANLED
+	#undef MULTI_UV2_MULTIPLICATIVE_BLENDING_ENANLED
+	#undef MULTI_UV2_NORMAL_MAPPING_ENABLED
+	#undef MULTI_UV2_SPECULAR_MAPPING_ENABLED
+#endif // !defined(MULTI_UV_ENANLED)
+
+#if defined(MULTI_UV_NO_DIFFUSE_MAPPING_ENANLED)
+	#undef MULTI_UV_ADDITIVE_BLENDING_ENANLED
+	#undef MULTI_UV_MULTIPLICATIVE_BLENDING_ENANLED
+#endif
+
+// マルチUV2と排他なものを無効化
+#if defined(MULTI_UV2_ENANLED)
+	#undef SPHERE_MAPPING_ENABLED
+	#undef SPHERE_MAPPING_HAIRCUTICLE_ENABLED
+	#undef CUBE_MAPPING_ENABLED
+#endif
+
+#if defined(SPHERE_MAPPING_ENABLED)
+	#undef SPHERE_MAPPING_HAIRCUTICLE_ENABLED
+#endif
+
+#if !defined(ALPHA_BLENDING_ENABLED)
+	#undef ADDITIVE_BLENDING_ENABLED
+	#undef SUBTRACT_BLENDING_ENABLED
+	#undef MULTIPLICATIVE_BLENDING_ENABLED
+#endif
+
+#if !defined(DCC_TOOL)
+	#define GAME_MATERIAL_ENABLED
+	#define UVA_SCRIPT_ENABLED
+#endif
+
+#define USE_POSITION_HALF	// 変換済み座標をhalfで処理
+
+#if defined(NUM_LIGHTS)
+	#if (NUM_LIGHTS > 0) && !defined(NO_ALL_LIGHTING_ENABLED)
+		#define USE_LIGHTING
+	#endif
+#endif
+
+#if defined(RECEIVE_SHADOWS)
+	#if defined(NUM_LIGHTS)
+		#if NUM_LIGHTS == 0
+			#undef RECEIVE_SHADOWS
+		#endif
+	#else
+		#undef RECEIVE_SHADOWS
+	#endif
+	#if !defined(SHADOWTYPE_0)
+		#undef RECEIVE_SHADOWS
+	#endif
+#endif // defined(RECEIVE_SHADOWS)
+
+#if defined(NORMAL_MAPPING_ENABLED) || defined(MULTI_UV_NORMAL_MAPPING_ENABLED)
+	#define USE_TANGENTS
+#endif
+
+#if defined(ADDITIVE_BLENDING_ENABLED) || defined(SUBTRACT_BLENDING_ENABLED) || defined(MULTIPLICATIVE_BLENDING_ENABLED)
+	#define USE_EXTRA_BLENDING
+#endif
+
+#if !defined(DCC_TOOL)
+	// 「CARTOON_SHADING_ENABLED = キャラ」と判断している
+	#if defined(FORCE_CHAR_LIGHT_DIRECTION_ENABLED) || defined(CARTOON_SHADING_ENABLED)
+		#define LIGHT_DIRECTION_FOR_CHARACTER_ENABLED
+	#endif
+#endif
+
+#if defined(CARTOON_SHADING_ENABLED)
+	#define CARTOON_AVOID_SELFSHADOW_OFFSET
+#endif
+
+#if defined(DUDV_MAPPING_ENABLED)
+	#define USE_SCREEN_UV
+#endif
+
+//-----------------------------------------------------------------------------
+// テクスチャ
+//-----------------------------------------------------------------------------
+uniform sampler2D DiffuseMapSampler;
+
+//=============================================================================
+// シェーダ入出力構造体
+//=============================================================================
+struct DepthVPInput
+{
+#if defined(SKINNING_ENABLED)
+	float3 SkinnableVertex;
+#else
+	float3 Position;
+#endif
+
+#if defined(SKINNING_ENABLED)
+	int4 SkinIndices;
+	float4 SkinWeights;
+#endif
+};
+
+struct DepthVPOutput
+{
+	float4 Position;
+};
+
+struct ShadowTexturedVPInput
+{
+#if defined(SKINNING_ENABLED)
+	float3 SkinnableVertex;
+#else
+	float3 Position;
+#endif
+
+	float2 TexCoord;
+
+#if defined(SKINNING_ENABLED)
+	int4 SkinIndices;
+	float4 SkinWeights;
+#endif
+};
+
+struct ShadowTexturedVPOutput
+{
+#if defined(USE_POSITION_HALF)
+	half4 Position;
+#else
+	float4 Position;
+#endif
+
+	half2 TexCoord;
+};
+
+//=============================================================================
+// サブルーチン
+//=============================================================================
+
+/*-------------------------ed8_chr.cgfx----------------------------*/
+
+/*-------------------------ed8_common.h----------------------------*/
+
+//-----------------------------------------------------------------------------
+// スキニング
+//-----------------------------------------------------------------------------
+#if defined(SKINNING_ENABLED)
+
+void EvaluateSkinPositionNormalTangent3Bones(inout float3 position, inout float3 normal, inout float3 tangent, float4 weights, int4 boneIndices, float3x4 skinTransforms[NUM_SKIN_TRANSFORMS])
+{
+	int indexArray[3] = {boneIndices.x, boneIndices.y, boneIndices.z};
+
+	float4 inPosition = float4(position, 1);
+	float4 inNormal = float4(normal, 0);
+	float4 inTangent = float4(tangent, 0);
+	float scale = 1.0 / (weights.x + weights.y + weights.z);
+	
+ 	position = 
+		mul(skinTransforms[indexArray[0]], inPosition).xyz * (weights.x * scale)
+	+	mul(skinTransforms[indexArray[1]], inPosition).xyz * (weights.y * scale)
+	+	mul(skinTransforms[indexArray[2]], inPosition).xyz * (weights.z * scale);
+	
+	normal = 
+		mul(skinTransforms[indexArray[0]], inNormal).xyz * (weights.x * scale)
+	+	mul(skinTransforms[indexArray[1]], inNormal).xyz * (weights.y * scale)
+	+	mul(skinTransforms[indexArray[2]], inNormal).xyz * (weights.z * scale);
+
+	tangent = 
+		mul(skinTransforms[indexArray[0]], inTangent).xyz * (weights.x * scale)
+	+	mul(skinTransforms[indexArray[1]], inTangent).xyz * (weights.y * scale)
+	+	mul(skinTransforms[indexArray[2]], inTangent).xyz * (weights.z * scale);
+}
+
+void EvaluateSkinPositionNormal3Bones(inout float3 position, inout float3 normal, float4 weights, int4 boneIndices, float3x4 skinTransforms[NUM_SKIN_TRANSFORMS])
+{
+	int indexArray[3] = {boneIndices.x, boneIndices.y, boneIndices.z};
+
+	float4 inPosition = float4(position, 1);
+	float4 inNormal = float4(normal, 0);
+	float scale = 1.0 / (weights.x + weights.y + weights.z);
+	
+ 	position = 
+		mul(skinTransforms[indexArray[0]], inPosition).xyz * (weights.x * scale)
+	+	mul(skinTransforms[indexArray[1]], inPosition).xyz * (weights.y * scale)
+	+	mul(skinTransforms[indexArray[2]], inPosition).xyz * (weights.z * scale);
+	
+	normal = 
+		mul(skinTransforms[indexArray[0]], inNormal).xyz * (weights.x * scale)
+	+	mul(skinTransforms[indexArray[1]], inNormal).xyz * (weights.y * scale)
+	+	mul(skinTransforms[indexArray[2]], inNormal).xyz * (weights.z * scale);
+}
+
+void EvaluateSkinPosition3Bones(inout float3 position, float4 weights, int4 boneIndices, float3x4 skinTransforms[NUM_SKIN_TRANSFORMS])
+{
+	int indexArray[3] = {boneIndices.x, boneIndices.y, boneIndices.z};
+
+	float4 inPosition = float4(position, 1);
+	float scale = 1.0 / (weights.x + weights.y + weights.z);
+ 	position = 
+		mul(skinTransforms[indexArray[0]], inPosition).xyz * (weights.x * scale)
+	+	mul(skinTransforms[indexArray[1]], inPosition).xyz * (weights.y * scale)
+	+	mul(skinTransforms[indexArray[2]], inPosition).xyz * (weights.z * scale);
+}
+
+#define EvaluateSkinPositionNormalTangentXBones	EvaluateSkinPositionNormalTangent3Bones
+#define EvaluateSkinPositionNormalXBones 		EvaluateSkinPositionNormal3Bones
+#define EvaluateSkinPositionXBones				EvaluateSkinPosition3Bones
+
+#endif // defined(SKINNING_ENABLED)
+
+/*-------------------------ed8_common.h----------------------------*/
+
+//=============================================================================
+// 影用シェーダ
+//=============================================================================
+
+
+	#if defined(CASTS_SHADOWS)
+
+
+#ifdef main_ShadowVPShader	//頂点シェーダー
+//-----------------------------------------------------------------------------
+// テクスチャなし
+//-----------------------------------------------------------------------------
+DepthVPOutput ShadowVPShader(DepthVPInput IN)
+{
+	DepthVPOutput OUT;
+
+	#if defined(SKINNING_ENABLED)
+
+		float3 position = IN.SkinnableVertex.xyz;
+
+		EvaluateSkinPositionXBones(position.xyz, IN.SkinWeights, int4(IN.SkinIndices), BoneTransforms);
+
+		OUT.Position = _mul(scene.ViewProjection, float4(position.xyz, 1));
+
+	#else // defined(SKINNING_ENABLED)
+
+		OUT.Position = _mul(WorldViewProjection, float4(IN.Position.xyz, 1));
+
+	#endif // defined(SKINNING_ENABLED)
+
+	return OUT;
+}
+
+in	DepthVPInput IN;
+out	DepthVPOutput OUT;
+out gl_PerVertex
+{
+    vec4 gl_Position;
+};
+
+void main()
+{
+	DepthVPInput IN_ = IN;
+
+	OUT = ShadowVPShader(IN_);
+
+	gl_Position	= OUT.Position;
+}
+
+#endif //main_ShadowVPShader	//頂点シェーダー
+
+
+#ifdef main_ShadowFPShader	//フラグメントシェーダー
+
+in	DepthVPOutput OUT;
+out vec4 out_FragColor;
+
+void main()
+{
+	out_FragColor = float4(0.0,0.0,0.0,0.0);
+}
+
+#endif // main_ShadowFPShader //フラグメントシェーダー
+
+
+//-----------------------------------------------------------------------------
+// テクスチャあり
+//-----------------------------------------------------------------------------
+
+#ifdef main_ShadowTexturedVPShader	//頂点シェーダー
+ShadowTexturedVPOutput ShadowTexturedVPShader(ShadowTexturedVPInput IN)
+{
+	ShadowTexturedVPOutput OUT;	
+
+	#if defined(SKINNING_ENABLED)
+
+		float3 position = IN.SkinnableVertex.xyz;
+
+		EvaluateSkinPositionXBones(position.xyz, IN.SkinWeights, int4(IN.SkinIndices), BoneTransforms);
+
+		OUT.Position = _mul(scene.ViewProjection, float4(position.xyz, 1));
+
+	#else  // defined(SKINNING_ENABLED)
+
+		OUT.Position = _mul(WorldViewProjection, float4(IN.Position.xyz, 1));
+
+	#endif // defined(SKINNING_ENABLED)
+
+	OUT.TexCoord.xy = IN.TexCoord.xy * half2(GameMaterialTexcoord.zw) + half2(GameMaterialTexcoord.xy);
+
+	return OUT;
+}
+
+in	ShadowTexturedVPInput IN;
+out	ShadowTexturedVPOutput OUT;
+out gl_PerVertex
+{
+    vec4 gl_Position;
+};
+
+void main()
+{
+	ShadowTexturedVPInput IN_ = IN;
+	OUT = ShadowTexturedVPShader(IN_);
+
+	gl_Position	= OUT.Position;
+}
+
+#endif	//頂点シェーダー
+
+
+
+#ifdef main_ShadowTexturedFPShader	//フラグメントシェーダー
+
+in	ShadowTexturedVPOutput OUT;
+out vec4 out_FragColor;
+
+float4 ShadowTexturedFPShader(ShadowTexturedVPOutput IN)
+{
+	#if defined(ALPHA_BLENDING_ENABLED) || defined(ALPHA_TESTING_ENABLED)
+		half4 diffuseAmt = _h4tex2D(DiffuseMapSamplerSampler, DiffuseMapSampler, IN.TexCoord.xy);
+		clip(diffuseAmt.a - AlphaThreshold);
+	#endif
+
+	return float4(0,0,0,0);
+}
+
+void main()
+{
+	out_FragColor = ShadowTexturedFPShader(OUT);
+}
+
+#endif	//フラグメントシェーダー
+
+
+#endif //CASTS_SHADOWS

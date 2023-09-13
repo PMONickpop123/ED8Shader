@@ -6,10 +6,6 @@
 	#define VP_PORTRAIT
 #endif
 
-float3 CreateBinormal(float3 normal, float3 tangent, float binormalSign) {
-    return cross(normal, tangent); //* (binormalSign * unity_WorldTransformParams.w);
-}
-
 //-----------------------------------------------------------------------------
 // vertex shader
 DefaultVPOutput DefaultVPShader (DefaultVPInput v) {
@@ -17,12 +13,9 @@ DefaultVPOutput DefaultVPShader (DefaultVPInput v) {
     UNITY_SETUP_INSTANCE_ID(v);
     UNITY_INITIALIZE_OUTPUT(DefaultVPOutput, o);
     UNITY_INITIALIZE_VERTEX_OUTPUT_STEREO(o);
-    UNITY_TRANSFER_INSTANCE_ID(v, o);
 
-    float3 normal = v.normal;
     float3 position = v.vertex.xyz;
-    float3 worldSpacePosition = mul(unity_ObjectToWorld, float4(position.xyz, 1.0f)).xyz;
-    float3 worldSpaceNormal = normalize(UnityObjectToWorldNormal(normal));
+    float3 normal = v.normal;
 
     #if defined(USE_LIGHTING)
         #if defined(USE_TANGENTS)
@@ -34,71 +27,115 @@ DefaultVPOutput DefaultVPShader (DefaultVPInput v) {
         #endif // USE_TANGENTS
     #endif // USE_LIGHTING
 
+    /*
+    #if defined(INSTANCING_ENABLED) && defined(FAR_CLIP_BY_DITHER_ENABLED)
+        // 距離クリップされることが分かっているインスタンスには０スケールを掛けてピクセル負荷を抑える
+        float3 instancePos = float3(v.instancingInput.InstanceTransform0.w, v.instancingInput.InstanceTransform1.w, v.instancingInput.InstanceTransform2.w);
+        float3 instancePosInView = _mul(scene.View, float4(instancePos, 1)).xyz;
+        position *= (-instancePosInView.z) > _GameDitherParams.z ? 0.0 : 1.0;
+    #endif // defined(INSTANCING_ENABLED) && defined(FAR_CLIP_BY_DITHER_ENABLED)
+
+    #if defined(INSTANCING_ENABLED)
+        ApplyInstanceTransformVertex(v.instancingInput, position);
+        ApplyInstanceTransformNormal(v.instancingInput, normal);
+
+        #if defined(USE_TANGENTS)
+            ApplyInstanceTransformNormal(v.instancingInput, tangent);
+        #endif
+    #endif // defined(INSTANCING_ENABLED)
+    */
+
+	float3 worldSpacePosition = mul(unity_ObjectToWorld, float4(position, 1)).xyz;
+	float3 worldSpaceNormal = normalize(UnityObjectToWorldNormal(normal));
+
     #if defined(WINDY_GRASS_ENABLED)
         #if !defined(WINDY_GRASS_TEXV_WEIGHT_ENABLED)
             worldSpacePosition = calcWindyGrass(worldSpacePosition.xyz, 1.0f - v.uv.y);
-        #else // WINDY_GRASS_TEXV_WEIGHT_ENABLED
+        #else
             worldSpacePosition = calcWindyGrass(worldSpacePosition.xyz);
-        #endif // WINDY_GRASS_TEXV_WEIGHT_ENABLED
-    #endif // WINDY_GRASS_ENABLED
+        #endif
+    #endif
 
     float3 viewSpacePosition = UnityWorldToViewPos(worldSpacePosition);
     o.pos = UnityWorldToClipPos(worldSpacePosition);
     o.WorldPositionDepth = float4(worldSpacePosition.xyz, -viewSpacePosition.z);
     o.normal = worldSpaceNormal;
-    o.uv.xy = v.uv.xy * _GameMaterialTexcoord.zw + _GameMaterialTexcoord.xy;
+    o.uv.xy = float2(v.uv.xy) * float2(_GameMaterialTexcoord.zw) + float2(_GameMaterialTexcoord.xy);
 
     #if defined(TEXCOORD_OFFSET_ENABLED)
-        o.uv.xy += _TexCoordOffset.xy * getGlobalTextureFactor();
+        o.uv.xy += _TexCoordOffset.xy * GetGlobalTextureFactor();
     #endif // TEXCOORD_OFFSET_ENABLED
 
-    // TexCoord2
+    // TexCoord2 / マルチUV
     #if defined(MULTI_UV_ENANLED)
         o.uv2.xy = v.uv2.xy;
 
         #if defined(MULTI_UV_TEXCOORD_OFFSET_ENABLED)
-            o.uv2.xy += _TexCoordOffset2.xy * getGlobalTextureFactor();
+            o.uv2.xy += _TexCoordOffset2.xy * GetGlobalTextureFactor();
+        #else
+            o.uv2.xy = v.uv2.xy * float2(_UVaMUvTexcoord.zw) + float2(_UVaMUvTexcoord.xy);
         #endif // MULTI_UV_TEXCOORD_OFFSET_ENABLED
 
         o.uv2.xy += _GameMaterialTexcoord.xy;
     #endif // MULTI_UV_ENANLED
 
-    // TexCoord3
+    // TexCoord3 / マルチUV2
     #if defined(MULTI_UV2_ENANLED)
         o.uv3.xy = v.uv3.xy;
 
         #if defined(MULTI_UV2_TEXCOORD_OFFSET_ENABLED)
-            o.uv3.xy += _TexCoordOffset3.xy * getGlobalTextureFactor();
+            o.uv3.xy += _TexCoordOffset3.xy * GetGlobalTextureFactor();
+        #else
+            o.uv3.xy = v.uv3.xy * float2(_UVaMUv2Texcoord.zw) + float2(_UVaMUv2Texcoord.xy);
         #endif // MULTI_UV2_TEXCOORD_OFFSET_ENABLED
 
         o.uv3.xy += _GameMaterialTexcoord.xy;
     #endif // defined(MULTI_UV2_ENANLED)
 
-    #if defined(PROJECTION_MAP_ENABLED) && !defined(CARTOON_SHADING_ENABLED)
-        o.ProjMap.xy = float2(worldSpacePosition.xz / _ProjectionScale + (_ProjectionScroll * getGlobalTextureFactor()));
-    #endif // 
-
+	// DUDV
     #if defined(DUDV_MAPPING_ENABLED)
-        o.DuDvTexCoord.xy = v.uv.xy * _UVaDuDvTexcoord.zw;
-        o.DuDvTexCoord.xy += _DuDvScroll.xy * getGlobalTextureFactor();
+        //o.DuDvTexCoord.xy = v.uv.xy * half2(_UVaDuDvTexcoord.zw) + half2(_UVaDuDvTexcoord.xy);
+        o.DuDvTexCoord.xy = float2(v.uv.xy * _UVaDuDvTexcoord.zw + (_DuDvScroll.xy * GetGlobalTextureFactor()));
+    #endif // defined(DUDV_MAPPING_ENABLED)
+
+    // 射影マップ
+    #if defined(PROJECTION_MAP_ENABLED) && !defined(CARTOON_SHADING_ENABLED)
+        //o.ProjMap.xy = half2(worldSpacePosition.xz / _ProjectionScale) + _UVaProjTexcoord.xy;
+        o.ProjMap.xy = float2(worldSpacePosition.xz / _ProjectionScale + (_ProjectionScroll * GetGlobalTextureFactor()));
+    #endif // defined(PROJECTION_MAP_ENABLED)
+
+    // 頂点カラー
+    #if defined(VERTEX_COLOR_ENABLED)
+        o.Color0 = min(float4(1, 1, 1, 1), float4(v.color.r, v.color.g, v.color.b, v.color.a));
+    #else
+        o.Color0 = float4(1, 1, 1, 1);
     #endif
 
-    #if defined(VERTEX_COLOR_ENABLED)
-        o.Color0 = float4(v.color.r, v.color.g, v.color.b, v.color.a);
-    #else // VERTEX_COLOR_ENABLED
-        o.Color0 = float4(1.0f, 1.0f, 1.0f, 1.0f);
-    #endif // VERTEX_COLOR_ENABLED
-
-    o.Color0 = saturate(o.Color0);
-    o.Color1.rgb = float3(1.0f, 1.0f, 1.0f);
-
+    // フォグ
+    o.Color1.rgb = float3(0, 0, 0);
     #if defined(FOG_ENABLED)
-        o.Color1.a = EvaluateFogVP(-viewSpacePosition.z, worldSpacePosition.y);
-    #else // FOG_ENABLED
-        o.Color1.a = 0.0f;
-    #endif // FOG_ENABLED
+        o.Color1.a = EvaluateFogValue(-viewSpacePosition.z, worldSpacePosition.y);
+    #else
+        o.Color1.a = 0;
+    #endif
 
-    float3 worldSpaceEyeDirection = normalize(getEyePosition() - worldSpacePosition);
+    /*
+	// インスタンス描画
+    #if defined(INSTANCING_ENABLED)
+        o.instanceParam = float4(0, 0, 0, 0);
+
+        #if defined(FAR_CLIP_BY_DITHER_ENABLED)
+            // ディザリングによる距離クリップ
+            float ditherValue = EvaluateDitherValue(instancePosInView, _GameDitherParams.x, _GameDitherParams.y);
+            o.instanceParam.x = ditherValue;
+        #endif
+        // ディザリングによるモデル切替
+        o.instanceParam.y = v.instancingInput.InstanceColor.x;
+        o.instanceParam.z = v.instancingInput.InstanceColor.y;
+    #endif // defined(INSTANCING_ENABLED)
+    */
+
+    float3 worldSpaceEyeDirection = normalize(GetEyePosition() - worldSpacePosition);
 
     #if (defined(USE_LIGHTING) || (defined(CARTOON_SHADING_ENABLED) && !defined(CUBE_MAPPING_ENABLED) && !defined(SPHERE_MAPPING_ENABLED)))
         #define VP_LIGHTPROCESS
@@ -130,7 +167,7 @@ DefaultVPOutput DefaultVPShader (DefaultVPInput v) {
     #endif
 
     #if defined(USE_SCREEN_UV)
-        o.ReflectionMap = ComputeGrabScreenPos(o.pos);
+        o.screenPos = ComputeGrabScreenPos(o.pos);
     #endif // defined(USE_SCREEN_UV)
 
     #if defined(CARTOON_SHADING_ENABLED)
@@ -146,8 +183,9 @@ DefaultVPOutput DefaultVPShader (DefaultVPInput v) {
         #endif // !defined(CUBE_MAPPING_ENABLED) && !defined(SPHERE_MAPPING_ENABLED)
     #endif // defined(CARTOON_SHADING_ENABLED)
 
-    // compute shadows data
+    // compute shadows data.
     UNITY_TRANSFER_SHADOW(o, o.uv);
+    UNITY_TRANSFER_INSTANCE_ID(v, o);
     return o;
 }
 

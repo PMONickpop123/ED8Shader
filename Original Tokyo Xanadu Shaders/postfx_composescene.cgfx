@@ -1,0 +1,1233 @@
+
+/*-------------------------postfx.cgfx↓----------------------------*/
+
+#define SCREEN_WIDTH	1920.0
+#define SCREEN_HEIGHT	1080.0
+
+uniform sampler2D ColorBuffer;
+uniform sampler2D DepthBuffer;
+uniform sampler2D GlareBuffer;
+uniform sampler2D FocusBuffer;
+uniform sampler2D FilterTexture;
+uniform sampler2D FadingTexture;
+uniform sampler2D DisplacementTexture;
+
+layout(std140) uniform Param
+{
+	uniform SceneWideParameters scene;
+
+	uniform float4 FilterColor;				// 加算フィルタ RGB:色 A:強さ
+	uniform float4 FadingColor;				// フェードフィルタ RGB:色 A:補間
+	uniform float4 MonotoneMul;				// モノトーンフィルタ RGB:色 A:補間
+	uniform float4 MonotoneAdd;				// モノトーンフィルタ RGB:色 A:-
+	uniform float4 GlowIntensity;
+	uniform float4 GodrayParams;			// XY:光源のUV座標 Z:遮蔽判定用Ｚ値 W:マスク画像のアスペクト比
+	uniform float4 GodrayParams2;			// XY:１ピクセル分のUV移動量 Z:ズームブラーの伸び具合 W:未使用
+	uniform float4 GodrayColor;				// RGB:色、A:マスク画像の明度クランプ値（＝ゴッドレイの明度）
+	uniform float4 ToneFactor;
+	uniform float4 UvScaleBias;				// XY:uvのスケール値、ZW:uvのバイアス値
+	uniform float4 GaussianBlurParams;		// XY:ソース画像のサイズ Z:カラー出力係数（輝度圧縮時の展開用） W:グロー鮮鋭部の合算率
+	uniform float4 DofParams;				// X:cameraFar/(cameraFar-cameraNear) Y:1/cameraFar Z:合焦距離 W:1/(被写界深度の最奥距離 - 合焦距離)
+	uniform float4 DofParams2;				// X:未使用 Y:被写界深度補正値（強さの調整） ZW:未使用
+	uniform float4 GammaParameters;			// DeGamma/Gamma, 画面のスケール(X), 画面のスケール(Y), W:未使用
+	uniform float4 NoiseParams;				// X:時間 Y:歪み具合 Z:色収差の水平方向のズレ具合 W:合成率
+	uniform float4 WhirlPinchParams;
+	uniform float4 UVWarpParams;
+	uniform float4 MotionBlurParams;
+	uniform float GlobalTexcoordFactor;
+};
+
+
+//=============================================================================
+// シェーダ入出力構造体
+//=============================================================================
+
+struct ComposeSceneVPOutput
+{
+	float4 ScreenPosition;
+	float2 ScreenUv;
+	float2 ScreenUvScaled;
+};
+
+struct ComposeSceneUVWarpVPOutput
+{
+	float4 ScreenPosition;
+	float2 ScreenUv;
+	float2 ScreenUvScaled;
+	float3 NoiseUv;
+};
+
+//=============================================================================
+// サブルーチン
+//=============================================================================
+
+half4 loadGlowTex(float2 screenUv)
+{
+	return _h4tex2Dlod(LinearClampSamplerState, GlareBuffer, screenUv.xy, 0);
+}
+
+half4 loadCoverTex(float2 screenUv)
+{
+	return _h4tex2Dlod(LinearClampSamplerState, FilterTexture, screenUv.xy, 0) * half4(FilterColor);
+}
+
+float getDepthSample(float2 screenUv)
+{
+	half depthSample = _h4tex2Dlod(PointClampSamplerState, DepthBuffer, screenUv.xy, 0).x;
+	return depthSample;
+}
+
+float getDepth(float2 screenUv)
+{
+	// 深度を線形深度へ変換
+	float linearDepth = DofParams.y / (DofParams.x - getDepthSample(screenUv));
+	return saturate(linearDepth);
+}
+
+float getDofValue(float depth)
+{
+	// 合焦距離から一定距離までの間でぼかす
+	depth = saturate(abs(depth - DofParams.z) * DofParams.w);
+	depth *= depth;	// 遠景、近景にメリハリを付けるため
+	depth *= DofParams2.y;	// 強さの調整（主にVita向け）
+	return depth;
+}
+
+half3 getDofTexel(float2 screenUv, float2 screenUvScaled, float depth)
+{
+	half3 color = _h4tex2Dlod(LinearClampSamplerState, ColorBuffer, screenUvScaled.xy, 0).rgb;
+	half3 focus = _h4tex2Dlod(LinearClampSamplerState, FocusBuffer, screenUv.xy, 0).rgb;
+	return lerp(color, focus, half(getDofValue(depth)));
+}
+
+half getCoverFilterDof(float depth)
+{
+	return min(1.0, 0.15 + half(depth) * ToneFactor.y);
+}
+
+float3 degamma_gamma(float3 v)
+{
+	return pow(saturate(v), GammaParameters.xxx);	// pow^(DeGamma/Gamma)
+}
+
+float rand(float2 seed)
+{
+	return frac(sin(dot(seed, float2(12.9898,78.233))) * 43758.5453);
+}
+
+//
+// ComposeScene
+//
+
+#ifdef main_
+
+#define cs_G  0
+#define cs_Cd 0
+#define cs_z  0
+#define cs_M  0
+#define cs_ci 0
+#define cs_NAME_ ComposeSceneFP_S_____
+
+#endif
+
+#ifdef main_ComposeSceneFP_S__z__
+
+#define cs_G  0
+#define cs_Cd 0
+#define cs_z  1
+#define cs_M  0
+#define cs_ci 0
+#define cs_NAME_ ComposeSceneFP_S__z__
+
+#endif
+
+#ifdef main_ComposeSceneFP_SG____
+
+#define cs_G  1
+#define cs_Cd 0
+#define cs_z  0
+#define cs_M  0
+#define cs_ci 0
+#define cs_NAME_ ComposeSceneFP_SG____
+
+#endif
+
+#ifdef main_ComposeSceneFP_SG_z__
+
+#define cs_G  1
+#define cs_Cd 0
+#define cs_z  1
+#define cs_M  0
+#define cs_ci 0
+#define cs_NAME_ ComposeSceneFP_SG_z__
+
+#endif
+
+#ifdef main_ComposeSceneFP_S_C___
+
+#define cs_G  0
+#define cs_Cd 1
+#define cs_z  0
+#define cs_M  0
+#define cs_ci 0
+#define cs_NAME_ ComposeSceneFP_S_C___
+
+#endif
+
+#ifdef main_ComposeSceneFP_S_Cz__
+
+#define cs_G  0
+#define cs_Cd 1
+#define cs_z  1
+#define cs_M  0
+#define cs_ci 0
+#define cs_NAME_ ComposeSceneFP_S_Cz__
+
+#endif
+
+#ifdef main_ComposeSceneFP_SGC___
+
+#define cs_G  1
+#define cs_Cd 1
+#define cs_z  0
+#define cs_M  0
+#define cs_ci 0
+#define cs_NAME_ ComposeSceneFP_SGC___
+
+#endif
+
+#ifdef main_ComposeSceneFP_SGCz__
+
+#define cs_G  1
+#define cs_Cd 1
+#define cs_z  1
+#define cs_M  0
+#define cs_ci 0
+#define cs_NAME_ ComposeSceneFP_SGCz__
+
+#endif
+
+#ifdef main_ComposeSceneFP_S_d___
+
+#define cs_G  0
+#define cs_Cd 2
+#define cs_z  0
+#define cs_M  0
+#define cs_ci 0
+#define cs_NAME_ ComposeSceneFP_S_d___
+
+#endif
+
+#ifdef main_ComposeSceneFP_S_dz__
+
+#define cs_G  0
+#define cs_Cd 2
+#define cs_z  1
+#define cs_M  0
+#define cs_ci 0
+#define cs_NAME_ ComposeSceneFP_S_dz__
+
+#endif
+
+#ifdef main_ComposeSceneFP_SGd___
+
+#define cs_G  1
+#define cs_Cd 2
+#define cs_z  0
+#define cs_M  0
+#define cs_ci 0
+#define cs_NAME_ ComposeSceneFP_SGd___
+
+#endif
+
+#ifdef main_ComposeSceneFP_SGdz__
+
+#define cs_G  1
+#define cs_Cd 2
+#define cs_z  1
+#define cs_M  0
+#define cs_ci 0
+#define cs_NAME_ ComposeSceneFP_SGdz__
+
+#endif
+
+#ifdef main_ComposeSceneFP_S___M_
+
+#define cs_G  0
+#define cs_Cd 0
+#define cs_z  0
+#define cs_M  1
+#define cs_ci 0
+#define cs_NAME_ ComposeSceneFP_S___M_
+
+#endif
+
+#ifdef main_ComposeSceneFP_S__zM_
+
+#define cs_G  0
+#define cs_Cd 0
+#define cs_z  1
+#define cs_M  1
+#define cs_ci 0
+#define cs_NAME_ ComposeSceneFP_S__zM_
+
+#endif
+
+#ifdef main_ComposeSceneFP_SG__M_
+
+#define cs_G  1
+#define cs_Cd 0
+#define cs_z  0
+#define cs_M  1
+#define cs_ci 0
+#define cs_NAME_ ComposeSceneFP_SG__M_
+
+#endif
+
+#ifdef main_ComposeSceneFP_SG_zM_
+
+#define cs_G  1
+#define cs_Cd 0
+#define cs_z  1
+#define cs_M  1
+#define cs_ci 0
+#define cs_NAME_ ComposeSceneFP_SG_zM_
+
+#endif
+
+#ifdef main_ComposeSceneFP_S_C_M_
+
+#define cs_G  0
+#define cs_Cd 1
+#define cs_z  0
+#define cs_M  1
+#define cs_ci 0
+#define cs_NAME_ ComposeSceneFP_S_C_M_
+
+#endif
+
+#ifdef main_ComposeSceneFP_S_CzM_
+
+#define cs_G  0
+#define cs_Cd 1
+#define cs_z  1
+#define cs_M  1
+#define cs_ci 0
+#define cs_NAME_ ComposeSceneFP_S_CzM_
+
+#endif
+
+#ifdef main_ComposeSceneFP_SGC_M_
+
+#define cs_G  1
+#define cs_Cd 1
+#define cs_z  0
+#define cs_M  1
+#define cs_ci 0
+#define cs_NAME_ ComposeSceneFP_SGC_M_
+
+#endif
+
+#ifdef main_ComposeSceneFP_SGCzM_
+
+#define cs_G  1
+#define cs_Cd 1
+#define cs_z  1
+#define cs_M  1
+#define cs_ci 0
+#define cs_NAME_ ComposeSceneFP_SGCzM_
+
+#endif
+
+#ifdef main_ComposeSceneFP_S_d_M_
+
+#define cs_G  0
+#define cs_Cd 2
+#define cs_z  0
+#define cs_M  1
+#define cs_ci 0
+#define cs_NAME_ ComposeSceneFP_S_d_M_
+
+#endif
+
+#ifdef main_ComposeSceneFP_S_dzM_
+
+#define cs_G  0
+#define cs_Cd 2
+#define cs_z  1
+#define cs_M  1
+#define cs_ci 0
+#define cs_NAME_ ComposeSceneFP_S_dzM_
+
+#endif
+
+#ifdef main_ComposeSceneFP_SGd_M_
+
+#define cs_G  1
+#define cs_Cd 2
+#define cs_z  0
+#define cs_M  1
+#define cs_ci 0
+#define cs_NAME_ ComposeSceneFP_SGd_M_
+
+#endif
+
+#ifdef main_ComposeSceneFP_SGdzM_
+
+#define cs_G  1
+#define cs_Cd 2
+#define cs_z  1
+#define cs_M  1
+#define cs_ci 0
+#define cs_NAME_ ComposeSceneFP_SGdzM_
+
+#endif
+
+#ifdef main_ComposeSceneFP_S____i
+
+#define cs_G  0
+#define cs_Cd 0
+#define cs_z  0
+#define cs_M  0
+#define cs_ci 1
+#define cs_NAME_ ComposeSceneFP_S____i
+
+#endif
+
+#ifdef main_ComposeSceneFP_S__z_i
+
+#define cs_G  0
+#define cs_Cd 0
+#define cs_z  1
+#define cs_M  0
+#define cs_ci 1
+#define cs_NAME_ ComposeSceneFP_S__z_i
+
+#endif
+
+#ifdef main_ComposeSceneFP_SG___i
+
+#define cs_G  1
+#define cs_Cd 0
+#define cs_z  0
+#define cs_M  0
+#define cs_ci 1
+#define cs_NAME_ ComposeSceneFP_SG___i
+
+#endif
+
+#ifdef main_ComposeSceneFP_SG_z_i
+
+#define cs_G  1
+#define cs_Cd 0
+#define cs_z  1
+#define cs_M  0
+#define cs_ci 1
+#define cs_NAME_ ComposeSceneFP_SG_z_i
+
+#endif
+
+#ifdef main_ComposeSceneFP_S_C__i
+
+#define cs_G  0
+#define cs_Cd 1
+#define cs_z  0
+#define cs_M  0
+#define cs_ci 1
+#define cs_NAME_ ComposeSceneFP_S_C__i
+
+#endif
+
+#ifdef main_ComposeSceneFP_S_Cz_i
+
+#define cs_G  0
+#define cs_Cd 1
+#define cs_z  1
+#define cs_M  0
+#define cs_ci 1
+#define cs_NAME_ ComposeSceneFP_S_Cz_i
+
+#endif
+
+#ifdef main_ComposeSceneFP_SGC__i
+
+#define cs_G  1
+#define cs_Cd 1
+#define cs_z  0
+#define cs_M  0
+#define cs_ci 1
+#define cs_NAME_ ComposeSceneFP_SGC__i
+
+#endif
+
+#ifdef main_ComposeSceneFP_SGCz_i
+
+#define cs_G  1
+#define cs_Cd 1
+#define cs_z  1
+#define cs_M  0
+#define cs_ci 1
+#define cs_NAME_ ComposeSceneFP_SGCz_i
+
+#endif
+
+#ifdef main_ComposeSceneFP_S_d__i
+
+#define cs_G  0
+#define cs_Cd 2
+#define cs_z  0
+#define cs_M  0
+#define cs_ci 1
+#define cs_NAME_ ComposeSceneFP_S_d__i
+
+#endif
+
+#ifdef main_ComposeSceneFP_S_dz_i
+
+#define cs_G  0
+#define cs_Cd 2
+#define cs_z  1
+#define cs_M  0
+#define cs_ci 1
+#define cs_NAME_ ComposeSceneFP_S_dz_i
+
+#endif
+
+#ifdef main_ComposeSceneFP_SGd__i
+
+#define cs_G  1
+#define cs_Cd 2
+#define cs_z  0
+#define cs_M  0
+#define cs_ci 1
+#define cs_NAME_ ComposeSceneFP_SGd__i
+
+#endif
+
+#ifdef main_ComposeSceneFP_SGdz_i
+
+#define cs_G  1
+#define cs_Cd 2
+#define cs_z  1
+#define cs_M  0
+#define cs_ci 1
+#define cs_NAME_ ComposeSceneFP_SGdz_i
+
+#endif
+
+#ifdef main_ComposeSceneFP_S___Mi
+
+#define cs_G  0
+#define cs_Cd 0
+#define cs_z  0
+#define cs_M  1
+#define cs_ci 1
+#define cs_NAME_ ComposeSceneFP_S___Mi
+
+#endif
+
+#ifdef main_ComposeSceneFP_S__zMi
+
+#define cs_G  0
+#define cs_Cd 0
+#define cs_z  1
+#define cs_M  1
+#define cs_ci 1
+#define cs_NAME_ ComposeSceneFP_S__zMi
+
+#endif
+
+#ifdef main_ComposeSceneFP_SG__Mi
+
+#define cs_G  1
+#define cs_Cd 0
+#define cs_z  0
+#define cs_M  1
+#define cs_ci 1
+#define cs_NAME_ ComposeSceneFP_SG__Mi
+
+#endif
+
+#ifdef main_ComposeSceneFP_SG_zMi
+
+#define cs_G  1
+#define cs_Cd 0
+#define cs_z  1
+#define cs_M  1
+#define cs_ci 1
+#define cs_NAME_ ComposeSceneFP_SG_zMi
+
+#endif
+
+#ifdef main_ComposeSceneFP_S_C_Mi
+
+#define cs_G  0
+#define cs_Cd 1
+#define cs_z  0
+#define cs_M  1
+#define cs_ci 1
+#define cs_NAME_ ComposeSceneFP_S_C_Mi
+
+#endif
+
+#ifdef main_ComposeSceneFP_S_CzMi
+
+#define cs_G  0
+#define cs_Cd 1
+#define cs_z  1
+#define cs_M  1
+#define cs_ci 1
+#define cs_NAME_ ComposeSceneFP_S_CzMi
+
+#endif
+
+#ifdef main_ComposeSceneFP_SGC_Mi
+
+#define cs_G  1
+#define cs_Cd 1
+#define cs_z  0
+#define cs_M  1
+#define cs_ci 1
+#define cs_NAME_ ComposeSceneFP_SGC_Mi
+
+#endif
+
+#ifdef main_ComposeSceneFP_SGCzMi
+
+#define cs_G  1
+#define cs_Cd 1
+#define cs_z  1
+#define cs_M  1
+#define cs_ci 1
+#define cs_NAME_ ComposeSceneFP_SGCzMi
+
+#endif
+
+#ifdef main_ComposeSceneFP_S_d_Mi
+
+#define cs_G  0
+#define cs_Cd 2
+#define cs_z  0
+#define cs_M  1
+#define cs_ci 1
+#define cs_NAME_ ComposeSceneFP_S_d_Mi
+
+#endif
+
+#ifdef main_ComposeSceneFP_S_dzMi
+
+#define cs_G  0
+#define cs_Cd 2
+#define cs_z  1
+#define cs_M  1
+#define cs_ci 1
+#define cs_NAME_ ComposeSceneFP_S_dzMi
+
+#endif
+
+#ifdef main_ComposeSceneFP_SGd_Mi
+
+#define cs_G  1
+#define cs_Cd 2
+#define cs_z  0
+#define cs_M  1
+#define cs_ci 1
+#define cs_NAME_ ComposeSceneFP_SGd_Mi
+
+#endif
+
+#ifdef main_ComposeSceneFP_SGdzMi
+
+#define cs_G  1
+#define cs_Cd 2
+#define cs_z  1
+#define cs_M  1
+#define cs_ci 1
+#define cs_NAME_ ComposeSceneFP_SGdzMi
+
+#endif
+
+#ifdef main_ComposeSceneFP_S____c
+
+#define cs_G  0
+#define cs_Cd 0
+#define cs_z  0
+#define cs_M  0
+#define cs_ci 2
+#define cs_NAME_ ComposeSceneFP_S____c
+
+#endif
+
+#ifdef main_ComposeSceneFP_S__z_c
+
+#define cs_G  0
+#define cs_Cd 0
+#define cs_z  1
+#define cs_M  0
+#define cs_ci 2
+#define cs_NAME_ ComposeSceneFP_S__z_c
+
+#endif
+
+#ifdef main_ComposeSceneFP_SG___c
+
+#define cs_G  1
+#define cs_Cd 0
+#define cs_z  0
+#define cs_M  0
+#define cs_ci 2
+#define cs_NAME_ ComposeSceneFP_SG___c
+
+#endif
+
+#ifdef main_ComposeSceneFP_SG_z_c
+
+#define cs_G  1
+#define cs_Cd 0
+#define cs_z  1
+#define cs_M  0
+#define cs_ci 2
+#define cs_NAME_ ComposeSceneFP_SG_z_c
+
+#endif
+
+#ifdef main_ComposeSceneFP_S_C__c
+
+#define cs_G  0
+#define cs_Cd 1
+#define cs_z  0
+#define cs_M  0
+#define cs_ci 2
+#define cs_NAME_ ComposeSceneFP_S_C__c
+
+#endif
+
+#ifdef main_ComposeSceneFP_S_Cz_c
+
+#define cs_G  0
+#define cs_Cd 1
+#define cs_z  1
+#define cs_M  0
+#define cs_ci 2
+#define cs_NAME_ ComposeSceneFP_S_Cz_c
+
+#endif
+
+#ifdef main_ComposeSceneFP_SGC__c
+
+#define cs_G  1
+#define cs_Cd 1
+#define cs_z  0
+#define cs_M  0
+#define cs_ci 2
+#define cs_NAME_ ComposeSceneFP_SGC__c
+
+#endif
+
+#ifdef main_ComposeSceneFP_SGCz_c
+
+#define cs_G  1
+#define cs_Cd 1
+#define cs_z  1
+#define cs_M  0
+#define cs_ci 2
+#define cs_NAME_ ComposeSceneFP_SGCz_c
+
+#endif
+
+#ifdef main_ComposeSceneFP_S_d__c
+
+#define cs_G  0
+#define cs_Cd 2
+#define cs_z  0
+#define cs_M  0
+#define cs_ci 2
+#define cs_NAME_ ComposeSceneFP_S_d__c
+
+#endif
+
+#ifdef main_ComposeSceneFP_S_dz_c
+
+#define cs_G  0
+#define cs_Cd 2
+#define cs_z  1
+#define cs_M  0
+#define cs_ci 2
+#define cs_NAME_ ComposeSceneFP_S_dz_c
+
+#endif
+
+#ifdef main_ComposeSceneFP_SGd__c
+
+#define cs_G  1
+#define cs_Cd 2
+#define cs_z  0
+#define cs_M  0
+#define cs_ci 2
+#define cs_NAME_ ComposeSceneFP_SGd__c
+
+#endif
+
+#ifdef main_ComposeSceneFP_SGdz_c
+
+#define cs_G  1
+#define cs_Cd 2
+#define cs_z  1
+#define cs_M  0
+#define cs_ci 2
+#define cs_NAME_ ComposeSceneFP_SGdz_c
+
+#endif
+
+#ifdef main_ComposeSceneFP_S___Mc
+
+#define cs_G  0
+#define cs_Cd 0
+#define cs_z  0
+#define cs_M  1
+#define cs_ci 2
+#define cs_NAME_ ComposeSceneFP_S___Mc
+
+#endif
+
+#ifdef main_ComposeSceneFP_S__zMc
+
+#define cs_G  0
+#define cs_Cd 0
+#define cs_z  1
+#define cs_M  1
+#define cs_ci 2
+#define cs_NAME_ ComposeSceneFP_S__zMc
+
+#endif
+
+#ifdef main_ComposeSceneFP_SG__Mc
+
+#define cs_G  1
+#define cs_Cd 0
+#define cs_z  0
+#define cs_M  1
+#define cs_ci 2
+#define cs_NAME_ ComposeSceneFP_SG__Mc
+
+#endif
+
+#ifdef main_ComposeSceneFP_SG_zMc
+
+#define cs_G  1
+#define cs_Cd 0
+#define cs_z  1
+#define cs_M  1
+#define cs_ci 2
+#define cs_NAME_ ComposeSceneFP_SG_zMc
+
+#endif
+
+#ifdef main_ComposeSceneFP_S_C_Mc
+
+#define cs_G  0
+#define cs_Cd 1
+#define cs_z  0
+#define cs_M  1
+#define cs_ci 2
+#define cs_NAME_ ComposeSceneFP_S_C_Mc
+
+#endif
+
+#ifdef main_ComposeSceneFP_S_CzMc
+
+#define cs_G  0
+#define cs_Cd 1
+#define cs_z  1
+#define cs_M  1
+#define cs_ci 2
+#define cs_NAME_ ComposeSceneFP_S_CzMc
+
+#endif
+
+#ifdef main_ComposeSceneFP_SGC_Mc
+
+#define cs_G  1
+#define cs_Cd 1
+#define cs_z  0
+#define cs_M  1
+#define cs_ci 2
+#define cs_NAME_ ComposeSceneFP_SGC_Mc
+
+#endif
+
+#ifdef main_ComposeSceneFP_SGCzMc
+
+#define cs_G  1
+#define cs_Cd 1
+#define cs_z  1
+#define cs_M  1
+#define cs_ci 2
+#define cs_NAME_ ComposeSceneFP_SGCzMc
+
+#endif
+
+#ifdef main_ComposeSceneFP_S_d_Mc
+
+#define cs_G  0
+#define cs_Cd 2
+#define cs_z  0
+#define cs_M  1
+#define cs_ci 2
+#define cs_NAME_ ComposeSceneFP_S_d_Mc
+
+#endif
+
+#ifdef main_ComposeSceneFP_S_dzMc
+
+#define cs_G  0
+#define cs_Cd 2
+#define cs_z  1
+#define cs_M  1
+#define cs_ci 2
+#define cs_NAME_ ComposeSceneFP_S_dzMc
+
+#endif
+
+#ifdef main_ComposeSceneFP_SGd_Mc
+
+#define cs_G  1
+#define cs_Cd 2
+#define cs_z  0
+#define cs_M  1
+#define cs_ci 2
+#define cs_NAME_ ComposeSceneFP_SGd_Mc
+
+#endif
+
+#ifdef main_ComposeSceneFP_SGdzMc
+
+#define cs_G  1
+#define cs_Cd 2
+#define cs_z  1
+#define cs_M  1
+#define cs_ci 2
+#define cs_NAME_ ComposeSceneFP_SGdzMc
+
+#endif
+
+// WhirlPinch
+// ラスボス部屋用。ソースにクロスフェード画面を用いる。
+// モノトーンなし
+
+
+#ifdef main_ComposeSceneFP_WhirlPinch
+
+#define cs_Cd  0
+#define cs_NAME_ ComposeSceneFP_WhirlPinch
+
+#define USE_WhirlPinch
+#endif
+
+
+#ifdef main_ComposeSceneFP_WhirlPinchD
+
+#define cs_Cd  2
+#define cs_NAME_ ComposeSceneFP_WhirlPinchD
+
+#define USE_WhirlPinch
+#endif
+
+
+// UVWarp - Displacement
+// モノトーンは常時適用
+
+
+
+#ifdef main_ComposeSceneFP_UVWarp
+
+#define cs_Cd  0
+#define cs_M  0
+#define cs_NAME_ ComposeSceneFP_UVWarp
+
+#define USE_UVWarp
+#endif
+
+#ifdef main_ComposeSceneFP_UVWarpM
+
+#define cs_Cd  0
+#define cs_M  1
+#define cs_NAME_ ComposeSceneFP_UVWarpM
+
+#define USE_UVWarp
+#endif
+
+
+#ifdef main_ComposeSceneFP_UVWarpD
+
+#define cs_Cd  2
+#define cs_M  0
+#define cs_NAME_ ComposeSceneFP_UVWarpD
+
+#define USE_UVWarp
+#endif
+
+
+#ifdef main_ComposeSceneFP_UVWarpDM
+
+#define cs_Cd  2
+#define cs_M  1
+#define cs_NAME_ ComposeSceneFP_UVWarpDM
+
+#define USE_UVWarp
+#endif
+
+
+// MotionBlur
+// モノトーンなし
+#ifdef main_ComposeSceneFP_MotionBlur
+
+#define USE_MotionBlur
+
+half4 ComposeSceneFP_MotionBlur(ComposeSceneVPOutput IN)
+{
+//	half height = MotionBlur.x;
+//	half range = MotionBlur.y;
+
+	half scale_x = 1280/720.0;
+
+	half scale_y = 1.25;
+
+	half2 uv = half2(0.0,0.0);
+
+	half cen_x = 0.5;
+	half cen_y = 0.5;
+//	half radius = 1.0;
+
+	half2 dd = (IN.ScreenUv - half2(cen_x, cen_y)) * half2(scale_x, scale_y);
+
+//	half rad2 = radius * radius * wpradius;
+	half d = dd.x * dd.x + dd.y * dd.y;
+	uv = dd / d * MotionBlurParams.x;
+
+	half3 color = _h4tex2Dlod(LinearClampSamplerState, ColorBuffer, (IN.ScreenUv + uv) * UvScaleBias.xy + UvScaleBias.zw, 0).rgb * ToneFactor.x;
+	half3 resultColor = color.rgb;
+	//
+	half4 cover = loadCoverTex(IN.ScreenUv);
+	resultColor += cover.rgb * cover.a;
+	//
+	return half4(resultColor, 1);
+}
+
+in	ComposeSceneVPOutput OUT;
+out vec4 out_FragColor;
+void main()
+{
+	out_FragColor = ComposeSceneFP_MotionBlur(OUT);
+}
+#endif //main_ComposeSceneFP_MotionBlur
+
+/*-------------------------postfx.cgfx↑----------------------------*/
+
+/*-------------------------postfx_composescene.inl↓----------------------------*/
+#if (!defined(USE_WhirlPinch) && !defined(USE_UVWarp) && !defined(USE_MotionBlur))
+
+half4 cs_NAME_ (ComposeSceneVPOutput IN)
+{
+#if (cs_z != 0) || (cs_Cd != 0)
+	float depth = getDepth(IN.ScreenUvScaled);
+#endif //!
+
+#if (cs_z != 0)
+	half3 color = getDofTexel(IN.ScreenUv, IN.ScreenUvScaled, depth) * ToneFactor.x;
+#else //!
+	half3 color = _h4tex2Dlod(LinearClampSamplerState, ColorBuffer, IN.ScreenUv * UvScaleBias.xy + UvScaleBias.zw, 0).rgb * ToneFactor.x;
+#endif //!
+
+	half3 resultColor = color.rgb;
+
+#if (cs_G != 0)
+	half3 glow = loadGlowTex(IN.ScreenUv).rgb * half(GlowIntensity.w);
+//	resultColor = resultColor + glow;	// 加算合成
+	resultColor = glow * (1 - resultColor) + resultColor;	// スクリーン合成
+#endif //!
+
+#if (cs_Cd != 0)
+	half4 cover = loadCoverTex(IN.ScreenUv);
+	resultColor += cover.rgb * cover.a
+	#if (cs_Cd == 2)
+			* getCoverFilterDof(depth)
+	#endif //!
+		;
+#endif //!
+
+#if (cs_M != 0)
+	half3 mono = dot(resultColor, half3(0.299, 0.587, 0.114)) * half3(MonotoneMul.rgb) + half3(MonotoneAdd.rgb);
+	resultColor = lerp(resultColor, mono, half(MonotoneMul.a));
+#endif //!
+
+#if (cs_ci != 0)
+	#if (cs_ci == 1)
+	half4 fading = _h4tex2Dlod(LinearClampSamplerState, FadingTexture, IN.ScreenUv, 0) * half4(FadingColor);
+	#else
+	half4 fading = half4(FadingColor);
+	#endif
+	resultColor = lerp(resultColor.rgb, fading.rgb, fading.a);
+#endif //!
+
+	return half4(resultColor, 1);
+}
+
+in ComposeSceneVPOutput OUT;
+out vec4 out_FragColor;
+
+void main()
+{
+	out_FragColor = cs_NAME_(OUT);
+}
+
+#endif // !defined(USE_WhirlPinch) && !defined(USE_UVWarp) && !defined(USE_MotionBlur))
+/*-------------------------postfx_composescene.inl↑----------------------------*/
+
+
+/*-------------------------postfx_composescene_WhirlPinch.inl↓----------------------------*/
+
+#ifdef USE_WhirlPinch
+half4 cs_NAME_(ComposeSceneVPOutput IN)
+{
+	half scale_x = SCREEN_WIDTH / SCREEN_HEIGHT;
+	half scale_y = 1.25;
+
+	half cen_x = 0.5;
+	half cen_y = 0.5;
+
+	half2 uv;
+	half2 uvScaled;
+	half2 dd = (IN.ScreenUv - half2(cen_x, cen_y)) * half2(scale_x, scale_y);
+
+	half d = dd.x * dd.x + dd.y * dd.y;
+
+	if ((d < WhirlPinchParams.z) && (d > 0))
+	{
+		half dist = sqrt(d / WhirlPinchParams.z);
+		half factor = pow(abs(sin(1.57079632679489661923 * dist)), -WhirlPinchParams.y);
+		dd.xy *= factor;
+		
+		factor = 1.0 - dist;
+		half ang = WhirlPinchParams.x * factor * factor;
+
+		half sina, cosa;
+		sina = sin(ang);
+		cosa = cos(ang);
+
+		uv.xy = half2(cosa * dd.x - sina * dd.y, sina * dd.x + cosa * dd.y) / half2(scale_x, scale_y) + half2(cen_x, cen_y);
+		uvScaled = uv * UvScaleBias.xy + UvScaleBias.zw;
+	}
+	else
+	{
+		uv = IN.ScreenUv;
+		uvScaled = IN.ScreenUvScaled.xy;
+	}
+
+#if (cs_z != 0) || (cs_Cd != 0)
+	float depth = getDepth(uvScaled);
+#endif //!
+
+#if (cs_z != 0)
+	half3 color = getDofTexel(uv, uvScaled, depth) * ToneFactor.x;
+#else //!
+	half3 color = _h4tex2Dlod(LinearClampSamplerState, ColorBuffer, uvScaled, 0).rgb * ToneFactor.x;
+#endif //!
+	half3 resultColor = color.rgb;
+	//
+	half3 glow = loadGlowTex(uv).rgb * half(GlowIntensity.w);
+//	resultColor = resultColor + glow;	// 加算合成
+	resultColor = glow * (1 - resultColor) + resultColor;	// スクリーン合成
+	//
+	half4 cover = loadCoverTex(IN.ScreenUv);
+	resultColor += cover.rgb * cover.a
+	#if (cs_Cd == 2)
+			* getCoverFilterDof(depth)
+	#endif //!
+		;
+	//
+
+	return half4(resultColor, 1);
+}
+
+in ComposeSceneVPOutput OUT;
+out vec4 out_FragColor;
+
+void main()
+{
+	out_FragColor = cs_NAME_(OUT);
+}
+
+#endif //USE_WhirlPinch
+/*-------------------------postfx_composescene_WhirlPinch.inl↑----------------------------*/
+
+
+/*-------------------------postfx_composescene_UVWarp.inl↓----------------------------*/
+#ifdef USE_UVWarp
+
+half4 cs_NAME_(ComposeSceneUVWarpVPOutput IN)
+{
+	const float PI = 3.141592653;
+	const float ROLL_NOISE_SCALE = PI * 1.5f;	
+	const float WAVE_H_VALUE = 11.00f;
+	const float WAVE_V_VALUE = 4.90f;
+
+	float randomness = (_h4tex2Dlod(LinearWrapSamplerState, DisplacementTexture, IN.NoiseUv.xy, 0).r - 0.5) * (2.0 * ROLL_NOISE_SCALE) * UVWarpParams.w;
+	float2 uv = IN.ScreenUv;
+
+	// x 強さ 0～
+	// y 振幅 ドット数(1280x720換算)
+	// z 位相係数 0～1～10
+	// w 位相ずらし -1～0～1
+
+	float2 tt = (IN.ScreenUv + IN.NoiseUv.zz) * UVWarpParams.zz;
+	float2 ws = float2(UVWarpParams.y * UVWarpParams.x * (1.0 / WAVE_H_VALUE),
+					   UVWarpParams.y * UVWarpParams.x * (1.0 / WAVE_V_VALUE));
+	uv += float2(sin( tt.y * PI * 2 * WAVE_H_VALUE + randomness) * ws.x * ((1.0 / SCREEN_WIDTH) * (SCREEN_WIDTH/SCREEN_HEIGHT)),
+				 cos( tt.x * PI * 2 * WAVE_V_VALUE + randomness) * ws.y * ((1.0 / SCREEN_HEIGHT)));
+
+	float2 uvScaled = uv * UvScaleBias.xy + UvScaleBias.zw;
+
+#if (cs_z != 0) || (cs_Cd != 0)
+	float depth = getDepth(uvScaled);
+#endif //!
+
+#if (cs_z != 0)
+	half3 color = getDofTexel(uv, uvScaled, depth) * ToneFactor.x;
+#else //!
+	half3 color = _h4tex2Dlod(LinearClampSamplerState, ColorBuffer, uvScaled, 0).rgb * ToneFactor.x;
+#endif //!
+	half3 resultColor = color.rgb;
+	//
+	half3 glow = loadGlowTex(uv).rgb * half(GlowIntensity.w);
+//	resultColor = resultColor + glow;	// 加算合成
+	resultColor = glow * (1 - resultColor) + resultColor;	// スクリーン合成
+	//
+	half4 cover = loadCoverTex(IN.ScreenUv);
+	resultColor += cover.rgb * cover.a
+	#if (cs_Cd == 2)
+			* getCoverFilterDof(depth)
+	#endif //!
+		;
+	//
+
+
+#if (cs_M != 0)
+	half3 mono = dot(resultColor, half3(0.299, 0.587, 0.114)) * half3(MonotoneMul.rgb) + half3(MonotoneAdd.rgb);
+	resultColor = lerp(resultColor, mono, half(MonotoneMul.a));
+#endif //!
+	//
+	return half4(resultColor, 1);
+}
+
+in ComposeSceneUVWarpVPOutput OUT;
+out vec4 out_FragColor;
+
+void main()
+{
+	out_FragColor = cs_NAME_(OUT);
+}
+
+#endif //USE_UVWarp
+/*-------------------------postfx_composescene_UVWarp.inl↑----------------------------*/
+

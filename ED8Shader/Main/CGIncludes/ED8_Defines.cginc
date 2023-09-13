@@ -10,83 +10,12 @@
     #define SHADOW_COORDS(idx1) unityShadowCoord2 _ShadowCoord : TEXCOORD##idx1;
 #endif
 
-/*
-{
-    #define WATER_SURFACE_ENABLED
-    #define GLARE_MAP_ENABLED
-    #define NOTHING_ENABLED
-    #define CASTS_SHADOWS_ONLY
-    #define CASTS_SHADOWS
-    #define RECEIVE_SHADOWS
-    #define GENERATE_RELFECTION_ENABLED
-    #define UNDER_WATER_ENABLED
-    #define ALPHA_TESTING_ENABLED
-    #define ALPHA_BLENDING_ENABLED 
-    #define ADDITIVE_BLENDING_ENABLED 
-    #define SUBTRACT_BLENDING_ENABLED 
-    #define MULTIPLICATIVE_BLENDING_ENABLED 
-    #define TWOPASS_ALPHA_BLENDING_ENABLED
-    #define DOUBLE_SIDED
-    #define SHDOW_DOUBLE_SIDED
-    #define FOG_ENABLED
-    #define FOG_RATIO_ENABLED
-    #define VERTEX_COLOR_ENABLED VERTEXLIGHT_ON
-    #define TEXCOORD_OFFSET_ENABLED
-    #define FORCE_CHAR_LIGHT_DIRECTION_ENABLED
-    #define HEMISPHERE_AMBIENT_ENABLED
-    #define MULTIPLEX_HEMISPHERE_AMBIENT_ENABLED
-    #define SHADOW_COLOR_SHIFT_ENABLED
-    #define	NO_ALL_LIGHTING_ENABLED
-    #define	NO_MAIN_LIGHT_SHADING_ENABLED
-    #define USE_PER_VERTEX_LIGHTING
-    #define	HALF_LAMBERT_LIGHTING_ENABLED 
-    #define	CARTOON_SHADING_ENABLED 
-    #define	CARTOON_HILIGHT_ENABLED 
-    #define	CUSTOM_DIFFUSE_ENABLED 
-    #define	NORMAL_MAPPING_ENABLED 
-    #define	OCCULUSION_MAPPING_ENABLED 
-    #define	PROJECTION_MAP_ENABLED
-    #define	EMISSION_MAPPING_ENABLED 
-    #define	SPECULAR_ENABLED 
-    #define	SPECULAR_MAPPING_ENABLED 
-    #define	FAKE_CONSTANT_SPECULAR_ENABLED
-    #define	PER_MATERIAL_MAIN_LIGHT_CLAMP_ENABLED
-    #define	RIM_LIGHTING_ENABLED 
-    #define	RIM_TRANSPARENCY_ENABLED 
-    #define	SPHERE_MAPPING_ENABLED 
-    #define	CUBE_MAPPING_ENABLED 
-    #define	EMVMAP_AS_IBL_ENABLED
-    #define	DUDV_MAPPING_ENABLED 
-    #define	WATER_SURFACE_ENABLED 
-    #define	NORMAL_MAPP_DXT5_NM_ENABLED 
-    #define	NORMAL_MAPP_DXT5_LP_ENABLED 
-    #define	WINDY_GRASS_ENABLED 
-    #define	WINDY_GRASS_TEXV_WEIGHT_ENABLED 
-    #define	GLARE_HIGHTPASS_ENABLED 
-    #define	GLARE_EMISSION_ENABLED 
-    #define	GLARE_MAP_ENABLED 
-    #define	MULTI_UV_ENANLED
-    #define	MULTI_UV_ADDITIVE_BLENDING_ENANLED
-    #define	MULTI_UV_MULTIPLICATIVE_BLENDING_ENANLED
-    #define	MULTI_UV_SHADOW_ENANLED
-    #define	MULTI_UV_FACE_ENANLED
-    #define	MULTI_UV_TEXCOORD_OFFSET_ENABLED
-    #define	MULTI_UV_NORMAL_MAPPING_ENABLED 
-    #define	MULTI_UV_OCCULUSION_MAPPING_ENABLED 
-    #define	MULTI_UV_SPECULAR_MAPPING_ENABLED 
-    #define	MULTI_UV_NO_DIFFUSE_MAPPING_ENANLED
-    #define	MULTI_UV2_ENANLED
-    #define	MULTI_UV2_ADDITIVE_BLENDING_ENANLED
-    #define	MULTI_UV2_MULTIPLICATIVE_BLENDING_ENANLED
-    #define	MULTI_UV2_SHADOW_ENANLED
-    #define	MULTI_UV2_FACE_ENANLED
-    #define	MULTI_UV2_TEXCOORD_OFFSET_ENABLED
-    #define	MULTI_UV2_OCCULUSION_MAPPING_ENABLED 
-    #define	MULTI_UV2_SPECULAR_MAPPING_ENABLED 
-    #define	MULTI_UV2_NO_DIFFUSE_MAPPING_ENANLED
-    #define	DIFFUSEMAP_CHANGING_ENABLED
-}
-*/
+//=============================================================================
+// マテリアルスイッチのプリプロセス
+//=============================================================================
+
+// ブルームは常時ON
+#define BLOOM_ENABLED
 
 #if !defined(NOTHING_ENABLED)
 	#if !defined(LIGHTING_ENABLED)
@@ -100,47 +29,7 @@
 	#define USE_LIGHTING
 #endif
 
-//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-#define TOON_FIRST_LIGHT_ONLY_ENABLED
-#define USE_EDGE_ADDUNSAT
-
-// 頂点タンジェント
-#if (defined(NORMAL_MAPPING_ENABLED) || defined(MULTI_UV_NORMAL_MAPPING_ENABLED))
-	#define USE_TANGENTS
-#endif // (defined(NORMAL_MAPPING_ENABLED) || defined(NORMAL_MAPPING2_ENABLED)) && !defined(USE_PER_VERTEX_LIGHTING)
-
-// アルファブレンド
-#if !defined(ALPHA_BLENDING_ENABLED)
-	#undef ADDITIVE_BLENDING_ENABLED
-	#undef SUBTRACT_BLENDING_ENABLED
-	#undef MULTIPLICATIVE_BLENDING_ENABLED
-#endif // !defined(ALPHA_BLENDING_ENABLED)
-
-#if defined(ADDITIVE_BLENDING_ENABLED) || defined(SUBTRACT_BLENDING_ENABLED) || defined(MULTIPLICATIVE_BLENDING_ENABLED)
-	#define USE_EXTRA_BLENDING
-#endif
-
-// 2パスアルファ
-#if !defined(ALPHA_BLENDING_ENABLED) || defined(USE_EXTRA_BLENDING)
-	#undef TWOPASS_ALPHA_BLENDING_ENABLED
-#endif //
-
-// トゥーンの場合で、半球環境光がなければつける。ただ、明示的に3値でなければ
-#if defined(CARTOON_SHADING_ENABLED) || !defined(NO_MAIN_LIGHT_SHADING_ENABLED)
-	#if !defined(HEMISPHERE_AMBIENT_ENABLED) && !defined(MULTIPLEX_HEMISPHERE_AMBIENT_ENABLED)
-		#define HEMISPHERE_AMBIENT_ENABLED
-		#define MULTIPLEX_HEMISPHERE_AMBIENT_ENABLED
-	#endif
-#endif
-
-// 背景の書割とか、どう考えても頂点単位のライトで十分な場所を明示的に指定することにする
-// トゥーン
-#if defined(CARTOON_SHADING_ENABLED)
-	#undef WINDY_GRASS_ENABLED
-	#define CARTOON_AVOID_SELFSHADOW_OFFSET
-#endif // defined(CARTOON_SHADING_ENABLED)
-
-// マルチUV
+// 非マルチテクスチャなら関連スイッチを無効化
 #if !defined(MULTI_UV_ENANLED)
 	#undef MULTI_UV_ADDITIVE_BLENDING_ENANLED
 	#undef MULTI_UV_MULTIPLICATIVE_BLENDING_ENANLED
@@ -181,13 +70,23 @@
 	#undef MULTI_UV2_SHADOW_ENANLED
 #endif
 
+// マルチUV2と排他なものを無効化
+#if defined(MULTI_UV2_ENANLED)
+	#undef SPHERE_MAPPING_ENABLED
+    #undef SPHERE_MAPPING_HAIRCUTICLE_ENABLED
+	#undef CUBE_MAPPING_ENABLED
+#endif
+
+#if defined(SPHERE_MAPPING_ENABLED)
+	#undef SPHERE_MAPPING_HAIRCUTICLE_ENABLED
+#endif
+
 /*
 #if defined(WATER_SURFACE_ENABLED)
-    #undef ALPHA_BLENDING_ENABLED
-    #undef ADDITIVE_BLENDING_ENABLED
-    #undef SUBTRACT_BLENDING_ENABLED
-    #undef MULTIPLICATIVE_BLENDING_ENABLED
-    #undef USE_EXTRA_BLENDING
+	#undef ALPHA_BLENDING_ENABLED
+	#undef ADDITIVE_BLENDING_ENABLED
+	#undef SUBTRACT_BLENDING_ENABLED
+	#undef MULTIPLICATIVE_BLENDING_ENABLED
 #endif // defined(WATER_SURFACE_ENABLED)
 */
 
@@ -199,17 +98,42 @@
     uniform UNITY_DECLARE_DEPTH_TEXTURE(_CameraDepthTexture); uniform float4 _CameraDepthTexture_TexelSize;
 #endif
 
-#if defined(CUBE_MAPPING_ENABLED)
-	#undef SPHERE_MAPPING_ENABLED
-#endif // CUBE_MAPPING_ENABLED
-
-#define MAINLIGHT_CLAMP_FACTOR_ENABLED // Global or Material
-
-#if defined(CARTOON_SHADING_ENABLED)
-    #define LIGHT_DIRECTION_FOR_CHARACTER_ENABLED
-    #define SHINING_MODE_ENABLED
+#if !defined(ALPHA_BLENDING_ENABLED)
+	#undef ADDITIVE_BLENDING_ENABLED
+	#undef SUBTRACT_BLENDING_ENABLED
+	#undef MULTIPLICATIVE_BLENDING_ENABLED
 #endif
 
+#if defined(NORMAL_MAPPING_ENABLED) || defined(MULTI_UV_NORMAL_MAPPING_ENABLED)
+	#define USE_TANGENTS
+#endif
+
+#if defined(ADDITIVE_BLENDING_ENABLED) || defined(SUBTRACT_BLENDING_ENABLED) || defined(MULTIPLICATIVE_BLENDING_ENABLED)
+	#define USE_EXTRA_BLENDING
+#endif
+
+// トゥーンの場合で、半球環境光がなければつける。ただ、明示的に3値でなければ
+#if defined(CARTOON_SHADING_ENABLED) || !defined(NO_MAIN_LIGHT_SHADING_ENABLED)
+	#if !defined(HEMISPHERE_AMBIENT_ENABLED) && !defined(MULTIPLEX_HEMISPHERE_AMBIENT_ENABLED)
+		#define HEMISPHERE_AMBIENT_ENABLED
+		#define MULTIPLEX_HEMISPHERE_AMBIENT_ENABLED
+	#endif
+#endif
+
+// 背景の書割とか、どう考えても頂点単位のライトで十分な場所を明示的に指定することにする
+// トゥーン
+#if defined(CARTOON_SHADING_ENABLED)
+	#undef WINDY_GRASS_ENABLED
+	#define CARTOON_AVOID_SELFSHADOW_OFFSET
+#endif // defined(CARTOON_SHADING_ENABLED)
+
+#if defined(FORCE_CHAR_LIGHT_DIRECTION_ENABLED) || defined(CARTOON_SHADING_ENABLED)
+	#define LIGHT_DIRECTION_FOR_CHARACTER_ENABLED	//ゲーム内で「キャラ」パスで描画されるようになる
+#endif
+
+//-----------------------------------------------------------------------------
+// テクスチャ
+//-----------------------------------------------------------------------------
 #if defined(LIGHT_DIRECTION_FOR_CHARACTER_ENABLED)
     float3 _LightDirForChar;
 #endif // LIGHT_DIRECTION_FOR_CHARACTER_ENABLED
@@ -383,7 +307,7 @@ half4 _MainTex_ST;
     half _ShadowReceiveOffset;
 #endif // CARTOON_SHADING_ENABLED
 
-#if defined(SPHERE_MAPPING_ENABLED)
+#if defined(SPHERE_MAPPING_ENABLED) || defined(SPHERE_MAPPING_HAIRCUTICLE_ENABLED)
     sampler2D _SphereMapSampler;
     half _SphereMapIntensity;
 #endif // SPHERE_MAPPING_ENABLED
@@ -434,48 +358,54 @@ float4 _OutlineColorFactor;
 #endif // GLARE_MAP_ENABLED
 
 half _GlareIntensity;
+half _BloomIntensity;
 uniform half3 _UdonGlobalAmbientColor = half3(0.50f, 0.50f, 0.50f);
 uniform half3 _UdonMainLightColor = half3(1.0f, 0.9568f, 0.8392f);
+uniform half4 _UdonGlobalFilterColor = half4(0, 0, 0, 0);
 half _AdditionalShadowOffset;
+half _MaskEps;
+half4 _PointLightParams;
+half4 _PointLightColor;
 float _Culling;
 half _SrcBlend;
 half _DstBlend;
 
-//-----------------------------------------------------------------------------
+//=============================================================================
+// シェーダ入出力構造体
+//=============================================================================
 struct DefaultVPInput {
-    float4 vertex			    : POSITION;
-    float3 normal			    : NORMAL;
-    float2 uv			        : TEXCOORD0;
+	float3 vertex       : POSITION;
+	float3 normal       : NORMAL;
+	float2 uv           : TEXCOORD0;
 
     #if defined(VERTEX_COLOR_ENABLED)
-        float4 color		    : COLOR0;
-    #endif // VERTEX_COLOR_ENABLED
+        float4 color    : COLOR0;
+    #endif
 
     #if defined(USE_TANGENTS)
-        float4 tangent		    : TANGENT;
-    #endif // USE_TANGENTS
+        float4 tangent  : TANGENT;
+    #endif
 
     #if defined(MULTI_UV_ENANLED)
-        float2 uv2		        : TEXCOORD1;
-    #endif // MULTI_UV_ENANLED
+        float2 uv2      : TEXCOORD1;
+    #endif
 
     #if defined(MULTI_UV2_ENANLED)
-        float2 uv3		        : TEXCOORD2;
-    #endif // defined(MULTI_UV2_ENANLED)
+        float2 uv3      : TEXCOORD2;
+    #endif
+
     UNITY_VERTEX_INPUT_INSTANCE_ID
 };
 
-//-----------------------------------------------------------------------------
 struct DefaultVPOutput {
-    float4 pos			        : SV_POSITION;		// xyzw:[Proj]
-    centroid float4 Color0	    : COLOR0;		// xyzw:VertexColor x GameDiffuse
-    centroid float4 Color1			    : COLOR1;		// [V] xyz:000 w:Fog
-                                // [P] xyz:SubLight w:Fog
-    float2 uv			        : TEXCOORD0;	// xy: UV
-    float4 WorldPositionDepth   : TEXCOORD9;	// xyz[World]: w[View]:z
+    float4 pos                  : SV_POSITION;
+	centroid float4 Color0      : COLOR0;
+    centroid float4 Color1      : COLOR1;       // xyz = 未使用, w = フォグ計算結果
+	float2 uv                   : TEXCOORD0;
+	float4 WorldPositionDepth   : TEXCOORD9;    // xyz = ワールド座標, w = 視線方向のZ値
 
     #if defined(MULTI_UV_ENANLED)
-        float2 uv2		        : TEXCOORD1;	// xy: UV Vertex Alpha Lerp
+        float2 uv2		        : TEXCOORD1;    // xy: UV Vertex Alpha Lerp
     #endif // MULTI_UV_ENANLED
 
     #if defined(MULTI_UV2_ENANLED)
@@ -484,33 +414,34 @@ struct DefaultVPOutput {
 
     // Projection/Etc
     #if defined(PROJECTION_MAP_ENABLED)
-        float2 ProjMap			: TEXCOORD3;	// xy: Projection UV
+        float2 ProjMap	        : TEXCOORD3;    // xy: Projection UV
     #endif // PROJECTION_MAP_ENABLED
 
-    float3 normal			    : TEXCOORD4;		// xyz[World]: Normals
+    float3 normal	            : TEXCOORD4;    // xyz[World]: Normals
 
     #if defined(DUDV_MAPPING_ENABLED)
-        float2 DuDvTexCoord	    : TEXCOORD5;	// xy: DUDV
+        float2 DuDvTexCoord     : TEXCOORD5;	// xy: DUDV
     #endif
 
-    #if defined(USE_LIGHTING)
-        #if defined(USE_TANGENTS)
-            float3 tangent	    : TEXCOORD6;		// xyz[World]: Tangents
-            float3 binormal     : TEXCOORD12;
-        #endif // USE_TANGENTS
-    #endif // !USE_PER_VERTEX_LIGHTING && USE_LIGHTING
+    #if defined(USE_TANGENTS)
+        float3 tangent	    : TEXCOORD6;	// xyz[World]: Tangents
+        float3 binormal     : TEXCOORD12;
+    #endif // USE_TANGENTS
 
     #if defined(USE_SCREEN_UV)
-        float4 ReflectionMap	: TEXCOORD7;
+        float4 screenPos        : TEXCOORD7;
     #endif // defined(USE_SCREEN_UV)
 
     #if defined(CARTOON_SHADING_ENABLED)
         #if !defined(CUBE_MAPPING_ENABLED) && !defined(SPHERE_MAPPING_ENABLED)
-            float3 CartoonMap	: TEXCOORD11;	// xy: HiLight z:ldotn
+            float3 CartoonMap   : TEXCOORD11;  // xy: HiLight z:ldotn
         #endif // !defined(CUBE_MAPPING_ENABLED) && !defined(SPHERE_MAPPING_ENABLED)
     #endif // CUBE_MAPPING_ENABLED
 
-	SHADOW_COORDS(8)
+    //float4 instanceParam;
+	//float4 wvpPos;
+
+    SHADOW_COORDS(8)
     UNITY_VERTEX_INPUT_INSTANCE_ID
     UNITY_VERTEX_OUTPUT_STEREO
 };
@@ -524,10 +455,20 @@ struct EdgeVPInput {
 };
 
 struct EdgeVPOutput {
-    UNITY_POSITION(pos);		// xyzw:[Proj] 
+    UNITY_POSITION(pos);		                // xyzw:[Proj] 
     centroid float4 Color0		: COLOR0;		// xyzw:EdgeColor + GameEmission
     float4 Color1			    : COLOR1;		// [V] xyz:000 w:Fog
     float3 uv			        : TEXCOORD0;	// xy: z:Fog
+    float4 worldPos             :TEXCOORD1;     // xyz = ワールド座標, w = 未使用
     UNITY_VERTEX_INPUT_INSTANCE_ID
     UNITY_VERTEX_OUTPUT_STEREO
+};
+
+//-----------------------------------------------------------------------------
+// 深度値用
+//-----------------------------------------------------------------------------
+struct TransparentDepthVPOutput {
+	float4 Position;
+	float4 Color0;
+	float2 TexCoord;	// xy = テクスチャ座標, z = Fog
 };

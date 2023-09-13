@@ -1,0 +1,62 @@
+
+uniform sampler2D VideoScreenTexture;
+
+layout(std140) uniform Param
+{
+uniform float4 VideoParam;
+};
+
+//=============================================================================
+// 構造体
+//=============================================================================
+struct VideoScreenVertexIn
+{
+	float3 vertex;
+	float2 uv;
+};
+
+struct FullscreenVertexOut
+{
+	float4 position;
+	float2 uv;
+};
+
+//=============================================================================
+// シェーダ
+//=============================================================================
+#ifdef main_VideoScreenVP
+FullscreenVertexOut VideoScreenVP(VideoScreenVertexIn IN)
+{
+	FullscreenVertexOut OUT;
+	OUT.position = float4(IN.vertex.xy, 1.0, 1.0);
+	OUT.uv = float2(IN.uv.x, -IN.uv.y); // y coord is flipped
+	return OUT;
+}
+
+in	VideoScreenVertexIn IN;
+out	FullscreenVertexOut OUT;
+out gl_PerVertex
+{
+    vec4 gl_Position;
+};
+void main()
+{
+	OUT = VideoScreenVP(IN);
+	gl_Position = OUT.position;
+}
+#endif //main_VideoScreenVP
+
+#ifdef main_VideoScreenFP
+float4 VideoScreenFP(FullscreenVertexOut IN) //: FRAG_OUTPUT_COLOR0
+{
+	float4 c = _tex2Dlod(LinearClampSamplerState, VideoScreenTexture, IN.uv, 0);
+	return float4(c.rgb, VideoParam.x);
+}
+
+in	FullscreenVertexOut OUT;
+out float4 out_FragColor;
+void main()
+{
+	out_FragColor = VideoScreenFP(OUT);
+}
+#endif

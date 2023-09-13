@@ -1,0 +1,1578 @@
+
+uniform sampler2D LowResDepthTexture;
+uniform sampler2D DitherNoiseTexture;
+
+uniform sampler2D ColorBuffer;
+uniform sampler2D DepthBuffer;
+uniform sampler2D GlareBuffer;
+uniform sampler2D FocusBuffer;
+uniform sampler2D FilterTexture;
+uniform sampler2D FadingTexture;
+uniform sampler2D DisplacementTexture;
+
+layout(std140) uniform Param
+{
+uniform SceneWideParameters scene;
+
+uniform float MaskEps;
+
+uniform float4 CommonParams;	// XY:1/ソース画像サイズ Z:ソース画像アスペクト比 W:未使用
+uniform float4 FilterColor;	// 加算フィルタ RGB:色 A:強さ
+uniform float4 FadingColor;	// フェードフィルタ RGB:色 A:補間
+uniform float4 _MonotoneMul;	// モノトーンフィルタ RGB:色 A:補間		※PhyreSceneWideParameters.h側の同名変数とかち合うようなので改名
+uniform float4 _MonotoneAdd;	// モノトーンフィルタ RGB:色 A:-		※PhyreSceneWideParameters.h側の同名変数とかち合うようなので改名
+uniform float4 GlowIntensity;
+uniform float4 GodrayParams;	// XY:光源のUV座標 Z:遮蔽判定用Ｚ値 W:アスペクト比
+uniform float4 GodrayParams2;	// XY:１ピクセル分のUV移動量 Z:ズームブラーの伸び具合 W:マスク画像のスケールの逆数
+uniform float4 GodrayColor ;	// RGB:色、A:強度
+uniform float4 SSAOParams;	// X:検索半径 Y:(1-強度) Z:(1/強度) W:減衰距離
+uniform float4 SSRParams;	// X:レイの長さ Y:レイのステップ率 Z:奥行きフェード（最奥） W:レンダーターゲットの横幅
+uniform float4 ToneFactor;
+uniform float4 UvScaleBias;	// XY:uvのスケール値、ZW:uvのバイアス値
+uniform float4 GaussianBlurParams;		// XY:ソース画像のサイズ Z:カラー出力係数（輝度圧縮時の展開用） W:グロー鮮鋭部の合算率
+uniform float4 DofParams;		// X:合焦深度 Y:1/合焦範囲 Z:被写界深度補正値（強さの調整） W:未使用
+uniform float4 GammaParameters;	// DeGamma/Gamma, 画面のスケール(X), 画面のスケール(Y), W:未使用
+uniform float4 NoiseParams;	// X:時間 Y:歪み具合 Z:色収差の水平方向のズレ具合 W:合成率
+uniform float4 WhirlPinchParams;
+uniform float4 UVWarpParams ;
+uniform float4 MotionBlurParams;	// X:ブラーサンプル数 Y:速度スケール Z:フェード係数 W:ブラー掛かり具合
+uniform float GlobalTexcoordFactor;
+};
+
+#define FPS_MAX	30
+
+struct DirectionalLight
+{
+	half3 m_direction;
+	half3 m_colorIntensity;
+};
+
+// 影受けバイアス値
+#define SHADOW_LIGHTDIR_BIAS	0.05
+#define SHADOW_NORMALDIR_BIAS	0.05
+
+// カスケードシャドウマップ分割数（アプリ側のコードと合わせること！）
+	#define MAX_SPLIT_CASCADED_SHADOWMAP	2
+	#define PCF_ENABLED
+
+struct CombinedCascadedShadowMap
+{
+#if (MAX_SPLIT_CASCADED_SHADOWMAP == 1)
+
+	// 分割無し
+	float4x4 m_split0Transform;
+
+#elif (MAX_SPLIT_CASCADED_SHADOWMAP == 2)
+
+	// 二分割
+	float4x4 m_split0Transform;
+	float4x4 m_split1Transform;
+
+#endif // (MAX_SPLIT_CASCADED_SHADOWMAP == 1)
+
+	float4 m_splitDistances;
+};
+
+//-----------------------------------------------------------------------------
+// 深度
+//-----------------------------------------------------------------------------
+float3 encodeDepth(float depth)
+{
+	float4 unpacked_depth = float4(0, 0, 256.0f, 256.0f);
+	unpacked_depth.g = modf(depth * 256.0f, unpacked_depth.r);
+	unpacked_depth.b *= modf(unpacked_depth.g * 256.0f, unpacked_depth.g);
+	unpacked_depth /= 256.0f;	// 最後にまとめて割り算する方が速い
+	return unpacked_depth.rgb;	// float型の仮数部が23bitの精度しかないため、24bit目まで計算すれば十分
+}
+
+float decodeDepth(float3 color)
+{
+	float depth = color.r + (color.g + color.b / 256.0f) / 256.0f;
+	return depth;
+}
+
+//-----------------------------------------------------------------------------
+// マスク
+//-----------------------------------------------------------------------------
+#define GBUF_MASK_NONE		uint(0x00)
+#define GBUF_MASK_CHR		uint(0x01)
+#define GBUF_MASK_NO_SSAO	uint(0x02)
+#define GBUF_MASK_OUTLINE	uint(0x04)
+#define GBUF_MASK_NO_LIGHT	uint(0x08)
+
+float encodeMask(uint mask)
+{
+//	return float(mask) * (1.0/255.0) + 0.00001;
+	return float(mask) * (1.0/255.0) + MaskEps;
+}
+
+uint decodeMask(float mask)
+{
+	return uint(mask * 255.00001);
+}
+
+//-----------------------------------------------------------------------------
+// 法線
+//-----------------------------------------------------------------------------
+float3 encodeNormal(float3 normal)
+{
+	return normal * 0.5 + 0.5;
+}
+
+float3 decodeNormal(float3 normal)
+{
+	return normal * 2.0 - 1.0;
+}
+
+//-----------------------------------------------------------------------------
+// 速度
+//-----------------------------------------------------------------------------
+#define GBUF_VEL_ZERO	uint(7<<4 | 7)
+
+float encodeVelocity(float2 velocity)
+{
+	velocity = velocity * 0.5 + 0.5;
+	uint2 n = uint2(velocity * 15);
+	uint bit = (n.x << 4) | n.y;
+	return encodeMask(bit);
+}
+
+float2 _decodeVelocity(uint bit)
+{
+	uint2 n = uint2((bit >> 4) & uint(0xF), bit & uint(0xF));
+	float2 v = float2(n) * (1.0/15.0);
+	v = min(float2(2), v / (7.0/15.0)) / 2;	//正の方向だけ少し長いことに対する補正
+	return v * 2.0 - 1.0;
+}
+
+float2 decodeVelocity(float velocity)
+{
+	return _decodeVelocity(decodeMask(velocity));
+}
+
+//=============================================================================
+// シェーダ入出力構造体
+//=============================================================================
+struct FullscreenVPInput
+{
+	float3 ScreenVertex;
+	float2 ScreenUv;
+};
+
+struct FullscreenVPOutput
+{
+	float4 ScreenPosition;
+	float2 ScreenUv;
+};
+
+struct ComposeSceneVPOutput
+{
+	float4 ScreenPosition;
+	float2 ScreenUv;
+	float2 ScreenUvScaled;
+};
+
+struct ComposeSceneUVWarpVPOutput
+{
+	float4 ScreenPosition;
+	float2 ScreenUv;
+	float2 ScreenUvScaled;
+	float3 NoiseUv;
+};
+
+struct GaussianBlurVPOutput
+{
+	float4 ScreenPosition;
+	float2 ScreenUv;
+	float4 BlurUv0;
+	float4 BlurUv1;
+};
+
+struct GaussianBlurCombineVPOutput
+{
+	GaussianBlurVPOutput gaussianBlurOut;
+	float2 ScreenUv2;
+};
+
+struct GaussianBlurMergeGodrayVPOutput
+{
+	GaussianBlurVPOutput gaussianBlurOut;
+	float2 ScreenUv2;
+	float2 ScreenUv3;
+	float2 ScreenUv4;
+};
+
+struct GenerateGodrayMaskVPOutput
+{
+	float4 ScreenPosition;
+	float2 ScreenUv;
+	float2 ScreenUv2;
+};
+
+struct GodrayBlurVPOutput
+{
+	float4 ScreenPosition;
+	float2 ScreenUv;
+	float4 BlurUv0;
+	float4 BlurUv1;
+	float4 BlurUv2;
+	float4 BlurUv3;
+	float4 BlurUv4;
+};
+
+//=============================================================================
+// サブルーチン
+//=============================================================================
+float2 calcUv(float2 uv, float4 scaleBias)
+{
+	// マイナスのスケール値はUV反転のサイン
+	float2 scale = scaleBias.xy;
+	if (scale.x < 0) {
+		scale.x *= -1;
+		uv.x = 1 - uv.x;
+	}
+	if (scale.y < 0) {
+		scale.y *= -1;
+		uv.y = 1 - uv.y;
+	}
+	return uv * scale + scaleBias.zw;
+}
+
+#define BLUR_WEIGHT0		4.0
+#define BLUR_WEIGHT1		2.0
+#define BLUR_WEIGHT2		1.0
+#define BLUR_WEIGHT_SUM		half(1.0 / (BLUR_WEIGHT0 + BLUR_WEIGHT1 + BLUR_WEIGHT1 + BLUR_WEIGHT2 + BLUR_WEIGHT2))
+
+half4 gaussianBlur(GaussianBlurVPOutput IN)
+{
+	half4 sampleCentre = _h4tex2Dlod(LinearClampSamplerState, ColorBuffer, IN.ScreenUv, 0);
+	half4 sample0 = _h4tex2Dlod(LinearClampSamplerState, ColorBuffer, IN.BlurUv0.xy, 0);
+	half4 sample1 = _h4tex2Dlod(LinearClampSamplerState, ColorBuffer, IN.BlurUv0.zw, 0);
+	half4 sample2 = _h4tex2Dlod(LinearClampSamplerState, ColorBuffer, IN.BlurUv1.xy, 0);
+	half4 sample3 = _h4tex2Dlod(LinearClampSamplerState, ColorBuffer, IN.BlurUv1.zw, 0);
+
+	half4 result = sampleCentre * (BLUR_WEIGHT0 * BLUR_WEIGHT_SUM);
+	result += sample0 * (BLUR_WEIGHT2 * BLUR_WEIGHT_SUM);
+	result += sample1 * (BLUR_WEIGHT1 * BLUR_WEIGHT_SUM);
+	result += sample2 * (BLUR_WEIGHT1 * BLUR_WEIGHT_SUM);
+	result += sample3 * (BLUR_WEIGHT2 * BLUR_WEIGHT_SUM);
+	return result;
+}
+
+half4 gaussianBlurWithoutAlpha(GaussianBlurVPOutput IN)
+{
+	half4 sampleCentre = _h4tex2Dlod(LinearClampSamplerState, ColorBuffer, IN.ScreenUv, 0);
+	half4 sample0 = _h4tex2Dlod(LinearClampSamplerState, ColorBuffer, IN.BlurUv0.xy, 0);
+	half4 sample1 = _h4tex2Dlod(LinearClampSamplerState, ColorBuffer, IN.BlurUv0.zw, 0);
+	half4 sample2 = _h4tex2Dlod(LinearClampSamplerState, ColorBuffer, IN.BlurUv1.xy, 0);
+	half4 sample3 = _h4tex2Dlod(LinearClampSamplerState, ColorBuffer, IN.BlurUv1.zw, 0);
+
+	half4 result = sampleCentre * (BLUR_WEIGHT0 * BLUR_WEIGHT_SUM);
+	result += sample0 * (BLUR_WEIGHT2 * BLUR_WEIGHT_SUM);
+	result += sample1 * (BLUR_WEIGHT1 * BLUR_WEIGHT_SUM);
+	result += sample2 * (BLUR_WEIGHT1 * BLUR_WEIGHT_SUM);
+	result += sample3 * (BLUR_WEIGHT2 * BLUR_WEIGHT_SUM);
+	return half4(result.rgb, sampleCentre.a);
+}
+
+half4 loadGlowTex(float2 screenUv)
+{
+	return _h4tex2Dlod(LinearClampSamplerState, GlareBuffer, screenUv.xy, 0);
+}
+
+half4 loadCoverTex(float2 screenUv)
+{
+	return _h4tex2Dlod(LinearClampSamplerState, FilterTexture, screenUv.xy, 0) * half4(FilterColor);
+}
+
+float getDepth(float2 screenUv)
+{
+	float depth = _tex2Dlod(PointClampSamplerState, DepthBuffer, screenUv.xy, 0).x;
+	return depth;
+}
+
+float calcViewSpaceZ(float depth)
+{
+	return -(scene.cameraNearTimesFar / (depth * scene.cameraFarMinusNear - scene.cameraNearFar.y));
+}
+
+float calcLinearDepth(float depth)
+{
+	return calcViewSpaceZ(depth) / scene.cameraNearFar.y;
+}
+
+float getLinearDepth(float2 screenUv)
+{
+	return calcLinearDepth(getDepth(screenUv));
+}
+
+float calcDofValue(float linearDepth)
+{
+	// 合焦距離から一定範囲をボカす
+	float value = saturate(abs(linearDepth - DofParams.x) * DofParams.y);
+	value *= value;	// 遠景、近景にメリハリを付けるため
+	value *= DofParams.z;	// 強さの調整
+	return value;
+}
+
+half3 loadDofTex(float2 screenUv, float2 screenUvScaled, float linearDepth)
+{
+	half3 color = _h4tex2Dlod(LinearClampSamplerState, ColorBuffer, screenUvScaled.xy, 0).rgb;
+	half3 focus = _h4tex2Dlod(LinearClampSamplerState, FocusBuffer, screenUv.xy, 0).rgb;
+	return lerp(color, focus, half(calcDofValue(linearDepth)));
+}
+
+float calcCoverFilterDof(float linearDepth)
+{
+	return min(1.0, linearDepth + ToneFactor.y);
+}
+
+float3 degamma_gamma(float3 v)
+{
+	return pow(saturate(v), float3(GammaParameters.x));	// pow^(DeGamma/Gamma)
+}
+
+// 0.0～1.0
+float rand(float2 seed)
+{
+	return frac(sin(dot(seed, float2(12.9898,78.233))) * 43758.5453);
+}
+
+// A hash function to get pseudo randomized values.
+float3 hash31(float p)
+{
+	float3 p2 = frac(p * float3(5.3983, 5.4427, 6.9371));
+    p2 += dot(p2.yzx, p2.xyz + float3(21.5351, 14.3137, 15.3219));
+	return frac(float3(p2.x * p2.z * 95.4337, p2.x * p2.y * 97.597, p2.y * p2.z * 93.8365));
+}
+
+float getDitherThreshold(float2 screenUv)
+{
+	float2 screenPos = screenUv * scene.ViewportWidthHeight.xy;
+	float2 matrixPos = screenPos * (1.0/4);
+	return _h4tex2Dlod(PointWrapSamplerState, FocusBuffer, matrixPos, 0).x;
+}
+
+//=============================================================================
+// 頂点シェーダ
+//=============================================================================
+#ifdef main_FullscreenVP
+FullscreenVPOutput FullscreenVP(FullscreenVPInput IN)
+{
+	FullscreenVPOutput OUT;
+	OUT.ScreenPosition = float4(IN.ScreenVertex.xy, 1, 1);
+	OUT.ScreenUv = calcUv(IN.ScreenUv, UvScaleBias);
+	return OUT;
+}
+
+in	FullscreenVPInput IN;
+out	FullscreenVPOutput OUT;
+out gl_PerVertex
+{
+    vec4 gl_Position;
+};
+void main()
+{
+	OUT = FullscreenVP(IN);
+
+	gl_Position		= OUT.ScreenPosition;
+}
+#endif
+
+#ifdef main_ComposeSceneVP
+ComposeSceneVPOutput ComposeSceneVP(FullscreenVPInput IN)
+{
+	ComposeSceneVPOutput OUT;
+	OUT.ScreenPosition = float4(IN.ScreenVertex.xy, 1, 1);
+	OUT.ScreenUv = IN.ScreenUv;
+	OUT.ScreenUvScaled.xy = IN.ScreenUv * UvScaleBias.xy + UvScaleBias.zw;
+	return OUT;
+}
+
+in	FullscreenVPInput IN;
+out	ComposeSceneVPOutput OUT;
+out gl_PerVertex
+{
+    vec4 gl_Position;
+};
+void main()
+{
+	OUT = ComposeSceneVP(IN);
+
+	gl_Position		= OUT.ScreenPosition;
+}
+#endif
+
+#ifdef main_ComposeSceneVP_UVWarp
+ComposeSceneUVWarpVPOutput ComposeSceneVP_UVWarp(FullscreenVPInput IN)
+{
+	const float SCROLL_SPEED_WAVE = 0.3f;
+	const float SCROLL_SPEED_NOISE = 0.02f;
+
+	ComposeSceneUVWarpVPOutput OUT;
+	OUT.ScreenPosition = float4(IN.ScreenVertex.xy, 1, 1);
+	OUT.ScreenUv = IN.ScreenUv;
+	OUT.ScreenUvScaled.xy = IN.ScreenUv * UvScaleBias.xy + UvScaleBias.zw;
+	OUT.NoiseUv.xyz = float3(IN.ScreenUv.x + GlobalTexcoordFactor * SCROLL_SPEED_NOISE,
+							 IN.ScreenUv.y + GlobalTexcoordFactor * SCROLL_SPEED_NOISE,
+							 GlobalTexcoordFactor * SCROLL_SPEED_WAVE);
+	return OUT;
+}
+
+in	FullscreenVPInput IN;
+out	ComposeSceneUVWarpVPOutput OUT;
+out gl_PerVertex
+{
+    vec4 gl_Position;
+};
+void main()
+{
+	OUT = ComposeSceneVP_UVWarp(IN);
+
+	gl_Position		= OUT.ScreenPosition;
+}
+#endif
+
+#ifdef main_GammaCorrectionVP
+FullscreenVPOutput GammaCorrectionVP(FullscreenVPInput IN)
+{
+	FullscreenVPOutput OUT;
+	OUT.ScreenPosition = float4(IN.ScreenVertex.xy * GammaParameters.yz, 1, 1);
+	OUT.ScreenUv = IN.ScreenUv;
+	return OUT;
+}
+
+in	FullscreenVPInput IN;
+out	FullscreenVPOutput OUT;
+out gl_PerVertex
+{
+    vec4 gl_Position;
+};
+void main()
+{
+	OUT = GammaCorrectionVP(IN);
+
+	gl_Position		= OUT.ScreenPosition;
+}
+#endif
+
+#ifdef main_FullscreenVP_FXAA
+FullscreenVPOutput FullscreenVP_FXAA(FullscreenVPInput IN)
+{
+	FullscreenVPOutput OUT;
+	OUT.ScreenPosition = float4(IN.ScreenVertex.xy, 1, 1);
+	OUT.ScreenUv = calcUv(IN.ScreenUv, UvScaleBias);
+	return OUT;
+}
+
+in	FullscreenVPInput IN;
+out	FullscreenVPOutput OUT;
+out gl_PerVertex
+{
+    vec4 gl_Position;
+};
+void main()
+{
+	OUT = FullscreenVP_FXAA(IN);
+
+	gl_Position		= OUT.ScreenPosition;
+}
+#endif
+
+GaussianBlurVPOutput GaussianBlurXVP(FullscreenVPInput IN)
+{
+	GaussianBlurVPOutput OUT;
+	OUT.ScreenPosition = float4(IN.ScreenVertex.xy, 1, 1);
+	OUT.ScreenUv = calcUv(IN.ScreenUv, UvScaleBias);
+
+	float2 off1 = float2(1.0/GaussianBlurParams.x, 0);
+	float2 off2 = float2(2.0/GaussianBlurParams.x, 0);
+	OUT.BlurUv0 = float4(OUT.ScreenUv - off2, OUT.ScreenUv - off1);
+	OUT.BlurUv1 = float4(OUT.ScreenUv + off1, OUT.ScreenUv + off2);
+	return OUT;
+}
+
+#ifdef main_GaussianBlurXVP
+in	FullscreenVPInput IN;
+out	GaussianBlurVPOutput OUT;
+out gl_PerVertex
+{
+    vec4 gl_Position;
+};
+void main()
+{
+	OUT = GaussianBlurXVP(IN);
+
+	gl_Position		= OUT.ScreenPosition;
+}
+#endif
+
+GaussianBlurVPOutput GaussianBlurYVP(FullscreenVPInput IN)
+{
+	GaussianBlurVPOutput OUT;
+	OUT.ScreenPosition = float4(IN.ScreenVertex.xy, 1, 1);
+	OUT.ScreenUv = calcUv(IN.ScreenUv, UvScaleBias);
+
+	float2 off1 = float2(0, 1.0/GaussianBlurParams.y);
+	float2 off2 = float2(0, 2.0/GaussianBlurParams.y);
+	OUT.BlurUv0 = float4(OUT.ScreenUv - off2, OUT.ScreenUv - off1);
+	OUT.BlurUv1 = float4(OUT.ScreenUv + off1, OUT.ScreenUv + off2);
+	return OUT;
+}
+
+#ifdef main_GaussianBlurYVP
+in	FullscreenVPInput IN;
+out	GaussianBlurVPOutput OUT;
+out gl_PerVertex
+{
+    vec4 gl_Position;
+};
+void main()
+{
+	OUT = GaussianBlurYVP(IN);
+
+	gl_Position		= OUT.ScreenPosition;
+}
+#endif
+
+#ifdef main_GaussianBlurYCombineVP
+GaussianBlurCombineVPOutput GaussianBlurYCombineVP(FullscreenVPInput IN)
+{
+	GaussianBlurCombineVPOutput OUT;
+	OUT.gaussianBlurOut = GaussianBlurYVP(IN);
+	OUT.ScreenUv2 = calcUv(IN.ScreenUv, MotionBlurParams);
+	return OUT;
+}
+
+in	FullscreenVPInput IN;
+out	GaussianBlurCombineVPOutput OUT;
+out gl_PerVertex
+{
+    vec4 gl_Position;
+};
+void main()
+{
+	OUT = GaussianBlurYCombineVP(IN);
+
+	gl_Position		= OUT.gaussianBlurOut.ScreenPosition;
+}
+#endif
+
+#ifdef main_GaussianBlurXMergeGodrayVP
+GaussianBlurMergeGodrayVPOutput GaussianBlurXMergeGodrayVP(FullscreenVPInput IN)
+{
+	GaussianBlurMergeGodrayVPOutput OUT;
+	OUT.gaussianBlurOut = GaussianBlurXVP(IN);
+	OUT.ScreenUv2 = calcUv(IN.ScreenUv, UvScaleBias);
+	OUT.ScreenUv3 = IN.ScreenUv;
+
+//	float2 v = IN.ScreenUv + float2(0.5, 0.5) - GodrayParams.xy;
+	float2 v = IN.ScreenUv * 2 - 1;
+	v *= GodrayParams2.w;
+	v.x *= GodrayParams.w;
+	v = v * 0.5 + 0.5;
+	v += float2(0.5 * GodrayParams.w, 0.5) * GodrayParams2.w;
+//	v -= float2(GodrayParams.x * GodrayParams.w, GodrayParams.y) * GodrayParams2.w;
+//	const float2 center = clamp(GodrayParams.xy, 0, 1);
+	const float2 center = clamp(GodrayParams.xy, -0.5, 1.5);
+	v -= float2(center.x * GodrayParams.w, center.y) * GodrayParams2.w;
+	OUT.ScreenUv4 = v;
+
+	return OUT;
+}
+
+in	FullscreenVPInput IN;
+out	GaussianBlurMergeGodrayVPOutput OUT;
+out gl_PerVertex
+{
+    vec4 gl_Position;
+};
+void main()
+{
+	OUT = GaussianBlurXMergeGodrayVP(IN);
+
+	gl_Position		= OUT.gaussianBlurOut.ScreenPosition;
+}
+#endif
+
+#ifdef main_GaussianBlurCopy2XVP
+FullscreenVPOutput GaussianBlurCopy2XVP(FullscreenVPInput IN)
+{
+	FullscreenVPOutput OUT;
+	OUT.ScreenPosition = float4(IN.ScreenVertex.xy, 1, 1);
+	OUT.ScreenUv = calcUv(IN.ScreenUv, UvScaleBias);
+	return OUT;
+}
+
+in	FullscreenVPInput IN;
+out	FullscreenVPOutput OUT;
+out gl_PerVertex
+{
+    vec4 gl_Position;
+};
+void main()
+{
+	OUT = GaussianBlurCopy2XVP(IN);
+
+	gl_Position		= OUT.ScreenPosition;
+}
+#endif
+
+#ifdef main_GenerateGodrayMaskVP
+FullscreenVPOutput GenerateGodrayMaskVP(FullscreenVPInput IN)
+{
+	FullscreenVPOutput OUT;
+	OUT.ScreenPosition = float4(IN.ScreenVertex.xy, 1, 1);
+	OUT.ScreenUv = calcUv(IN.ScreenUv, UvScaleBias);
+	return OUT;
+}
+
+in	FullscreenVPInput IN;
+out	FullscreenVPOutput OUT;
+out gl_PerVertex
+{
+    vec4 gl_Position;
+};
+void main()
+{
+	OUT = GenerateGodrayMaskVP(IN);
+
+	gl_Position		= OUT.ScreenPosition;
+}
+#endif
+
+#ifdef main_GodrayBlurVP
+GodrayBlurVPOutput GodrayBlurVP(FullscreenVPInput IN)
+{
+	GodrayBlurVPOutput OUT;
+	OUT.ScreenPosition = float4(IN.ScreenVertex.xy, 1, 1);
+	OUT.ScreenUv = calcUv(IN.ScreenUv, UvScaleBias);
+
+	// ブラーの中心位置 ← 現在のテクセル位置
+	float2 dir = GodrayParams.xy - IN.ScreenUv;
+	
+	// 距離を計算する
+	float len = length(dir);
+	len = min(1.0, len);	// 長すぎるとマッハバンド目立つので上限を設ける
+	
+	// 方向ベクトルを正規化し、１テクセル分の長さとなる方向ベクトルを計算する
+	dir = normalize(dir) * GodrayParams2.xy;
+	
+	// 距離を積算することにより、爆発の中心位置に近いほどブラーの影響が小さくなるようにする
+	dir *= GodrayParams2.z * len;
+
+	float2 uv = OUT.ScreenUv * (1 - GodrayParams2.xy) + GodrayParams2.xy * 0.5;	// 計算誤差（？）でチラつくことがあるので、テクセル参照位置を微調整
+	OUT.BlurUv0 = float4(uv + dir * 0.0, uv + dir * 1.0);
+	OUT.BlurUv1 = float4(uv + dir * 2.0, uv + dir * 3.0);
+	OUT.BlurUv2 = float4(uv + dir * 4.0, uv + dir * 5.0);
+	OUT.BlurUv3 = float4(uv + dir * 6.0, uv + dir * 7.0);
+	OUT.BlurUv4 = float4(uv + dir * 8.0, uv + dir * 9.0);
+	return OUT;
+}
+
+in	FullscreenVPInput IN;
+out	GodrayBlurVPOutput OUT;
+out gl_PerVertex
+{
+    vec4 gl_Position;
+};
+void main()
+{
+	OUT = GodrayBlurVP(IN);
+
+	gl_Position		= OUT.ScreenPosition;
+}
+#endif
+
+//=============================================================================
+// フラグメントシェーダ
+//=============================================================================
+
+// レンダーターゲットのコピー
+#ifdef main_CopyBufferFP
+half4 CopyBufferFP(FullscreenVPOutput IN)
+{
+	return _h4tex2Dlod(LinearClampSamplerState, ColorBuffer, IN.ScreenUv, 0);
+}
+
+in	FullscreenVPOutput OUT;
+out vec4 out_FragColor;
+void main()
+{
+	out_FragColor = CopyBufferFP(OUT);
+}
+#endif
+
+// レンダーターゲットのコピー（aを1.0にする）
+#ifdef main_CopyBufferFP_FillAlphaOne
+half4 CopyBufferFP_FillAlphaOne(FullscreenVPOutput IN)
+{
+	return half4(_h4tex2Dlod(LinearClampSamplerState, ColorBuffer, IN.ScreenUv, 0).rgb, 1.0);
+}
+
+in	FullscreenVPOutput OUT;
+out vec4 out_FragColor;
+void main()
+{
+	out_FragColor = CopyBufferFP_FillAlphaOne(OUT);
+}
+#endif
+
+// レンダーターゲットのコピー（RGBをaにする）
+#ifdef main_CopyBufferFP_ShowAlpha
+half4 CopyBufferFP_ShowAlpha(FullscreenVPOutput IN)
+{
+	half4 col = _h4tex2Dlod(LinearClampSamplerState, ColorBuffer, IN.ScreenUv, 0);
+	return half4(half3(col.a, col.a, col.a), 1);
+}
+
+in	FullscreenVPOutput OUT;
+out vec4 out_FragColor;
+void main()
+{
+	out_FragColor = CopyBufferFP_ShowAlpha(OUT);
+}
+#endif
+
+// レンダーターゲットのコピー（高輝度成分だけ抽出）
+#ifdef main_CopyBufferFP_ExtractHighPass
+half4 CopyBufferFP_ExtractHighPass(FullscreenVPOutput IN)
+{
+	half4 col = _h4tex2Dlod(PointClampSamplerState, ColorBuffer, IN.ScreenUv, 0);	// ポイントサンプル。ぼかし処理は後段で行うのでココでの補間はむしろ不要
+//	col.rgb = pow(saturate(col.rgb), ToneFactor.z);
+	col.a = pow(saturate(col.a), ToneFactor.z);
+	half bright = col.a;	// クランプ回避のため、圧縮輝度の展開は最終結果に対して行っている
+	half glow = max(0, bright - 0.5);	// 輝度が一定値を超えだしたら、鮮鋭部の明度も上げていく
+	glow *= glow;
+	return half4(col.rgb * bright, glow);
+}
+
+in	FullscreenVPOutput OUT;
+out vec4 out_FragColor;
+void main()
+{
+	out_FragColor = CopyBufferFP_ExtractHighPass(OUT);
+}
+#endif
+
+// サンプル周期をパターン化し、チリチリ回避
+#define SSAO_DITHER
+
+// 深度差に応じたAO濃度調整
+#define SSAO_DIST_ATTEN
+
+// AO算出
+float calcAO(float3 origin, float3 normal, float2 uv, float depth, float dist)
+{
+	const float radius = SSAOParams.x;
+	const int kernelSize = 6;
+//	const int kernelSize = (int)lerp(8, 3, dist);
+
+#ifdef SSAO_DITHER
+	float index = getDitherThreshold(uv);
+	//return 1 - index;
+#else
+	float index = depth;	// used as random seed.
+#endif
+
+	// 法線の姿勢を求める
+#ifdef SSAO_DITHER
+	float3 rvec = hash31(index);
+#else
+	float3 rvec = hash31(uv.x);
+#endif
+	rvec.xy = rvec.xy * 2.0 - 1.0;
+	rvec = normalize(rvec);
+	float3 tangent = normalize(rvec - normal * dot(rvec, normal));
+	float3 bitangent = cross(normal, tangent);
+	float3x3 tbn = float3x3(tangent, bitangent, normal);
+
+	float occlusion = 0.0;
+	
+	for (int i = 0; i < kernelSize; ++i)
+	{
+		// サンプル点を生成
+		float3 kernel = hash31(index);
+		kernel.xy = kernel.xy * 2.0 - 1.0;
+		float rnd = kernel.z;	//アトで乱数値として再利用
+		kernel = normalize(kernel);
+		
+//		float3 test = hash31(index + 500.0f);
+		float3 test = float3(rnd);
+		kernel *= test.x;
+		
+		float scale = float(i) / float(kernelSize);
+		scale = lerp(0.1, 1.0, scale * scale);
+		kernel *= scale;
+		
+		float3 samplePos = _mul(tbn, kernel);
+		samplePos = samplePos * radius + origin;
+		
+		index += 1.0;
+		
+		// サンプル点の深度値を取得
+		float4 offset = float4(samplePos, 1.0);
+		offset = _mul(scene.Projection, offset);
+		offset.xy /= offset.w;
+		offset.xy = offset.xy * 0.5 + 0.5;
+#if defined(PHYRE_D3DFX)
+		offset.y = 1 - offset.y;
+#endif
+		float sampleDepth = _tex2Dlod(LinearClampSamplerState, ColorBuffer, offset.xy, 0).x;	//要Linear
+		sampleDepth = calcViewSpaceZ(sampleDepth);
+
+		// 遮蔽判定
+#ifdef SSAO_DIST_ATTEN
+		float atten = min(1.0, abs(depth - sampleDepth) / radius);
+		float rangeCheck = atten < 1.0 ? 1.0 : 0.0;	//棄却判定
+		atten = pow(1 - atten, 2);
+		occlusion += (sampleDepth <= -samplePos.z ? (1.0 * atten) : 0.0) * rangeCheck;
+#else
+		float rangeCheck = abs(depth - sampleDepth) < radius ? 1.0 : 0.0;	//棄却判定
+		occlusion += (sampleDepth <= -samplePos.z ? 1.0 : 0.0) * rangeCheck;
+#endif
+	}
+
+	float ao = occlusion / kernelSize;
+#ifdef SSAO_DIST_ATTEN
+	// 結果が薄くなりがちなので補正
+	const float aoScale = 1 / 0.5;
+	ao = min(1, ao * aoScale);
+#endif
+	return ao;
+}
+
+// レンダーターゲットのコピー（SSAO：イメージ生成）
+#ifdef main_CopyBufferFP_SSAO_Generate
+half4 CopyBufferFP_SSAO_Generate(FullscreenVPOutput IN)
+{
+	float2 screenUv = IN.ScreenUv;
+#if defined(PHYRE_D3DFX)
+	screenUv.y = 1 - screenUv.y;
+#endif
+	half4 depthAndMask = _h4tex2Dlod(PointClampSamplerState, DepthBuffer, screenUv, 0);
+	const uint mask = decodeMask(depthAndMask.a);
+
+	// 深度値からビュー空間上の座標を求める
+	float depth = _tex2Dlod(LinearClampSamplerState, ColorBuffer, screenUv, 0).x;	//要Linear
+#if defined(PHYRE_D3DFX)
+	float2 screenPos = screenUv * float2(2.0, -2.0) + float2(-1.0,  1.0);
+#else
+	float2 screenPos = screenUv * float2(2.0,  2.0) + float2(-1.0, -1.0);
+#endif
+	float4 viewPos = _mul(scene.ProjectionInverse, float4(screenPos, depth, 1.0));
+	viewPos.xyz /= viewPos.w;
+
+	// 後段のモーションブラーで使う値もついでに算出
+	float blurDist = saturate(-viewPos.z / MotionBlurParams.x);
+
+	// 遠く程フェードさせ、計算省略
+	const float clipFar = SSAOParams.w;
+	float dist = -viewPos.z / clipFar;
+	if (dist > 1.0)
+		return half4(1, blurDist, 0, encodeMask(mask));
+	dist = saturate(dist);
+	dist *= dist;
+
+	// キャラは無視
+	if ((mask & GBUF_MASK_CHR) != uint(0))
+		return half4(1, blurDist, 0, encodeMask(mask));
+
+	// 該当座標の法線を求める
+	half4 normalAndVelocity = _h4tex2Dlod(PointClampSamplerState, GlareBuffer, screenUv, 0);
+	float3 normal = decodeNormal(normalAndVelocity.rgb);
+	float3 viewNormal = normalize(_mul(scene.View, float4(normal, 0)).xyz);
+
+	// 両面ポリゴン対策
+	float aoRate = 1.0;
+	const float3 eyePos = float3(0,0,0);
+	float3 viewEyeDir = normalize(eyePos - viewPos.xyz);
+	float ndote = dot(viewNormal, viewEyeDir);
+	if (ndote < 0) {
+		ndote = ndote * -1;
+		ndote = 1 - pow(1 - ndote, 2);
+		aoRate = 1 - ndote;
+	}
+
+	float ao = calcAO(viewPos.xyz, viewNormal, screenUv, -viewPos.z, min(1, dist));
+	ao = max(0, ao - SSAOParams.y) * SSAOParams.z;
+	ao *= (1 - dist);
+	ao *= aoRate;
+	ao = 1 - ao;
+	return half4(ao, blurDist, 0, encodeMask(mask));
+}
+
+in	FullscreenVPOutput OUT;
+out vec4 out_FragColor;
+void main()
+{
+	out_FragColor = CopyBufferFP_SSAO_Generate(OUT);
+}
+#endif
+
+//ed8_common.hのCalcVelocity()に準拠
+float2 calcScreenSpaceVelocity(float2 pos, float2 posPrev)
+{
+	float2 vel = pos - posPrev;
+	vel *= 0.5;
+	float velLen = length(vel);
+	if (velLen > 0) {
+		float2 velDir = normalize(vel);
+		velLen = max(0, velLen - 0.005f);
+		velLen = min(1, velLen / 0.015f);
+		return clamp(velDir * velLen, -1.0, 1.0);
+	}
+	return float2(0, 0);
+}
+
+// レンダーターゲットのコピー（SSAO：結果の補正）
+#ifdef main_CopyBufferFP_SSAO_Correct
+half4 CopyBufferFP_SSAO_Correct(FullscreenVPOutput IN)
+{
+	float2 screenUv = IN.ScreenUv;
+#if defined(PHYRE_D3DFX)
+	screenUv.y = 1 - screenUv.y;
+#endif
+	half2 aoCur = _h4tex2Dlod(LinearClampSamplerState, GlareBuffer, screenUv, 0).rg;	//要Linear
+	const uint maskCur = decodeMask(_h4tex2Dlod(PointClampSamplerState, GlareBuffer, screenUv, 0).a);	//要Point
+
+	// 深度値からワールド空間上の座標を求める
+	float depth = _tex2Dlod(LinearClampSamplerState, ColorBuffer, screenUv, 0).x;	//要Linear
+#if defined(PHYRE_D3DFX)
+	float2 screenPos = screenUv * float2(2.0, -2.0) + float2(-1.0,  1.0);
+#else
+	float2 screenPos = screenUv * float2(2.0,  2.0) + float2(-1.0, -1.0);
+#endif
+	float4 worldPos = _mul(scene.ViewInverse, float4(_mul(scene.ProjectionInverse, float4(screenPos, depth, 1.0))));
+	worldPos.xyz /= worldPos.w;
+	
+	// 求めたワールド座標から前フレームのuvを計算
+	float4 screenPosPrev = _mul(scene.ViewProjectionPrev, float4(worldPos.xyz, 1.0));
+	screenPosPrev.xy /= screenPosPrev.w;
+
+	float2 screenUvPrev = screenPosPrev.xy * 0.5 + 0.5;
+#if defined(PHYRE_D3DFX)
+	screenUvPrev.y = 1 - screenUvPrev.y;
+#endif
+	
+	// 前フレームのAO値も考慮した最終的なAO値を算出
+	half aoPrev = _h4tex2Dlod(LinearClampSamplerState, FocusBuffer, screenUvPrev, 0).r;	//要Linear
+	half ao = lerp(aoPrev, aoCur.r, 0.25);
+//	return half4(ao, aoCur.g, 0, encodeMask(maskCur));
+	return half4(ao, aoCur.g, encodeVelocity(calcScreenSpaceVelocity(screenPos, screenPosPrev.xy)), encodeMask(maskCur));
+}
+
+in	FullscreenVPOutput OUT;
+out vec4 out_FragColor;
+void main()
+{
+	out_FragColor = CopyBufferFP_SSAO_Correct(OUT);
+}
+#endif
+
+half4 calcBlurredColor(float2 screenUv, float dist)
+{
+	half4 vel = _h4tex2Dlod(PointClampSamplerState, FocusBuffer, screenUv, 0);
+	if (vel.a > 0) {
+		vel.xy = vel.xy * 2 - 1;
+		const float f = MotionBlurParams.z;
+		float d = max(0, dist - f) / (1 - f);
+		vel.xy *= 1 - d;	//遠くほど減衰
+		vel.xy *= MotionBlurParams.y;
+		vel.xy *= MotionBlurParams.w;
+		//キャラ属性ピクセルからしか拾わない
+		const float NumSamples = MotionBlurParams.x;
+		float _NumSamples = 1;	//実際に拾ったサンプル数
+		half4 Blurred = _h4tex2Dlod(LinearClampSamplerState, ColorBuffer, screenUv, 0);	//全く拾わなかった場合を考慮
+		for (float i = 1; i < NumSamples; i++) {
+			float2 lookup = vel.xy * i / NumSamples + screenUv;
+			const uint mask = decodeMask(_h4tex2Dlod(PointClampSamplerState, DepthBuffer, lookup, 0).a);	//要Point
+//			const float t = (mask & GBUF_MASK_CHR) ? 1 : 0;
+			const float t = (mask & GBUF_MASK_CHR) != uint(0) ? ((mask & GBUF_MASK_OUTLINE) != uint(0) ? 0 : 1) : 0;	//輪郭色を拾うと汚いのでスルー
+			Blurred += _h4tex2Dlod(LinearClampSamplerState, ColorBuffer, lookup, 0) * t;
+			_NumSamples += t;
+		}
+		return Blurred / _NumSamples;
+	} else {	//elseで括らないとワーニング出る
+		return _h4tex2Dlod(LinearClampSamplerState, ColorBuffer, screenUv, 0);
+	}
+}
+
+// レンダーターゲットのコピー（SSAO：イメージ合成）
+#ifdef main_CopyBufferFP_SSAO_Blend
+half4 CopyBufferFP_SSAO_Blend(FullscreenVPOutput IN)
+{
+	float2 screenUv = IN.ScreenUv;
+#if defined(PHYRE_D3DFX)
+	screenUv.y = 1 - screenUv.y;
+#endif
+	half2 img = _h4tex2Dlod(LinearClampSamplerState, GlareBuffer, screenUv, 0).rg;
+	half ao = img.r;
+	half dist = img.g;
+	half4 depthAndMask = _h4tex2Dlod(PointClampSamplerState, DepthBuffer, screenUv, 0);
+
+	// マスク判定
+	const uint mask = decodeMask(depthAndMask.a);
+	ao = (mask & GBUF_MASK_CHR) != uint(0) ? 1.0 : ao;	// キャラはAO無効
+	ao = (mask & GBUF_MASK_NO_SSAO) != uint(0) ? 1.0 : ao;	// AO無効フラグ
+
+//	half4 col = (mask & GBUF_MASK_CHR) ? calcBlurredColor(screenUv, dist) : _h4tex2Dlod(LinearClampSamplerState, ColorBuffer, screenUv, 0);
+	half4 col = _h4tex2Dlod(LinearClampSamplerState, ColorBuffer, screenUv, 0);
+	return half4(lerp(col.rgb * SSAOParams.rgb, col.rgb, ao), col.a);
+}
+
+in	FullscreenVPOutput OUT;
+out vec4 out_FragColor;
+void main()
+{
+	out_FragColor = CopyBufferFP_SSAO_Blend(OUT);
+}
+#endif
+
+// レンダーターゲットのコピー（SSAO：開発用）
+#ifdef main_CopyBufferFP_SSAO_Debug
+half4 CopyBufferFP_SSAO_Debug(FullscreenVPOutput IN)
+{
+	float2 screenUv = IN.ScreenUv;
+#if defined(PHYRE_D3DFX)
+	screenUv.y = 1 - screenUv.y;
+#endif
+	half ao = _h4tex2Dlod(LinearClampSamplerState, ColorBuffer, screenUv, 0).r;
+	return half4(ao, ao, ao, 1);
+}
+
+in	FullscreenVPOutput OUT;
+out vec4 out_FragColor;
+void main()
+{
+	out_FragColor = CopyBufferFP_SSAO_Debug(OUT);
+}
+#endif
+
+// レンダーターゲットのコピー（SSR：反射イメージ生成）
+#ifdef main_CopyBufferFP_SSR_Generate
+half4 CopyBufferFP_SSR_Generate(FullscreenVPOutput IN)
+{
+	half4 depthAndSSRMask = _h4tex2Dlod(LinearClampSamplerState, FocusBuffer, IN.ScreenUv, 0);
+//depthAndSSRMask.a = 1;	//test
+	if (depthAndSSRMask.a == 0) {
+		return half4(0,0,0,0);
+//		return half4(0, 0, 1, 0.5);	// デバッグ用
+	}
+
+	// 深度値からビュー空間上の座標を求める
+	float depth = decodeDepth(depthAndSSRMask.rgb);
+#if defined(PHYRE_D3DFX)
+	float2 screenPos = IN.ScreenUv * float2(2.0, -2.0) + float2(-1.0,  1.0);
+#else
+	float2 screenPos = IN.ScreenUv * float2(2.0,  2.0) + float2(-1.0, -1.0);
+#endif
+	float4 invProjPos = _mul(scene.ProjectionInverse, float4(screenPos, depth, 1.0));
+	float3 viewPos = invProjPos.xyz / invProjPos.w;
+
+	// 該当座標の法線を基に視線の反射ベクトルを求める
+	half4 normalAndLightClamp = _h4tex2Dlod(LinearClampSamplerState, GlareBuffer, IN.ScreenUv, 0);
+	float3 normal = float3(normalAndLightClamp.rgb) * 2.0 - 1.0;
+#if 1
+	// 床面に特化した補正。壁面の映り込みが壊れる
+	normal = normalize(lerp(normal, float3(0,1,0), 0.5));
+#endif
+	float3 viewNormal = normalize(_mul(scene.View, float4(normal, 0)).xyz);
+	float3 refDir = normalize(reflect(viewPos, viewNormal));
+#if 0
+	// 計算過程視覚化デバッグコード
+	//return half4(half3(depth, depth, depth), 1);
+	//return half4(half3(viewPos.x, viewPos.y, viewPos.z), 1);
+	return half4(half3(viewNormal.x, viewNormal.y, viewNormal.z), 1);
+	//return half4(half3(refDir.x, refDir.y, refDir.z), 1);
+#else
+	// 該当座標から一定距離をレイマーチング。
+	// 何かにヒットしたらそれを反射色とする。
+	float maxLength = SSRParams.x;
+	float zNear = 0;
+	float zFar = SSRParams.z;
+	float zValFade = pow(min(1, (-viewPos.z - zNear) / (zFar - zNear)), 2);	// 近くのものほどフェード
+	float stepRatio = SSRParams.y;
+	int maxSamples = int(min(15, maxLength / stepRatio));
+	maxLength = maxSamples * stepRatio;
+	half4 resultColor = half4(_h4tex2Dlod(LinearClampSamplerState, ColorBuffer, IN.ScreenUv, 0).rgb, 0);
+//	half4 resultColor = half4(1, 0, 0, 0.5);	// レイ衝突チェック用
+	float fadeFactor = min(depthAndSSRMask.a, zValFade);
+	float depthTestThreshold = 0.0005f;
+	float maxThickness = 0.003;	// 「裏面」をサンプルしないための仮想的な「厚み」
+	float pix = (2.0 / SSRParams.w) * stepRatio;
+	float3 rayPos = viewPos;
+	for (int i = 0; i < maxSamples; ++i) {
+		// 反射ベクトルの移動量を概算する。約1ピクセル分の移動量
+		const float kEpsilon = 1e-5;
+		float2 rp = abs(refDir.xy * scene.Projection._m00_m11 / -rayPos.z);
+		const float noiseFactor = 0.25;
+		float _stepRatio = stepRatio - stepRatio * rand(IN.ScreenUv) * noiseFactor;	// サンプリングの粗をノイズで散らしてみる
+//		float _stepRatio = stepRatio;
+		float l = max(pix / (max(rp.x, rp.y) + kEpsilon), _stepRatio);
+		float3 ray = refDir * l;
+		// レイを進める。何かに衝突したらそれを反射色とし、レイマーチング終了
+		rayPos += ray;
+		float4 projRayPos = _mul(scene.Projection, float4(rayPos, 1));
+		float2 rayUv = projRayPos.xy / projRayPos.w * 0.5 + 0.5;
+		if (max(abs(rayUv.x - 0.5), abs(rayUv.y - 0.5)) > 0.5)	// 画面外へのサンプリングはスキップ
+			break;
+#if defined(PHYRE_D3DFX)
+		rayUv.y = 1 - rayUv.y;
+#endif
+		float rayDepth = projRayPos.z / projRayPos.w;
+		float bufDepth = decodeDepth(_h4tex2Dlod(LinearClampSamplerState, FocusBuffer, rayUv, 0).rgb);
+		if (rayDepth - bufDepth > depthTestThreshold && rayDepth - bufDepth < maxThickness) {
+#if 0
+			// 二分探索でレイの精度を上げる
+			float _sign = -1.0;
+			for (int m = 1; m <= 4; ++m) {
+				rayPos += _sign * pow(0.5, m) * ray;
+				projRayPos = _mul(scene.Projection, float4(rayPos, 1));
+				rayUv = projRayPos.xy / projRayPos.w * 0.5 + 0.5;
+#if defined(PHYRE_D3DFX)
+				rayUv.y = 1 - rayUv.y;
+#endif
+				rayDepth = projRayPos.z / projRayPos.w;
+				bufDepth = decodeDepth(_h4tex2Dlod(LinearClampSamplerState, FocusBuffer, rayUv, 0).rgb);
+				_sign = rayDepth - bufDepth > 0 ? -1 : 1;
+			}
+#endif
+			// 深度差があるほどフェード
+			float depthDiffFade = 1 - pow((rayDepth - bufDepth) / maxThickness, 4);
+			fadeFactor = min(fadeFactor, depthDiffFade);
+			// 画面端ほどフェード
+			float screenEdgeFade = max(0, 1.0 - pow(2.0 * length(rayUv - 0.5), 8));
+			fadeFactor = min(fadeFactor, screenEdgeFade);
+			// レイが長くなるほどフェード
+			float rayDistFade = 1 - pow(min(1, length(rayPos - viewPos) / maxLength), 2);
+			fadeFactor = min(fadeFactor, rayDistFade);
+			resultColor = half4(_h4tex2Dlod(LinearClampSamplerState, ColorBuffer, rayUv, 0).rgb, fadeFactor);
+			break;
+		}
+	}
+	return resultColor;
+#endif
+}
+
+in	FullscreenVPOutput OUT;
+out vec4 out_FragColor;
+void main()
+{
+	out_FragColor = CopyBufferFP_SSR_Generate(OUT);
+}
+#endif
+
+// レンダーターゲットのコピー（SSR：反射イメージ合成）
+#ifdef main_CopyBufferFP_SSR_Blend
+half4 CopyBufferFP_SSR_Blend(FullscreenVPOutput IN)
+{
+	half4 img = _h4tex2Dlod(LinearClampSamplerState, ColorBuffer, IN.ScreenUv, 0);
+	clip(img.a);
+	return img;
+}
+
+in	FullscreenVPOutput OUT;
+out vec4 out_FragColor;
+void main()
+{
+	out_FragColor = CopyBufferFP_SSR_Blend(OUT);
+}
+#endif
+
+// レンダーターゲットのコピー（速度バッファのデコード）
+#ifdef main_CopyBuffer_DecodeVelocityFP
+half4 CopyBuffer_DecodeVelocityFP(FullscreenVPOutput IN)
+{
+	float2 screenUv = IN.ScreenUv;
+#if defined(PHYRE_D3DFX)
+	screenUv.y = 1 - screenUv.y;
+#endif
+	half4 depthAndMask = _h4tex2Dlod(PointClampSamplerState, DepthBuffer, screenUv, 0);
+	const uint mask = decodeMask(depthAndMask.a);
+	if ((~mask & GBUF_MASK_CHR) != uint(0)) {
+		uint velBit2 = decodeMask(_h4tex2Dlod(PointClampSamplerState, GlareBuffer, screenUv, 0).b);
+		float2 vel2 = _decodeVelocity(velBit2);
+		vel2 = vel2 * 0.5 + 0.5;
+		return half4(vel2.xy, 0, (velBit2 == GBUF_VEL_ZERO) ? 0 : 1);
+	}
+	half4 normalAndVelocity = _h4tex2Dlod(PointClampSamplerState, ColorBuffer, screenUv, 0);
+	uint velBit = decodeMask(normalAndVelocity.a);
+	float2 vel = _decodeVelocity(velBit);
+	vel = vel * 0.5 + 0.5;
+	return half4(vel.xy, 0, (velBit == GBUF_VEL_ZERO) ? 0 : 1);	//a=速度の有無
+}
+
+in	FullscreenVPOutput OUT;
+out vec4 out_FragColor;
+void main()
+{
+	out_FragColor = CopyBuffer_DecodeVelocityFP(OUT);
+}
+#endif
+
+#define FXAA_REDUCE_MIN (1.0/128.0)
+#define FXAA_REDUCE_MUL (1.0/8.0)
+#define FXAA_SPAN_MAX	(8.0)
+
+half3 loadFXAATex(float2 texcoord)
+{
+#if defined(PHYRE_D3DFX)
+	texcoord.y = 1 - texcoord.y;
+#endif
+	return _h4tex2Dlod(PointClampSamplerState, ColorBuffer, texcoord, 0).rgb;
+}
+
+// レンダーターゲットのコピー（FXAA）
+#ifdef main_CopyBufferFP_FXAA
+half4 CopyBufferFP_FXAA(FullscreenVPOutput IN)
+{
+	half4 result = half4(0,0,0,0);
+
+	// 周辺ピクセルとの輝度差を計算する
+	const float2 rcpViewSize = float2(CommonParams.x, CommonParams.y);
+	const float ofs = 1.0;
+	half3 rgbNW = loadFXAATex(IN.ScreenUv + float2(-ofs,-ofs) * rcpViewSize);
+	half3 rgbNE = loadFXAATex(IN.ScreenUv + float2( ofs,-ofs) * rcpViewSize);
+	half3 rgbSW = loadFXAATex(IN.ScreenUv + float2(-ofs, ofs) * rcpViewSize);
+	half3 rgbSE = loadFXAATex(IN.ScreenUv + float2( ofs, ofs) * rcpViewSize);
+	half3 rgbM  = loadFXAATex(IN.ScreenUv                                  );
+	half3 luma = half3(0.299, 0.587, 0.114);
+	float lumaNW = dot(rgbNW, luma);
+	float lumaNE = dot(rgbNE, luma);
+	float lumaSW = dot(rgbSW, luma);
+	float lumaSE = dot(rgbSE, luma);
+	float lumaM  = dot(rgbM,  luma);
+	float lumaMin = min(lumaM, min(min(lumaNW, lumaNE), min(lumaSW, lumaSE)));
+	float lumaMax = max(lumaM, max(max(lumaNW, lumaNE), max(lumaSW, lumaSE)));
+	
+	// エッジの向きと長さを検出し、周辺のピクセルと色をブレンド
+	float2 dir;
+	dir.x = -((lumaNW + lumaNE) - (lumaSW + lumaSE));
+	dir.y =  ((lumaNW + lumaSW) - (lumaNE + lumaSE));
+	float dirReduce = max((lumaNW + lumaNE + lumaSW + lumaSE) * (0.25 * FXAA_REDUCE_MUL), FXAA_REDUCE_MIN);
+	float rcpDirMin = 1.0 / (min(abs(dir.x), abs(dir.y)) + dirReduce);
+	dir = min(float2(FXAA_SPAN_MAX, FXAA_SPAN_MAX), max(float2(-FXAA_SPAN_MAX, -FXAA_SPAN_MAX), dir * rcpDirMin)) * rcpViewSize;
+	half3 rgbA = 0.5 * (
+		loadFXAATex(IN.ScreenUv + dir * (1.0 / 3.0 - 0.5)) +
+		loadFXAATex(IN.ScreenUv + dir * (2.0 / 3.0 - 0.5)));
+	half3 rgbB = rgbA * 0.5 + 0.25 * (
+		loadFXAATex(IN.ScreenUv + dir * -0.5) +
+		loadFXAATex(IN.ScreenUv + dir *  0.5));
+	float lumaB = dot(rgbB, luma);
+	if ((lumaB < lumaMin) || (lumaB > lumaMax))
+		result = half4(rgbA, 1.0);
+	else
+		result = half4(rgbB, 1.0);
+	return result;
+}
+
+in	FullscreenVPOutput OUT;
+out vec4 out_FragColor;
+void main()
+{
+	out_FragColor = CopyBufferFP_FXAA(OUT);
+}
+#endif
+
+// 深度バッファを縮小コピー
+#ifdef main_DownsampleDepthBufferFP
+float DownsampleDepthBufferFP(FullscreenVPOutput IN)
+{
+	return getDepth(IN.ScreenUv);
+}
+
+in	FullscreenVPOutput OUT;
+out float gl_FragDepth;
+void main()
+{
+	gl_FragDepth = DownsampleDepthBufferFP(OUT);
+}
+#endif
+
+// ガウスぼかし
+#ifdef main_GaussianBlurFP
+half4 GaussianBlurFP(GaussianBlurVPOutput IN)
+{
+	return gaussianBlur(IN);
+}
+
+in	GaussianBlurVPOutput OUT;
+out vec4 out_FragColor;
+void main()
+{
+	out_FragColor = GaussianBlurFP(OUT);
+}
+#endif
+
+// ガウスぼかし＋αはボカさない
+#ifdef main_GaussianBlurWithoutAlphaFP
+half4 GaussianBlurWithoutAlphaFP(GaussianBlurVPOutput IN)
+{
+	return gaussianBlurWithoutAlpha(IN);
+}
+
+in	GaussianBlurVPOutput OUT;
+out vec4 out_FragColor;
+void main()
+{
+	out_FragColor = GaussianBlurWithoutAlphaFP(OUT);
+}
+#endif
+
+// ガウスぼかし＋高鮮鋭度ぼかし画像を合算
+#ifdef main_GaussianBlurCombineFP
+half4 GaussianBlurCombineFP(GaussianBlurCombineVPOutput IN)
+{
+	half4 result = gaussianBlur(IN.gaussianBlurOut);
+	half4 col = _h4tex2Dlod(LinearClampSamplerState, GlareBuffer, IN.ScreenUv2, 0);
+	col.rgb *= result.a * half(GaussianBlurParams.w);
+	return (result + col) * GaussianBlurParams.z;
+}
+
+in	GaussianBlurCombineVPOutput OUT;
+out vec4 out_FragColor;
+void main()
+{
+	out_FragColor = GaussianBlurCombineFP(OUT);
+}
+#endif
+
+// ガウスぼかし＋ゴッドレイ画像を合成
+#ifdef main_GaussianBlurMergeGodrayFP
+half4 GaussianBlurMergeGodrayFP(GaussianBlurMergeGodrayVPOutput IN)
+{
+	half4 result = gaussianBlur(IN.gaussianBlurOut);
+#if defined(PHYRE_D3DFX)
+	half4 godray = _h4tex2Dlod(LinearClampSamplerState, GlareBuffer, float2(IN.ScreenUv2.x, 1 - IN.ScreenUv2.y), 0);
+#else
+	half4 godray = _h4tex2Dlod(LinearClampSamplerState, GlareBuffer, IN.ScreenUv2, 0);
+#endif
+	half godrayMask = _h4tex2Dlod(LinearClampSamplerState, FilterTexture, IN.ScreenUv4, 0).r;
+	godray.rgb = godray.r * godrayMask * GodrayColor.a * GodrayColor.rgb;
+//	result.rgb = result.rgb + godray.rgb;	// 加算合成
+	result.rgb = godray.rgb * (1 - result.rgb) + result.rgb;	// スクリーン合成
+#if 0
+	result.rgb = half3(godrayMask, 0, 0);	//マスク画像のデバッグ
+#endif
+
+#if 1
+	//実深度とMRT深度を比較し、深度差がある所はマスク（グローが半透明を貫通する現象への対策）
+	float2 screenUv3 = IN.ScreenUv3;
+#if defined(PHYRE_D3DFX)
+	screenUv3.y = 1 - screenUv3.y;
+#endif
+	float depth = getDepth(screenUv3);
+	float depthMRT = decodeDepth(_tex2Dlod(PointClampSamplerState, FocusBuffer, screenUv3, 0).rgb);
+	return (depth < depthMRT) ? half4(0,0,0,0) : result;
+#else
+	return result;
+#endif
+}
+
+in	GaussianBlurMergeGodrayVPOutput OUT;
+out vec4 out_FragColor;
+void main()
+{
+	out_FragColor = GaussianBlurMergeGodrayFP(OUT);
+}
+#endif
+
+// ゴッドレイのマスク画像生成（閾値を境に深度バッファを二値化）
+#ifdef main_GenerateGodrayMaskFP
+half4 GenerateGodrayMaskFP(FullscreenVPOutput IN)
+{
+	half result = getDepth(IN.ScreenUv) < GodrayParams.z ? 0 : 1;
+	return half4(result, 0, 0, 0);
+}
+
+in	FullscreenVPOutput OUT;
+out vec4 out_FragColor;
+void main()
+{
+	out_FragColor = GenerateGodrayMaskFP(OUT);
+}
+#endif
+
+// ガウスぼかし（２倍サイズのバッファへブラー転送）
+#ifdef main_GaussianBlurCopy2XFP
+half4 GaussianBlurCopy2XFP(FullscreenVPOutput IN)
+{
+	float x = GaussianBlurParams.x;
+	float y = GaussianBlurParams.y;
+	half4 result = half4(0,0,0,0);
+	result += _h4tex2Dlod(LinearClampSamplerState, ColorBuffer, IN.ScreenUv,                  0) * GaussianBlurParams.z;
+	result += _h4tex2Dlod(LinearClampSamplerState, ColorBuffer, IN.ScreenUv + float2(-x, -y), 0) * GaussianBlurParams.w;
+	result += _h4tex2Dlod(LinearClampSamplerState, ColorBuffer, IN.ScreenUv + float2( x, -y), 0) * GaussianBlurParams.w;
+	result += _h4tex2Dlod(LinearClampSamplerState, ColorBuffer, IN.ScreenUv + float2(-x,  y), 0) * GaussianBlurParams.w;
+	result += _h4tex2Dlod(LinearClampSamplerState, ColorBuffer, IN.ScreenUv + float2( x,  y), 0) * GaussianBlurParams.w;
+	return result;
+}
+
+in	FullscreenVPOutput OUT;
+out vec4 out_FragColor;
+void main()
+{
+	out_FragColor = GaussianBlurCopy2XFP(OUT);
+}
+#endif
+
+// ガウスぼかし（２倍サイズのバッファへブラー転送）＋αはボカさない
+#ifdef main_GaussianBlurCopy2XWithoutAlphaFP
+half4 GaussianBlurCopy2XWithoutAlphaFP(FullscreenVPOutput IN)
+{
+	float x = GaussianBlurParams.x;
+	float y = GaussianBlurParams.y;
+	half4 result = half4(0,0,0,0);
+	half4 sampleCentre = _h4tex2Dlod(LinearClampSamplerState, ColorBuffer, IN.ScreenUv, 0);
+	result += sampleCentre * GaussianBlurParams.z;
+	result += _h4tex2Dlod(LinearClampSamplerState, ColorBuffer, IN.ScreenUv + float2(-x, -y), 0) * GaussianBlurParams.w;
+	result += _h4tex2Dlod(LinearClampSamplerState, ColorBuffer, IN.ScreenUv + float2( x, -y), 0) * GaussianBlurParams.w;
+	result += _h4tex2Dlod(LinearClampSamplerState, ColorBuffer, IN.ScreenUv + float2(-x,  y), 0) * GaussianBlurParams.w;
+	result += _h4tex2Dlod(LinearClampSamplerState, ColorBuffer, IN.ScreenUv + float2( x,  y), 0) * GaussianBlurParams.w;
+	return half4(result.rgb, sampleCentre.a);
+}
+
+in	FullscreenVPOutput OUT;
+out vec4 out_FragColor;
+void main()
+{
+	out_FragColor = GaussianBlurCopy2XWithoutAlphaFP(OUT);
+}
+#endif
+
+// ゴッドレイ用の放射状ブラー
+#ifdef main_GodrayBlurFP
+half4 GodrayBlurFP(GodrayBlurVPOutput IN)
+{
+	half4 result = half4(0,0,0,0);
+	result += _h4tex2Dlod(LinearClampSamplerState, ColorBuffer, IN.BlurUv0.xy, 0) * 0.19;
+	result += _h4tex2Dlod(LinearClampSamplerState, ColorBuffer, IN.BlurUv0.zw, 0) * 0.17;
+	result += _h4tex2Dlod(LinearClampSamplerState, ColorBuffer, IN.BlurUv1.xy, 0) * 0.15;
+	result += _h4tex2Dlod(LinearClampSamplerState, ColorBuffer, IN.BlurUv1.zw, 0) * 0.13;
+	result += _h4tex2Dlod(LinearClampSamplerState, ColorBuffer, IN.BlurUv2.xy, 0) * 0.11;
+	result += _h4tex2Dlod(LinearClampSamplerState, ColorBuffer, IN.BlurUv2.zw, 0) * 0.09;
+	result += _h4tex2Dlod(LinearClampSamplerState, ColorBuffer, IN.BlurUv3.xy, 0) * 0.07;
+	result += _h4tex2Dlod(LinearClampSamplerState, ColorBuffer, IN.BlurUv3.zw, 0) * 0.05;
+	result += _h4tex2Dlod(LinearClampSamplerState, ColorBuffer, IN.BlurUv4.xy, 0) * 0.03;
+	result += _h4tex2Dlod(LinearClampSamplerState, ColorBuffer, IN.BlurUv4.zw, 0) * 0.01;
+	return result;
+}
+
+in	GodrayBlurVPOutput OUT;
+out vec4 out_FragColor;
+void main()
+{
+	out_FragColor = GodrayBlurFP(OUT);
+}
+#endif
+
+#ifdef main_GammaCorrectionFP
+half4 GammaCorrectionFP(FullscreenVPOutput IN)
+{
+	half4 color = _h4tex2Dlod(LinearClampSamplerState, ColorBuffer, IN.ScreenUv, 0);
+	half3 v = degamma_gamma(color.rgb);
+	return half4(half(v.r), half(v.g), half(v.b), color.a);
+}
+
+in	FullscreenVPOutput OUT;
+out vec4 out_FragColor;
+void main()
+{
+	out_FragColor = GammaCorrectionFP(OUT);
+}
+#endif
+
+#ifdef main_GammaCorrectionAndNoiseFP
+half4 GammaCorrectionAndNoiseFP(FullscreenVPOutput IN)
+{
+	float t = NoiseParams.x;
+	float shiftRate = NoiseParams.y;
+	float aberrationOffsetH = NoiseParams.z;
+	float rate = NoiseParams.w;
+
+	float2 uv = IN.ScreenUv;
+
+	// 歪み
+	float2 seed = float2(uv.y, uv.y);
+	seed *= sin(t);
+	float shift = rand(seed);	// 0.0~1.0
+	shift = (shift - 0.5) * 2;	// -1.0~1.0
+	shift *= abs(shift);		// 大きな歪みだけを強調
+	uv.x += shift * shiftRate * rate;
+
+	half4 color = _h4tex2Dlod(LinearClampSamplerState, ColorBuffer, uv, 0);
+
+	// 色収差
+	float2 aberrationOffset = float2(aberrationOffsetH, 0);	// ズラすのは水平方向のみ
+	half red = _h4tex2Dlod(LinearClampSamplerState, ColorBuffer, uv - aberrationOffset, 0).r;
+//x	half green = _h4tex2Dlod(LinearClampSamplerState, ColorBuffer, uv, 0).g;
+	half green = color.g;
+	half blue = _h4tex2Dlod(LinearClampSamplerState, ColorBuffer, uv + aberrationOffset, 0).b;
+	color = float4(red, green, blue, color.a);
+
+	// ノイズ
+	seed = IN.ScreenUv;
+	seed *= sin(t);
+	half3 noise = half3(rand(seed),rand(seed),rand(seed));
+	float noiseIntensity = 0.5 * rate;
+	color.rgb = lerp(color.rgb, noise, half(noiseIntensity));
+
+	// 走査線
+	color.rgb -= half(abs(sin(IN.ScreenUv.y * 100.0 + t *  5.0)) * 0.08 * rate);
+	color.rgb -= half(abs(sin(IN.ScreenUv.y * 300.0 - t * 10.0)) * 0.05 * rate);
+
+	return color;
+}
+
+in	FullscreenVPOutput OUT;
+out vec4 out_FragColor;
+void main()
+{
+	out_FragColor = GammaCorrectionAndNoiseFP(OUT);
+}
+#endif
+
+// MotionBlur
+// モノトーンなし
+#ifdef main_ComposeSceneFP_MotionBlur
+half4 ComposeSceneFP_MotionBlur(ComposeSceneVPOutput IN)
+{
+//	half height = MotionBlur.x;
+//	half range = MotionBlur.y;
+
+#if defined(__psp2__)
+	half scale_x = 960/544.0;
+#else // defined(__psp2__)
+	half scale_x = 1280/720.0;
+#endif // defined(__psp2__)
+	half scale_y = 1.25;
+
+	half2 uv = half2(0);
+
+	half cen_x = 0.5;
+	half cen_y = 0.5;
+//	half radius = 1.0;
+
+	half2 dd = (IN.ScreenUv - half2(cen_x, cen_y)) * half2(scale_x, scale_y);
+
+//	half rad2 = radius * radius * wpradius;
+	half d = dd.x * dd.x + dd.y * dd.y;
+	uv = dd / d * MotionBlurParams.x;
+
+	half3 color = _h4tex2Dlod(LinearClampSamplerState, ColorBuffer, (IN.ScreenUv + uv) * UvScaleBias.xy + UvScaleBias.zw, 0).rgb * ToneFactor.x;
+	half3 resultColor = color.rgb;
+	//
+	half4 cover = loadCoverTex(IN.ScreenUv);
+	resultColor += cover.rgb * cover.a;
+	//
+	return half4(resultColor, 1);
+}
+
+in	ComposeSceneVPOutput OUT;
+out vec4 out_FragColor;
+void main()
+{
+	out_FragColor = ComposeSceneFP_MotionBlur(OUT);
+}
+#endif

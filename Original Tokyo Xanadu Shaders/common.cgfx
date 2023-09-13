@@ -1,0 +1,71 @@
+#version 440
+
+#define float2	vec2
+#define float3	vec3
+#define float4	vec4
+#define half	float
+#define half2	vec2
+#define half3	vec3
+#define half4	vec4
+#define float2x2 mat2
+#define float3x3 mat3
+#define float4x4 mat4
+#define float3x4 mat4
+#define int4 ivec4
+#define uint2 uvec2
+#define samplerCUBE samplerCube
+#define const
+
+#define mul(a,b) (b*a)
+#define lerp(a, b, t) mix(a, b, t)
+#define saturate(a) clamp(a, 0.0, 1.0)
+#define clip(a) if((a)< 0.0) discard
+#define frac(a) fract(a)
+#define tex2D(b,c) (texture(b, c))
+#define h4tex2D(b,c) (texture(b, c))
+#define h4texCUBE(b,c) (texture(b, c))
+
+#define _mul(a,b) (b*a)
+#define _tex2D(a,b,c) (tex2D(b, c))
+#define _tex2Dlod(a,b,c,d) (tex2D(b, c))
+#define _h4tex2D(a,b,c) (h4tex2D(b, c))
+#define _h4tex2Dlod(a,b,c,d) (h4tex2D(b, c))
+#define _h4texCUBE(a,b,c) (h4texCUBE(b, c))
+
+
+struct SceneWideParameters
+{
+	float3		EyePosition;
+
+	float4x4	View;
+	float4x4	Projection;
+	float4x4	ViewProjection;	
+	float4x4	ViewInverse;
+
+	float2		cameraNearFar;
+	float		cameraNearTimesFar;
+	float		cameraFarMinusNear;
+
+	float2		ViewportWidthHeight;
+
+	float2		screenWidthHeightInv;
+	
+	half3		GlobalAmbientColor;
+
+	float		Time;
+
+	float3		FakeRimLightDir;
+	half3		FogColor;
+	float4		FogRangeParameters;		// x = Near, y = Far, z = 1 / (Far - Near), w = フォグ適用度
+
+	// 高さフォグ廃止後、別用途で使用
+	float3		MiscParameters1;		// xyz = シャドウマップ用ライトベクトル
+	float4		MiscParameters2;		// x = 1 / シャドウマップの減衰距離（垂直方向）, y = シャドウマップ減衰の基準高さ, z = ブルーム閾値, w = dudv補正値（東ザナ温泉マップ用）
+
+	// 半球ライティング廃止後、別用途で使用
+	float3		MonotoneMul;		// xyz = モノクロ変換用パラメータ（乗算値）
+	float3		MonotoneAdd;		// xyz = モノクロ変換用パラメータ（加算値）
+	float3		BloomParams;		// x = ブルーム強度補正値（chr）, y = ブルーム強度補正値（map）, z = グロー強度補正値
+
+};
+

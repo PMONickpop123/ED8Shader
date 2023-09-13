@@ -1,0 +1,700 @@
+#define F_2		0x00000001 	// ２枚マルチ
+#define F_B2	0x00000002	// ２枚目半透明合成
+#define F_A2	0x00000004	// ２枚目加算
+#define F_S2	0x00000008	// ２枚目減算
+#define F_M2	0x00000010	// ２枚目乗算
+#define F_N2	0x00000020	// ２枚目濃度
+#define F_D2	0x00000040	// ２枚目DUDV
+	
+#define F_3		0x00001000	// ３枚マルチ
+#define F_B3	0x00002000	// ２枚目半透明合成
+#define F_A3	0x00004000	// ２枚目加算
+#define F_S3	0x00008000	// ２枚目減算
+#define F_M3	0x00010000	// ２枚目乗算
+#define F_N3	0x00020000	// ２枚目濃度	
+#define F_D3	0x00040000	// ３枚目DUDV
+#define F_U3	0x00080000	// ３枚目DUDV2
+	
+#define V_R		0x00000001		// リム透明
+
+#ifdef main_
+#endif
+
+#ifdef main_PositionNormalTextureColor3D_FP_____
+#define FP_FLAG	(0)
+#define VP_FLAG	(0)
+#define fp_NAME_ PositionNormalTextureColor3D_FP_____
+#endif
+#ifdef main_PositionNormalTextureColor3D_VP_____
+#define FP_FLAG	(0)
+#define VP_FLAG	(0)
+#define vp_NAME_ PositionNormalTextureColor3D_VP_____
+#endif
+
+#ifdef main_PositionNormalTextureColor3DMT_FP_____
+#define FP_FLAG	(F_2)
+#define fp_NAME_ PositionNormalTextureColor3DMT_FP_____
+#endif
+#ifdef main_PositionNormalTextureColor3DMT_VP_____
+#define FP_FLAG	(F_2)
+#define vp_NAME_ PositionNormalTextureColor3DMT_VP_____
+#endif
+
+#ifdef main_PositionNormalTextureColor3DMT_FP_B___
+#define FP_FLAG	(F_2|F_B2)				// ２枚目α
+#define fp_NAME_ PositionNormalTextureColor3DMT_FP_B___
+#endif
+
+#ifdef main_PositionNormalTextureColor3DMT_FP_A___
+#define FP_FLAG	(F_2|F_A2)				// ２枚目加算
+#define fp_NAME_ PositionNormalTextureColor3DMT_FP_A___
+#endif
+
+#ifdef main_PositionNormalTextureColor3DMT_FP_S___
+#define FP_FLAG	(F_2|F_S2)				// ２枚目減算
+#define fp_NAME_ PositionNormalTextureColor3DMT_FP_S___
+#endif
+
+#ifdef main_PositionNormalTextureColor3DMT_FP_M___
+#define FP_FLAG	(F_2|F_M2)				// ２枚目乗算
+#define fp_NAME_ PositionNormalTextureColor3DMT_FP_M___
+#endif
+
+#ifdef main_PositionNormalTextureColor3DMT_FP_N___
+#define FP_FLAG	(F_2|F_N2)				// ２枚目濃度
+#define fp_NAME_ PositionNormalTextureColor3DMT_FP_N___
+#endif
+
+#ifdef main_PositionNormalTextureColor3DMT_FP_D___
+#define FP_FLAG	(F_2|F_D2)				// ２枚目DUDV
+#define fp_NAME_ PositionNormalTextureColor3DMT_FP_D___
+#endif
+
+#ifdef main_PositionNormalTextureColor3DMT_FP_B_xB
+#define FP_FLAG	(F_2|F_3|F_B2|F_B3)		// ２枚目α３枚目α
+#define fp_NAME_ PositionNormalTextureColor3DMT_FP_B_xB
+#endif
+
+#ifdef main_PositionNormalTextureColor3DMT_FP_B_xA
+#define FP_FLAG	(F_2|F_3|F_B2|F_A3)		// ２枚目α３枚目加算
+#define fp_NAME_ PositionNormalTextureColor3DMT_FP_B_xA
+#endif
+
+#ifdef main_PositionNormalTextureColor3DMT_FP_B_xS
+#define FP_FLAG	(F_2|F_3|F_B2|F_M3)		// ２枚目α３枚目減算
+#define fp_NAME_ PositionNormalTextureColor3DMT_FP_B_xS
+#endif
+
+#ifdef main_PositionNormalTextureColor3DMT_FP_B_xM
+#define FP_FLAG	(F_2|F_3|F_B2|F_N3)		// ２枚目α３枚目乗算
+#define fp_NAME_ PositionNormalTextureColor3DMT_FP_B_xM
+#endif
+
+#ifdef main_PositionNormalTextureColor3DMT_FP_B_xN
+#define FP_FLAG	(F_2|F_3|F_B2|F_N3)		// ２枚目α３枚目濃度
+#define fp_NAME_ PositionNormalTextureColor3DMT_FP_B_xN
+#endif
+
+#ifdef main_PositionNormalTextureColor3DMT_FP_B_xD
+#define FP_FLAG	(F_2|F_3|F_B2|F_D3)		// ２枚目α３枚目DUDV
+#define fp_NAME_ PositionNormalTextureColor3DMT_FP_B_xD
+#endif
+
+#ifdef main_PositionNormalTextureColor3DMT_FP_B_xU
+#define FP_FLAG	(F_2|F_3|F_B2|F_U3)		// ２枚目α３枚目DUDV(1,2を歪ませる）
+#define fp_NAME_ PositionNormalTextureColor3DMT_FP_B_xU
+#endif
+
+#ifdef main_PositionNormalTextureColor3DMT_FP_A_xB
+#define FP_FLAG	(F_2|F_3|F_A2|F_B3)		// ２枚目加算３枚目α
+#define fp_NAME_ PositionNormalTextureColor3DMT_FP_A_xB
+#endif
+
+#ifdef main_PositionNormalTextureColor3DMT_FP_A_xA
+#define FP_FLAG	(F_2|F_3|F_A2|F_A3)		// ２枚目加算３枚目加算
+#define fp_NAME_ PositionNormalTextureColor3DMT_FP_A_xA
+#endif
+
+#ifdef main_PositionNormalTextureColor3DMT_FP_A_xS
+#define FP_FLAG	(F_2|F_3|F_A2|F_M3)		// ２枚目加算３枚目減算
+#define fp_NAME_ PositionNormalTextureColor3DMT_FP_A_xS
+#endif
+
+#ifdef main_PositionNormalTextureColor3DMT_FP_A_xM
+#define FP_FLAG	(F_2|F_3|F_A2|F_M3)		// ２枚目加算３枚目乗算
+#define fp_NAME_ PositionNormalTextureColor3DMT_FP_A_xM
+#endif
+
+#ifdef main_PositionNormalTextureColor3DMT_FP_A_xN
+#define FP_FLAG	(F_2|F_3|F_A2|F_N3)		// ２枚目加算３枚目濃度
+#define fp_NAME_ PositionNormalTextureColor3DMT_FP_A_xN
+#endif
+
+#ifdef main_PositionNormalTextureColor3DMT_FP_A_xD
+#define FP_FLAG	(F_2|F_3|F_A2|F_D3)		// ２枚目加算３枚目DUDV
+#define fp_NAME_ PositionNormalTextureColor3DMT_FP_A_xD
+#endif
+
+#ifdef main_PositionNormalTextureColor3DMT_FP_A_xU
+#define FP_FLAG	(F_2|F_3|F_A2|F_U3)		// ２枚目加算３枚目DUDV(1,2を歪ませる）
+#define fp_NAME_ PositionNormalTextureColor3DMT_FP_A_xU
+#endif
+
+#ifdef main_PositionNormalTextureColor3DMT_FP_S_xB
+#define FP_FLAG	(F_2|F_3|F_S2|F_B3)		// ２枚目減算３枚目α
+#define fp_NAME_ PositionNormalTextureColor3DMT_FP_S_xB
+#endif
+
+#ifdef main_PositionNormalTextureColor3DMT_FP_S_xA
+#define FP_FLAG	(F_2|F_3|F_S2|F_A3)		// ２枚目減算３枚目加算
+#define fp_NAME_ PositionNormalTextureColor3DMT_FP_S_xA
+#endif
+
+#ifdef main_PositionNormalTextureColor3DMT_FP_S_xS
+#define FP_FLAG	(F_2|F_3|F_S2|F_M3)		// ２枚目減算３枚目減算
+#define fp_NAME_ PositionNormalTextureColor3DMT_FP_S_xS
+#endif
+
+#ifdef main_PositionNormalTextureColor3DMT_FP_S_xM
+#define FP_FLAG	(F_2|F_3|F_S2|F_M3)		// ２枚目減算３枚目乗算
+#define fp_NAME_ PositionNormalTextureColor3DMT_FP_S_xM
+#endif
+
+#ifdef main_PositionNormalTextureColor3DMT_FP_S_xN
+#define FP_FLAG	(F_2|F_3|F_S2|F_N3)		// ２枚目減算３枚目濃度
+#define fp_NAME_ PositionNormalTextureColor3DMT_FP_S_xN
+#endif
+
+#ifdef main_PositionNormalTextureColor3DMT_FP_S_xD
+#define FP_FLAG	(F_2|F_3|F_S2|F_D3)		// ２枚目減算３枚目DUDV
+#define fp_NAME_ PositionNormalTextureColor3DMT_FP_S_xD
+#endif
+
+#ifdef main_PositionNormalTextureColor3DMT_FP_S_xU
+#define FP_FLAG	(F_2|F_3|F_S2|F_U3)		// ２枚目減算３枚目DUDV(1,2を歪ませる）
+#define fp_NAME_ PositionNormalTextureColor3DMT_FP_S_xU
+#endif
+
+#ifdef main_PositionNormalTextureColor3DMT_FP_M_xB
+#define FP_FLAG	(F_2|F_3|F_M2|F_B3)		// ２枚目乗算３枚目α
+#define fp_NAME_ PositionNormalTextureColor3DMT_FP_M_xB
+#endif
+
+#ifdef main_PositionNormalTextureColor3DMT_FP_M_xA
+#define FP_FLAG	(F_2|F_3|F_M2|F_A3)		// ２枚目乗算３枚目加算
+#define fp_NAME_ PositionNormalTextureColor3DMT_FP_M_xA
+#endif
+
+#ifdef main_PositionNormalTextureColor3DMT_FP_M_xS
+#define FP_FLAG	(F_2|F_3|F_M2|F_M3)		// ２枚目乗算３枚目減算
+#define fp_NAME_ PositionNormalTextureColor3DMT_FP_M_xS
+#endif
+
+#ifdef main_PositionNormalTextureColor3DMT_FP_M_xM
+#define FP_FLAG	(F_2|F_3|F_M2|F_M3)		// ２枚目乗算３枚目乗算
+#define fp_NAME_ PositionNormalTextureColor3DMT_FP_M_xM
+#endif
+
+#ifdef main_PositionNormalTextureColor3DMT_FP_M_xN
+#define FP_FLAG	(F_2|F_3|F_M2|F_N3)		// ２枚目乗算３枚目濃度
+#define fp_NAME_ PositionNormalTextureColor3DMT_FP_M_xN
+#endif
+
+#ifdef main_PositionNormalTextureColor3DMT_FP_M_xD
+#define FP_FLAG	(F_2|F_3|F_M2|F_D3)		// ２枚目乗算３枚目DUDV
+#define fp_NAME_ PositionNormalTextureColor3DMT_FP_M_xD
+#endif
+
+#ifdef main_PositionNormalTextureColor3DMT_FP_M_xU
+#define FP_FLAG	(F_2|F_3|F_M2|F_U3)		// ２枚目乗算３枚目DUDV(1,2を歪ませる）
+#define fp_NAME_ PositionNormalTextureColor3DMT_FP_M_xU
+#endif
+
+#ifdef main_PositionNormalTextureColor3DMT_FP_N_xB
+#define FP_FLAG	(F_2|F_3|F_N2|F_B3)		// ２枚目濃度３枚目α
+#define fp_NAME_ PositionNormalTextureColor3DMT_FP_N_xB
+#endif
+
+#ifdef main_PositionNormalTextureColor3DMT_FP_N_xA
+#define FP_FLAG	(F_2|F_3|F_N2|F_A3)		// ２枚目濃度３枚目加算
+#define fp_NAME_ PositionNormalTextureColor3DMT_FP_N_xA
+#endif
+
+#ifdef main_PositionNormalTextureColor3DMT_FP_N_xS
+#define FP_FLAG	(F_2|F_3|F_N2|F_M3)		// ２枚目濃度３枚目減算
+#define fp_NAME_ PositionNormalTextureColor3DMT_FP_N_xS
+#endif
+
+#ifdef main_PositionNormalTextureColor3DMT_FP_N_xM
+#define FP_FLAG	(F_2|F_3|F_N2|F_M3)		// ２枚目濃度３枚目乗算
+#define fp_NAME_ PositionNormalTextureColor3DMT_FP_N_xM
+#endif
+
+#ifdef main_PositionNormalTextureColor3DMT_FP_N_xN
+#define FP_FLAG	(F_2|F_3|F_N2|F_N3)		// ２枚目濃度３枚目濃度
+#define fp_NAME_ PositionNormalTextureColor3DMT_FP_N_xN
+#endif
+
+#ifdef main_PositionNormalTextureColor3DMT_FP_N_xD
+#define FP_FLAG	(F_2|F_3|F_N2|F_D3)		// ２枚目濃度３枚目DUDV
+#define fp_NAME_ PositionNormalTextureColor3DMT_FP_N_xD
+#endif
+
+#ifdef main_PositionNormalTextureColor3DMT_FP_N_xU
+#define FP_FLAG	(F_2|F_3|F_N2|F_U3)		// ２枚目濃度３枚目DUDV(1,2を歪ませる）
+#define fp_NAME_ PositionNormalTextureColor3DMT_FP_N_xU
+#endif
+
+#ifdef main_PositionNormalTextureColor3DMT_FP_D_xA
+#define FP_FLAG	(F_2|F_3|F_D2|F_A3)		// ２枚目DUDV３枚目加算
+#define fp_NAME_ PositionNormalTextureColor3DMT_FP_D_xA
+#endif
+
+#ifdef main_PositionNormalTextureColor3DMT_FP_D_xN
+#define FP_FLAG	(F_2|F_3|F_D2|F_N3)		// ２枚目DUDV３枚目濃度
+#define fp_NAME_ PositionNormalTextureColor3DMT_FP_D_xN
+#endif
+
+//-----------------------------------------------------------------------------
+// インスタンシング
+//-----------------------------------------------------------------------------
+#if defined(INSTANCING_ENABLED)
+
+struct InstancingInput
+{
+	float4 InstanceTransform0;
+	float4 InstanceTransform1;
+	float4 InstanceTransform2;	
+	float4 InstanceColor;
+};
+layout (location = 12) in InstancingInput instancingInput;
+
+void ApplyInstanceTransformVertex(InstancingInput IN, inout float3 toTransform)
+{
+	float3 instanceTransformedPosition;
+	instanceTransformedPosition.x = dot(IN.InstanceTransform0, float4(toTransform,1));
+	instanceTransformedPosition.y = dot(IN.InstanceTransform1, float4(toTransform,1));
+	instanceTransformedPosition.z = dot(IN.InstanceTransform2, float4(toTransform,1));
+	toTransform = instanceTransformedPosition;
+}
+
+void ApplyInstanceTransformNormal(InstancingInput IN, inout float3 toTransform)
+{
+	float3 instanceTransformedNormal;
+	instanceTransformedNormal.x = dot(IN.InstanceTransform0.xyz, toTransform);
+	instanceTransformedNormal.y = dot(IN.InstanceTransform1.xyz, toTransform);
+	instanceTransformedNormal.z = dot(IN.InstanceTransform2.xyz, toTransform);
+	toTransform = instanceTransformedNormal;
+}
+
+// colorからcolorとspecularを抜き出す
+void ApplyInstanceColorSpecular(inout float4 color, out float4 specular)
+{
+	float4 col = float4(1,1,1,1);
+	float4 spe = modf(color, col);	// 小数部spe, 整数部col
+	color = col / 100000.0;
+	specular = spe * 10.0;
+}
+
+#endif
+
+uniform sampler2D TextureSampler;
+uniform sampler2D Texture1Sampler;
+uniform sampler2D Texture2Sampler;
+uniform sampler2D DitherNoiseTexture;
+
+layout(std140) uniform Param
+{
+uniform SceneWideParameters scene;
+
+uniform float4x4 World;
+uniform float4x4 WorldView;
+uniform float4x4 WorldViewProjection;
+uniform float4x4 WorldViewInverse;	
+uniform float4x4 WorldViewProjectionInverse;	
+uniform float4x4 WorldInverse;
+
+uniform float 		CameraAspectRatio;
+uniform float4 		inputColor;					// 色
+uniform float4 		inputSpecular;					// スペキュラ
+uniform float		inputAlphaThreshold;								// αテストのしきい値(Vitaではαテストをシェーダーでやる必要ある）
+uniform float4		inputCenter;
+uniform float4		inputUVShift;								// UVずらし値
+uniform float4		inputUVShift1;								// UVずらし値(2マルチ）
+uniform float4		inputUVShift2;								// UVずらし値(3マルチ）
+uniform float2		inputUVtraspose;							// UV転置用
+uniform float2		inputUVtraspose1;							// UV転置用(2マルチ）
+uniform float2		inputUVtraspose2;							// UV転置用(3マルチ）
+uniform float4		inputShaderParam;					// リムパラム
+uniform float2		inputDUDVParam1;
+uniform float2		inputScreenOffset;							// 3D描画でのスクリーン座標オフセット
+uniform float		inputDepth;
+uniform float2		inputSoftCheckDepthParam;					// ソフトシェーダーパラム
+uniform float3		inputNearFadeClip;							// ニアフェードクリップ
+uniform float		inputDownscaleFactor;
+uniform float2		inputDepthBufferSize;
+uniform float2		inputDistortion;							// 光学歪み（法線、UV）
+uniform float3		inputBlurParam;						// 3D_ZOOM_BLUR の中心
+uniform float4 		inputMonotoneMul;				// モノトーンフィルタ RGB:色 A:補間
+uniform float4 		inputMonotoneAdd;				// モノトーンフィルタ RGB:色 A:-
+uniform float4		inputInvProjXY;
+uniform float3		inputDirectionalLightVec;			// 平行光源
+uniform float4		inputDirectina_Ligh_Color;	// 平行光源(RGBI)	Directional, Light Color といった単語は禁句らしい。コンバート結果に含まれない
+uniform float4		inputAmbientColor;			// 環境光RGBA)
+
+uniform float4 		GameDitherParams;	// x = Near, y = 1 / (Far - Near), z = Far, w = 未使用
+};
+
+float2 getUV( float2 IN )
+{
+	// UV転置
+	float2 OUT;
+	float2 uv1 = IN * inputUVShift.xy + inputUVShift.zw;
+	OUT.x = uv1.x * inputUVtraspose.x + uv1.y *-inputUVtraspose.y + 1.0 * inputUVtraspose.y;
+	OUT.y = uv1.y * inputUVtraspose.x + uv1.x * inputUVtraspose.y;
+	return OUT;
+}
+float2 getUV1( float2 IN )
+{
+	// UV転置
+	float2 OUT;
+	float2 uv1 = IN * inputUVShift1.xy + inputUVShift1.zw;
+	OUT.x = uv1.x * inputUVtraspose1.x + uv1.y *-inputUVtraspose1.y + 1.0 * inputUVtraspose1.y;
+	OUT.y = uv1.y * inputUVtraspose1.x + uv1.x * inputUVtraspose1.y;
+	return OUT;
+}
+float2 getUV2( float2 IN )
+{
+	// UV転置
+	float2 OUT;
+	float2 uv1 = IN * inputUVShift2.xy + inputUVShift2.zw;
+	OUT.x = uv1.x * inputUVtraspose2.x + uv1.y *-inputUVtraspose2.y + 1.0 * inputUVtraspose2.y;
+	OUT.y = uv1.y * inputUVtraspose2.x + uv1.x * inputUVtraspose2.y;
+	return OUT;
+}
+
+float getShadeFactor(float3 worldPos )
+{
+	float dh		= worldPos.y - inputCenter.y;
+	
+	dh += inputCenter.w;			//w==0で初期値が動くように
+
+	dh = clamp(dh, 0.0, 1.0);
+	
+
+	return dh;
+}
+
+float getNearFadeFactor( float projectionSpaceZ )
+{
+	// 無効のときは1を返す
+	float nearClipDistanceBegin = inputNearFadeClip.x;	//4.0;	//消え始めのカメラからの距離
+	float nearClipDistanceEnd = inputNearFadeClip.y;	//2.0;	//消え終わりカメラからの距離
+	projectionSpaceZ = max(projectionSpaceZ,0.0);
+	float w = max(nearClipDistanceBegin - nearClipDistanceEnd, 0.0);
+	float rate = (w <= 0.00) ? 1.0 : (projectionSpaceZ - nearClipDistanceEnd) / w;
+	return saturate(rate);
+}
+	
+//------------------------------------------------------------------------------
+// スクリーン座標のディザUVを取得
+//------------------------------------------------------------------------------
+float GetDitherThreshold(float2 screenPos)
+{
+	float2 matrixUv = screenPos * (1.0/4);
+	return _tex2Dlod(PointWrapSamplerState, DitherNoiseTexture, matrixUv, 0).x;
+}
+	
+//------------------------------------------------------------------------------
+// 深度からディザレベルを取得
+//------------------------------------------------------------------------------
+float EvaluateDitherValue(float3 viewPosition, float n, float r)
+{
+	float t = saturate((-viewPosition.z - n) * r);
+	return 1 - t;
+}
+
+//-----------------------------------------------------------------------------
+// 視点の位置
+//-----------------------------------------------------------------------------
+float3 getEyePosition()
+{
+//#ifdef DCC_TOOL
+//	return float3(ViewIXf[0].w, ViewIXf[1].w, ViewIXf[2].w);
+//#else // DCC_TOOL
+	return float3(scene.EyePosition);
+//#endif // DCC_TOOL
+}
+
+//------------------------------------------------------------------------------
+// リム透明度を計算
+//------------------------------------------------------------------------------
+half getRimAlphaFactor( half alpha )
+{	
+	// 切り替え部分（線形補完）
+	// start + ((end - start) * s);
+	
+	half4 param = half4(inputShaderParam);
+
+	// αを強くする
+	half outsideAlpha = pow(max(0, 1.0 - alpha), param[0] );
+	outsideAlpha *= param[1];
+	outsideAlpha = saturate(outsideAlpha);
+
+	// 外側／内側切り替え
+	half insideAlpha = 1.0 - outsideAlpha;	
+	half rimAlpha = insideAlpha + ((outsideAlpha - insideAlpha) * param[2]);	// リム消しの外側／内側			inputShaderParam[2] == 1 のとき外側
+
+	// 有効／無効切り替え（無効指定のときは、α=1を返す）
+	rimAlpha = 1.0 + ((rimAlpha - 1.0) * param[3]);							// リム消しの有効／無効			inputShaderParam[3] == 1 のとき有効
+
+	return rimAlpha;
+}
+
+struct DefualtVPInput
+{
+	float3 position;
+	float3 normal;
+	float2 texCoord;
+	float4 color;
+	
+#ifdef INSTANCING_ENABLED
+	InstancingInput instancingInput;
+#endif
+};
+
+//	#define USE_FP_RIM_FADE
+//------------------------------------------------------
+struct SpriteCTMT_VPOutput
+{
+	float4 position;
+	float4 color;
+	float4 specular;
+	float2 texCoord0;
+
+#if defined(F_2)
+	float2 texCoord1;
+#endif
+
+#if defined(F_3)
+	float2 texCoord2;
+#endif
+
+#if defined(USE_FP_RIM_FADE)
+	float3 worldPosition;
+	float3 worldNormal;
+#endif
+		
+#if defined(CS_PARTICLE_DITHER_ENABLE)
+	half4 ditherParam;
+#endif
+};
+
+//----------------------------------------------------------------------------------------
+#ifdef vp_NAME_
+
+SpriteCTMT_VPOutput vp_NAME_( DefualtVPInput IN )			// PositionNormalTextureColor3DMT_VP
+{
+	SpriteCTMT_VPOutput OUT;
+
+#if defined(INSTANCING_ENABLED)
+	float4 localPosition = float4(IN.position.xyz,1.0);	
+	ApplyInstanceTransformVertex(IN.instancingInput, localPosition.xyz);
+	float3 worldPosition = _mul(World, localPosition).xyz;
+	OUT.position = _mul(WorldViewProjection, localPosition);	
+//	OUT.position = _mul(scene.ViewProjection, float4(worldPosition,1));
+
+#else
+	float4 localPosition = float4(IN.position.xyz,1.0);	
+	OUT.position = _mul(WorldViewProjection, localPosition);
+
+	float3 worldPosition = _mul(World, localPosition).xyz;
+#endif // INSTANCING_ENABLED
+
+//#if (VP_FLAG & V_R)
+#if defined(CS_PARTICLE_RIM_FADE) && !defined(USE_FP_RIM_FADE)
+	// リム透明
+	float3 cameraVec = normalize( getEyePosition() - worldPosition );
+	float3 normalVec = normalize( _mul(World, float4(IN.normal.xyz,0)).xyz);	
+	float alpha = abs( dot(cameraVec, normalVec) );
+
+	alpha = float(getRimAlphaFactor(half(alpha)));
+#else
+	float	alpha = 1.0;
+#endif
+
+	// UV転置
+	OUT.texCoord0 = getUV( IN.texCoord );
+
+#if defined(F_2)
+	OUT.texCoord1 = getUV1( IN.texCoord );
+#endif
+
+#if defined(F_3)
+	OUT.texCoord2 = getUV2( IN.texCoord );
+#endif
+
+
+	
+#if defined(INSTANCING_ENABLED)
+	float4 color = IN.instancingInput.InstanceColor;
+	float4 specular = float4(0.0, 0.0, 0.0, 0.0);
+	ApplyInstanceColorSpecular(color, specular);
+
+	OUT.color = IN.color * color;
+	OUT.specular = specular;
+#else // INSTANCING_ENABLED
+	OUT.color = IN.color * inputColor;	
+	OUT.specular = inputSpecular;
+#endif // INSTANCING_ENABLED
+
+	OUT.color.a *= getShadeFactor( worldPosition.xyz );		//陰影
+	OUT.color.a *= getNearFadeFactor( OUT.position.z );		//ニアカメラクリップ
+	OUT.color.a *= alpha;
+
+	//スクリーン座標系でのオフセット(-1～1)
+	OUT.position.xy += inputScreenOffset.xy * OUT.position.ww;
+	
+#if defined(USE_FP_RIM_FADE)
+	OUT.worldPosition = worldPosition;
+	OUT.worldNormal = normalize( _mul( World, float4(IN.normal.xyz,0)).xyz);
+#endif
+	
+#if defined(CS_PARTICLE_DITHER_ENABLE)
+	// GameDitherParamはメッシュごとにPE_SHADER_PARAMETER_NODE_DITHER_PARAMSで設定。setDitherParams()
+	float3 viewPosition = _mul(scene.View, float4(worldPosition.xyz, 1)).xyz;
+	OUT.ditherParam.x = EvaluateDitherValue(viewPosition, GameDitherParams.x, GameDitherParams.y);
+#endif	
+
+	return OUT;
+};
+
+in	DefualtVPInput IN;
+out	SpriteCTMT_VPOutput OUT;
+out gl_PerVertex
+{
+    vec4 gl_Position;
+};
+void main()
+{
+	DefualtVPInput IN_ = IN;
+#ifdef INSTANCING_ENABLED
+	IN_.instancingInput = instancingInput;
+#endif
+
+	OUT = vp_NAME_(IN_);
+
+	gl_Position	= OUT.position;
+}
+
+#endif // vp_NAME_
+
+//----------------------------------------------------------------------------------------
+#ifdef fp_NAME_
+
+half4 fp_NAME_(SpriteCTMT_VPOutput IN, float4 ScreenPosition)		// PositionNormalTextureColor3DMT_FP
+{	
+#if defined(CS_PARTICLE_DITHER_ENABLE)
+	// ディザリングによる距離クリップ
+	clip(IN.ditherParam.x - GetDitherThreshold(ScreenPosition.xy));
+#endif	
+
+	float2 uv0 = IN.texCoord0;
+
+	//#if (FP_FLAG & F_SCN)
+	// 1枚目のUVをスクリーン座標を張る
+	#if defined(CS_PARTICLE_UV_SCREEN)
+		uv0 = ScreenPosition.xy * float2(1.0 / scene.ViewportWidthHeight.x, 1.0 / scene.ViewportWidthHeight.y);
+		#if defined(PHYRE_D3DFX)	
+			uv0.y = 1.0 - uv0.y; // 反転+CLAM対応
+		#endif
+	#endif
+
+	// F_U3:３枚目のDUDVを１、２枚目のUVに影響させる
+	#if (FP_FLAG & F_U3)
+		float2 _dudv0 = (_tex2D(VariableSamplerState2, Texture2Sampler, IN.texCoord2).xy * 2.0 - 1.0) * inputDUDVParam1.xy;
+		float4 _color0 = _tex2D(VariableSamplerState, TextureSampler, uv0 + _dudv0);
+	#else
+		#if (FP_FLAG & F_D2)
+			// ２枚目をDUDVとして使う
+			float2 _dudv0 = (_tex2D(VariableSamplerState1, Texture1Sampler, IN.texCoord1).xy * 2.0 - 1.0) * inputDUDVParam1.xy;
+			float4 _color0 = _tex2D(VariableSamplerState, TextureSampler, uv0 + _dudv0);
+		#else	
+			float4 _color0 = _tex2D(VariableSamplerState, TextureSampler, uv0);
+		#endif
+	#endif	
+		
+	float4 _color = _color0;
+	
+	// ２枚目ブレンド		
+	#if (FP_FLAG & F_2)
+		#if (FP_FLAG & (F_D3 | F_U3))
+			// ３枚目をDUDVとして使う
+			float2 _dudv1 = (_tex2D(VariableSamplerState2, Texture2Sampler, IN.texCoord2).xy * 2.0 - 1.0) * inputDUDVParam1.xy;
+			float4 _color1 = _tex2D(VariableSamplerState1, Texture1Sampler, IN.texCoord1 + _dudv1);
+		#else
+			float4 _color1 = _tex2D(VariableSamplerState1, Texture1Sampler, IN.texCoord1);		
+		#endif
+
+		#if (FP_FLAG & F_A2)
+			_color.rgb = (_color.rgb + (_color1.rgb * _color1.a));	// 加算
+		#elif (FP_FLAG & F_S2)
+			_color.rgb = (_color.rgb - (_color1.rgb * _color1.a));	// 減算
+		#elif (FP_FLAG & F_M2)
+			_color.rgb = lerp(_color.rgb, _color.rgb * _color1.rgb, _color1.a);	// 乗算
+		#elif (FP_FLAG & F_N2)
+			_color = _color.rgba * _color1.rgba;	// 濃度乗算		
+		#elif (FP_FLAG & F_B2)
+			_color.rgb = lerp(_color.rgb, _color1.rgb, _color1.a);	// 合成
+		#endif
+	#endif // (FP_FLAG & F_2)
+		
+	// ３枚目ブレンド		
+	#if (FP_FLAG & F_3)
+		float4 _color2 = _tex2D(VariableSamplerState2, Texture2Sampler, IN.texCoord2);	
+			
+		#if (FP_FLAG & F_A3)
+			_color.rgb = (_color.rgb + (_color2.rgb * _color2.a));	// 加算
+		#elif (FP_FLAG & F_A3)
+			_color.rgb = (_color.rgb - (_color2.rgb * _color2.a));	// 減算
+		#elif (FP_FLAG & F_M3)
+			_color.rgb = lerp(_color.rgb, _color.rgb * _color2.rgb, _color2.a);	// 乗算
+		#elif (FP_FLAG & F_N3)
+			_color = _color.rgba * _color2.rgba;	// 濃度乗算		
+		#elif (FP_FLAG & F_B3)
+			_color.rgb = lerp(_color.rgb, _color2.rgb, _color2.a);	// 合成
+		#endif
+
+	#endif // (FP_FLAG & F_3)
+
+	// ブレンド結果
+	_color0 = _color;	
+
+	_color0 *= IN.color;
+	_color0.rgb += IN.specular.rgb * IN.specular.a;
+
+//	_color0.rgb += inputSpecular.rgb * inputSpecular.a;
+
+	
+#if defined(CS_PARTICLE_RIM_FADE) && defined(USE_FP_RIM_FADE)
+	// リム透明
+	float3 cameraVec = normalize( getEyePosition() - IN.worldPosition );
+	float alpha = abs( dot(cameraVec, IN.worldNormal) );
+
+	alpha = float(getRimAlphaFactor(half(alpha)));
+	_color0.a *= alpha;
+#endif
+	clip(_color0.a - inputAlphaThreshold);	//αテスト(Vitaで必要)
+
+	return _color0;	
+}
+
+in	SpriteCTMT_VPOutput OUT;
+out vec4 out_FragColor;
+
+void main()
+{
+	out_FragColor = fp_NAME_(OUT, gl_FragCoord);
+}
+
+#endif // fp_NAME_

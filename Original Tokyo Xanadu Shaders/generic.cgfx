@@ -1,0 +1,1082 @@
+uniform sampler2D LowResDepthTexture;			//使われていないけど
+uniform sampler2D DitherNoiseTexture;
+
+#define FPS_MAX	30
+
+struct DirectionalLight
+{
+	half3 m_direction;
+	half3 m_colorIntensity;
+};
+
+// 影受けバイアス値
+#define SHADOW_LIGHTDIR_BIAS	0.05
+#define SHADOW_NORMALDIR_BIAS	0.05
+
+// カスケードシャドウマップ分割数（アプリ側のコードと合わせること！）
+struct CombinedCascadedShadowMap
+{
+	// 二分割
+	float4x4 m_split0Transform;
+	float4x4 m_split1Transform;
+
+	float4 m_splitDistances;
+};
+
+
+
+//------------------------------------------------------------------------------
+// プログラム入力変数
+//------------------------------------------------------------------------------
+
+uniform sampler2D	DepthBuffer;
+uniform sampler2D	TextureSampler;
+uniform sampler2D	Texture2Sampler;
+
+layout(std140) uniform Param
+{
+uniform SceneWideParameters scene;
+
+uniform float4x4	World;
+uniform float4x4	WorldViewProjection;
+
+uniform float 		CameraAspectRatio;
+uniform float4 		inputColor;					//色
+uniform float4 		inputSpecular;					//スペキュラ
+uniform float4		inputUVShift;								//UVずらし値
+uniform float		inputAlphaThreshold;								//αテストのしきい値(Vitaではαテストをシェーダーでやる必要ある）
+uniform float4		inputCenter;
+uniform float2		inputUVtraspose;							//UV転置用
+uniform float4		inputShaderParam;
+uniform float2		inputScreenOffset;							//3D描画でのスクリーン座標オフセット
+uniform float		inputDepth;
+uniform float4		inputUVShiftMT;								//UVずらし値MT
+uniform float3		inputNearFadeClip;							//ニアフェードクリップ
+uniform float2		inputCameraNearFarParams;			//カメラパラム
+uniform float		inputDownscaleFactor;
+uniform float2		inputDepthBufferSize;
+uniform float3		inputLightVector;
+uniform float4		inputMonotoneMul;	// モノトーンフィルタ RGB:色 A:補間
+uniform float4		inputMonotoneAdd;	// モノトーンフィルタ RGB:色 A:-
+
+};
+
+
+// fxファイルとの互換性を高めるため構造体型の入出力にしました
+struct SpriteC_VPInput
+{
+	float3 position;
+	float4 color;
+};
+
+struct SpriteC_VPOutput
+{
+	float4 position;
+	float4 color;
+};
+
+struct SpriteCT_VPInput
+{
+	float3 position;
+	float4 color;
+	float2 texCoord;
+};
+
+struct SpriteCT_VPOutput
+{
+	float4 position;
+	float4 color;
+	float2 texCoord;
+};
+
+
+struct SpriteCTMT_VPOutput
+{
+	float4 position;
+	float4 color;
+	float2 texCoord;
+	float2 texCoord2;
+};
+
+
+struct SpriteCT3D_VPOutput
+{
+	float4 position;
+	float4 color;
+	float2 texCoord;
+	float4 texCoord1;
+};
+
+//-----------------------------------------------------------------------------
+// 視点の位置
+//-----------------------------------------------------------------------------
+float3 getEyePosition()
+{
+	return float3(scene.EyePosition);
+}
+
+//------------------------------------------------------------------------------
+// 仮想陰影値を計算
+// pos:頂点ワールド座標
+//------------------------------------------------------------------------------
+float getShadeFactor(float3 worldPos )
+{
+	float dh		= worldPos.y - inputCenter.y;
+	
+	dh += inputCenter.w;			//w==0で初期値が動くように
+
+	dh = clamp(dh, 0.0, 1.0);
+
+	return dh;
+}
+
+//------------------------------------------------------------------------------
+// 画面手前フェード消し(頂点単位)
+//------------------------------------------------------------------------------
+float getNearFadeFactor( float zzz )
+{
+	//無効のときは1を返す
+	//zzz /= zzz で 1
+	float nearClipDistanceBegin = inputNearFadeClip.x;	//4.0;	//消え始めのカメラからの距離/
+	float nearClipDistanceEnd = inputNearFadeClip.y;	//2.0;	//消え終わりカメラからの距離
+	zzz = max(zzz,0.0);
+	zzz -= nearClipDistanceEnd;
+
+	//Begin=0 End=0 inputNearFadeClip.z=1 のとき zzz=1となる。
+	zzz /= ((nearClipDistanceBegin - nearClipDistanceEnd) + (zzz * inputNearFadeClip.z));
+	return clamp(zzz, 0.0,1.0);
+}
+
+
+//-----------------------------------------------------------------------------
+// DepthバッファからDepth値を
+//-----------------------------------------------------------------------------
+float ReadDepth( sampler2D depthMap, float2 uv )
+{
+
+	float currentDepth = _tex2D(PointClampSamplerState, depthMap, uv.xy).x;
+	return currentDepth;
+}
+
+//-----------------------------------------------------------------------------
+// テクスチャ化したDepthバッファからDepth値を
+//-----------------------------------------------------------------------------
+float TexDepth( sampler2D depthMap, float2 uv )
+{
+	return dot(tex2D(depthMap, uv.xy).xyz, float3(1.0, 1.0 / 255.0, 1.0 / (255.0 * 255.0)));
+}
+	
+	
+//------------------------------------------------------------------------------
+// Convert a depth value from post projection space to view space. 
+//------------------------------------------------------------------------------
+//float ConvertDepth(float depth)
+//{				
+//	float viewSpaceZ = -(scene.cameraNearFarParameters.z / (depth * scene.cameraNearFarParameters.w - scene.cameraNearFarParameters.y));	// near*far / (depth * (far-near) - far)
+//	return saturate(viewSpaceZ);
+//}
+
+//------------------------------------------------------------------------------
+// 転置UVを返す
+// inputUVtraspose = {1,0} で通常UV {0,1}で転置
+//------------------------------------------------------------------------------
+float2 getUV( float2 IN )
+{
+	// UV転置
+	float2 OUT;
+	float2 uv1 = IN * inputUVShift.xy + inputUVShift.zw;
+//	OUT.x = uv1.x * inputUVtraspose.x + uv1.y *-inputUVtraspose.y;
+//	OUT.y = uv1.y * inputUVtraspose.x + uv1.x * inputUVtraspose.y;
+	OUT.x = uv1.x * inputUVtraspose.x + uv1.y *-inputUVtraspose.y + 1 * inputUVtraspose.y;
+	OUT.y = uv1.y * inputUVtraspose.x + uv1.x * inputUVtraspose.y;
+
+	return OUT;
+}
+
+///////////////////////////////////////////////////////////////////////////////
+// スプライト
+
+#ifdef main_PositionColor2D_VP
+SpriteC_VPOutput PositionColor2D_VP(SpriteC_VPInput IN)
+{
+	SpriteC_VPOutput OUT;
+	float4 localPosition = float4(IN.position.xyz,1.0);	
+	OUT.position = _mul(World, localPosition);
+	OUT.position.x *= CameraAspectRatio;
+	OUT.color = IN.color;
+	return OUT;
+}
+in	SpriteC_VPInput IN;
+out	SpriteC_VPOutput OUT;
+out gl_PerVertex
+{
+    vec4 gl_Position;
+};
+void main()
+{
+	OUT = PositionColor2D_VP(IN);
+
+	gl_Position		= OUT.position;
+}
+#endif
+
+#ifdef main_PositionColor2D_FP
+half4 PositionColor2D_FP(SpriteC_VPOutput IN)
+{
+	return IN.color;
+}
+
+in	SpriteC_VPOutput OUT;
+out vec4 out_FragColor;
+void main()
+{
+	out_FragColor = PositionColor2D_FP(OUT);
+}
+#endif
+
+//-----------------------------------------------------------------------------
+// 頂点シェーダー：2D, 標準、マルチテクスチャ
+//-----------------------------------------------------------------------------
+#ifdef main_PositionTextureColor2DMT_VP
+SpriteCTMT_VPOutput PositionTextureColor2DMT_VP(SpriteCT_VPInput IN)
+{
+	SpriteCTMT_VPOutput OUT;
+	float4 localPosition = float4(IN.position.xyz,1.0);	
+	OUT.position = _mul(World, localPosition);
+	OUT.position.x *= CameraAspectRatio;
+	OUT.texCoord = IN.texCoord * inputUVShift.xy + inputUVShift.zw;
+	OUT.color    = IN.color    * inputColor;
+	OUT.texCoord2 = OUT.texCoord.xy * inputUVShiftMT.xy + inputUVShiftMT.zw;
+	return OUT;
+}
+
+in	SpriteCT_VPInput IN;
+out	SpriteCTMT_VPOutput OUT;
+out gl_PerVertex
+{
+    vec4 gl_Position;
+};
+void main()
+{
+	OUT = PositionTextureColor2DMT_VP(IN);
+
+	gl_Position		= OUT.position;
+}
+#endif
+
+//-----------------------------------------------------------------------------
+// フラグメントシェーダー：2D, 標準、マルチテクスチャ
+//-----------------------------------------------------------------------------
+#ifdef main_PositionTextureColor2DMT_FP
+half4 PositionTextureColor2DMT_FP(SpriteCTMT_VPOutput IN)
+{
+	float4 _color = _tex2D(VariableSamplerState, TextureSampler, IN.texCoord);
+	float4 _color2 = _tex2D(VariableSamplerState, Texture2Sampler, IN.texCoord2);
+	_color *= IN.color;
+	_color.rgb += inputSpecular.rgb * inputSpecular.a;
+	_color.a = min(1.0, IN.color.a * _color2.r * 2);
+	return _color;
+}
+
+in	SpriteCTMT_VPOutput OUT;
+out vec4 out_FragColor;
+void main()
+{
+	out_FragColor = PositionTextureColor2DMT_FP(OUT);
+}
+#endif
+
+//-----------------------------------------------------------------------------
+// 頂点シェーダー：2D, 標準
+//-----------------------------------------------------------------------------
+#ifdef main_PositionTextureColor2D_VP
+SpriteCT_VPOutput PositionTextureColor2D_VP(SpriteCT_VPInput IN)
+{
+	SpriteCT_VPOutput OUT;
+	float4 localPosition = float4(IN.position.xyz,1.0);	
+	OUT.position = _mul(World, localPosition);
+
+	OUT.position.x *= CameraAspectRatio;
+
+	OUT.position.z = inputDepth;	//Z値書き込みたい場合に使う
+	OUT.texCoord = IN.texCoord * inputUVShift.xy + inputUVShift.zw;
+	OUT.color    = IN.color    * inputColor;
+	return OUT;
+}
+in	SpriteCT_VPInput IN;
+out	SpriteCT_VPOutput OUT;
+out gl_PerVertex
+{
+    vec4 gl_Position;
+};
+void main()
+{
+	OUT = PositionTextureColor2D_VP(IN);
+
+	gl_Position		= OUT.position;
+}
+#endif
+
+//-----------------------------------------------------------------------------
+// フラグメントシェーダー：2D, 標準
+//-----------------------------------------------------------------------------
+#ifdef main_PositionTextureColor2D_FP
+half4 PositionTextureColor2D_FP(SpriteCT_VPOutput IN)
+{
+	float4 _color = _tex2D(VariableSamplerState, TextureSampler, IN.texCoord);
+	_color *= IN.color;
+	_color.rgb += inputSpecular.rgb * inputSpecular.a;
+	return _color;
+}
+in	SpriteCT_VPOutput OUT;
+out vec4 out_FragColor;
+void main()
+{
+	out_FragColor = PositionTextureColor2D_FP(OUT);
+}
+#endif
+
+#ifdef main_PositionTextureColorMonotone2D_FP
+half4 PositionTextureColorMonotone2D_FP(SpriteCT_VPOutput IN)
+{
+	float4 _color = _tex2D(VariableSamplerState, TextureSampler, IN.texCoord);
+	_color *= IN.color;
+	_color.rgb += inputSpecular.rgb * inputSpecular.a;
+	float3 mono = dot(_color.rgb, float3(0.299, 0.587, 0.114)) * inputMonotoneMul.rgb + inputMonotoneAdd.rgb;
+	_color.rgb = lerp(_color.rgb, mono, inputMonotoneMul.a);
+	return half4(_color);
+}
+in	SpriteCT_VPOutput OUT;
+out vec4 out_FragColor;
+void main()
+{
+	out_FragColor = PositionTextureColorMonotone2D_FP(OUT);
+}
+#endif
+
+// 現状、アプリ・シェーダ間でバージョンの整合性が取れてないため、下記テクニックもダミーとして残してます（2015/02/24 日置）
+//-----------------------------------------------------------------------------
+// 頂点シェーダー：Depth -> Color
+//-----------------------------------------------------------------------------
+
+#ifdef main_CopyPositionTextureColor2D_VP
+SpriteCT_VPOutput CopyPositionTextureColor2D_VP(SpriteCT_VPInput IN)
+{
+#if 0
+	SpriteCT_VPOutput OUT;
+	float4 localPosition = float4(IN.position.xyz,1.0);	
+	OUT.position = localPosition;
+	OUT.texCoord = IN.texCoord;
+	OUT.color    = IN.color;
+	
+	return OUT;
+#else
+	SpriteCT_VPOutput OUT;
+	OUT.position = float4(0,0,0,0);
+	OUT.color = float4(0,0,0,0);
+	OUT.texCoord = float2(0,0);
+	return OUT;
+#endif
+}
+
+in	SpriteCT_VPInput IN;
+out	SpriteCT_VPOutput OUT;
+out gl_PerVertex
+{
+    vec4 gl_Position;
+};
+void main()
+{
+	OUT = CopyPositionTextureColor2D_VP(IN);
+
+	gl_Position		= OUT.position;
+}
+#endif
+
+
+//-----------------------------------------------------------------------------
+// フラグメントシェーダー：Depth -> Color
+//-----------------------------------------------------------------------------
+#ifdef main_CopyPositionTextureColor2D_FP
+float4 CopyPositionTextureColor2D_FP(SpriteCT_VPOutput IN)
+{
+#if 0
+	float currentDepth = ReadDepth( TextureSampler, IN.texCoord.xy );
+	
+	// 線形変換 すると far-nearが小さい(2000など)とうまくいかなくなる
+	// currentDepth = (1.0/scene.cameraNearFarParameters.y) / ((scene.cameraNearFarParameters.y/(scene.cameraNearFarParameters.y - scene.cameraNearFarParameters.x)) - currentDepth);
+	// currentDepth = 0.998989;
+	// currentDepth = 0.9123421234;
+	// currentDepth = 0.123456;
+	// currentDepth = 0.999995;
+
+	//--------------------------------------------------
+	//深度値を RGB(8bitx3)に格納。
+	// R成分抽出
+	float R = floor( currentDepth * 255.0 ) / 255.0;	//round 指定された値を直近の整数値に丸めます
+	// G成分抽出
+	float Def = currentDepth - R;
+	float G = floor( Def * 65535.0 ) / 255.0;			//floor パラメーター以上の最大の整数値
+	// B成分抽出
+	Def -= G/255.0;
+	float B =  Def * 65535.0;// / 255.0;
+	return float4(R, G, B, 0);	
+	//---------------------------------------------------
+#else
+	return float4(1,0,0,0);
+#endif
+}
+
+in	SpriteCT_VPOutput OUT;
+out vec4 out_FragColor;
+void main()
+{
+	out_FragColor = CopyPositionTextureColor2D_FP(OUT);
+}
+
+#endif
+
+
+///////////////////////////////////////////////////////////////////////////////
+// ポリゴン
+
+// 位置、色
+#ifdef main_PositionColor3D_VP
+SpriteC_VPOutput PositionColor3D_VP(SpriteC_VPInput IN)
+{
+	SpriteC_VPOutput OUT;
+	float4 localPosition = float4(IN.position.xyz,1.0);	
+	OUT.position = _mul(WorldViewProjection, localPosition);
+	OUT.color    = IN.color    * inputColor;
+	return OUT;
+}
+in	SpriteC_VPInput IN;
+out	SpriteC_VPOutput OUT;
+out gl_PerVertex
+{
+    vec4 gl_Position;
+};
+void main()
+{
+	OUT = PositionColor3D_VP(IN);
+
+	gl_Position		= OUT.position;
+}
+#endif
+
+#ifdef main_PositionColor3D_FP
+half4 PositionColor3D_FP(SpriteC_VPOutput IN)
+{
+	return IN.color;
+}
+in	SpriteC_VPOutput OUT;
+out vec4 out_FragColor;
+void main()
+{
+	out_FragColor = PositionColor3D_FP(OUT);
+}
+#endif
+
+//-----------------------------------------------------------------------------
+// 頂点シェーダー：3D, 標準
+//-----------------------------------------------------------------------------
+// 位置、テクスチャ、色		(FVF_POSITION|FVF_TEXCOORD0|FVF_COLOR0)
+#ifdef main_PositionTextureColor3D_VP
+SpriteCT_VPOutput PositionTextureColor3D_VP(SpriteCT_VPInput IN)
+{
+	SpriteCT_VPOutput OUT;
+	float4 localPosition = float4(IN.position.xyz,1.0);	
+	OUT.position = _mul(WorldViewProjection, localPosition);
+	OUT.texCoord = getUV( IN.texCoord );
+	OUT.color    = IN.color    * inputColor;
+	
+	//陰影
+	float4	worldPos	= _mul(World, localPosition);
+	float	_dot		= getShadeFactor( worldPos.xyz );
+	OUT.color.a *= _dot;
+	
+	OUT.color.a *= getNearFadeFactor( OUT.position.z );
+	return OUT;
+}
+in	SpriteCT_VPInput IN;
+out	SpriteCT_VPOutput OUT;
+out gl_PerVertex
+{
+    vec4 gl_Position;
+};
+void main()
+{
+	OUT = PositionTextureColor3D_VP(IN);
+
+	gl_Position		= OUT.position;
+}
+#endif
+
+//-----------------------------------------------------------------------------
+// フラグメントシェーダー：3D, 標準
+//-----------------------------------------------------------------------------
+#ifdef main_PositionTextureColor3D_FP
+half4 PositionTextureColor3D_FP(SpriteCT_VPOutput IN)
+{
+	float4 _color = _tex2D(VariableSamplerState, TextureSampler, IN.texCoord);
+	_color *= IN.color;
+
+	_color.rgb += inputSpecular.rgb * inputSpecular.a;
+	
+	clip(_color.a - inputAlphaThreshold);	//αテスト(Vitaで必要)
+
+	return _color;
+}
+in	SpriteCT_VPOutput OUT;
+out vec4 out_FragColor;
+void main()
+{
+	out_FragColor = PositionTextureColor3D_FP(OUT);
+}
+#endif
+
+//------------------------------------------------------------------------------
+// 入力頂点 FVF_3D3   FVF_POSITION|FVF_NORMAL|FVF_TEXCOORD0|FVF_COLOR0
+//------------------------------------------------------------------------------
+struct DefualtVPInput
+{
+	float3 position;
+	float3 normal;
+	float2 texCoord;
+	float4 color;
+};
+
+
+//------------------------------------------------------------------------------
+// 頂点シェーダー：3D,通常,法線あり
+//------------------------------------------------------------------------------
+#ifdef main_PositionNormalTextureColor3D_VP
+SpriteCT_VPOutput PositionNormalTextureColor3D_VP( DefualtVPInput IN )
+{
+	SpriteCT_VPOutput OUT;
+
+	float4 localPosition = float4(IN.position.xyz,1.0);	
+	OUT.position = _mul(WorldViewProjection, localPosition);
+
+	// UV転置
+	OUT.texCoord = getUV( IN.texCoord );	
+	OUT.color    = IN.color    * inputColor;
+	OUT.color.a *= getNearFadeFactor( OUT.position.z );
+
+	//スクリーン座標系でのオフセット(-1～1)
+	OUT.position.xy += inputScreenOffset.xy * OUT.position.ww;
+//x	OUT.position.x += inputScreenOffset.x * OUT.position.w;
+//x	OUT.position.y += inputScreenOffset.y * OUT.position.w;	
+
+
+	return OUT;
+};
+in	DefualtVPInput IN;
+out	SpriteCT_VPOutput OUT;
+out gl_PerVertex
+{
+    vec4 gl_Position;
+};
+void main()
+{
+	DefualtVPInput IN_ = IN;
+	OUT = PositionNormalTextureColor3D_VP(IN_);
+
+	gl_Position		= OUT.position;
+}
+#endif
+
+
+//------------------------------------------------------------------------------
+// 頂点シェーダー：3D,カメラに対して頂点単位で淵を消すシェーダー
+//------------------------------------------------------------------------------
+#ifdef main_PositionNormalTextureColor3D_rimTransparency_VP
+SpriteCT_VPOutput PositionNormalTextureColor3D_rimTransparency_VP( DefualtVPInput IN )
+{
+	SpriteCT_VPOutput OUT;
+
+	float4 localPosition = float4(IN.position.xyz,1.0);	
+	OUT.position = _mul(WorldViewProjection, localPosition);
+
+	float3 worldNormal   = normalize( _mul( World, float4(IN.normal.xyz,0)).xyz);
+	float3 worldPosition = _mul(World, localPosition).xyz;
+		
+	// xz平面に限定版
+//	float2 cameraVec = normalize( inputCameraVector.xz );
+//	float2 normalVec = normalize( worldNormal.xz );	
+
+	//視線、法線で計算
+	float3 cameraVec = normalize( getEyePosition() - worldPosition );
+	float3 normalVec = worldNormal;	
+
+	half alpha = abs( dot(cameraVec, normalVec) );
+
+	alpha = pow(max(0, 1.0 - alpha), half(inputShaderParam[0]) );
+	alpha *= half(inputShaderParam[1]);	
+	alpha = 1.0 - alpha;
+		
+	// 0.5以下は透明にしてみる
+	// 1 - 0 - 1  -> 0.5 - -0.5 - 0.5  -> 1 - -1 - 1 -> 1 - 0 - 1
+//	alpha -= 0.5;
+//	alpha *= inputShaderParam[0];
+//	clamp(alpha,0,1);
+	OUT.texCoord = getUV( IN.texCoord );	
+//	OUT.texCoord = IN.texCoord * inputUVShift.xy + inputUVShift.zw;
+	OUT.color    = IN.color    * inputColor;
+	OUT.color.a *= alpha;
+	OUT.color.a *= getNearFadeFactor( OUT.position.z );
+	return OUT;
+};
+
+in	DefualtVPInput IN;
+out	SpriteCT_VPOutput OUT;
+out gl_PerVertex
+{
+    vec4 gl_Position;
+};
+void main()
+{
+	DefualtVPInput IN_ = IN;
+	OUT = PositionNormalTextureColor3D_rimTransparency_VP(IN_);
+
+	gl_Position		= OUT.position;
+}
+#endif
+
+
+//-----------------------------------------------------------------------------
+// 頂点シェーダー：3D, 仮ステルスシェーダー
+//-----------------------------------------------------------------------------
+// 位置、テクスチャ、色		(FVF_POSITION|FVF_NORMAL|FVF_TEXCOORD0|FVF_COLOR0)
+
+#ifdef main_PositionNormalTextureColor3D_Stealth_VP
+SpriteCT_VPOutput PositionNormalTextureColor3D_Stealth_VP( DefualtVPInput IN)
+{
+	//法線が無いころに使ったので、頂点でずらしている。
+	SpriteCT_VPOutput OUT;
+	float4 localPosition = float4(IN.position.xyz,1.0);	
+	OUT.position = _mul(WorldViewProjection, localPosition);
+	OUT.color    = IN.color    * inputColor;
+
+	// スクリーン座標を計算
+	float2 tmp;
+    tmp.x = ((OUT.position.x / OUT.position.w)*0.5+0.5);
+    tmp.y = ((OUT.position.y / OUT.position.w)*0.5+0.5);
+	tmp.x += IN.texCoord.x;	//頂点埋め込みuvでずらす
+	tmp.y += IN.texCoord.y;
+	OUT.texCoord = tmp;
+	return OUT;
+}
+
+in	DefualtVPInput IN;
+out	SpriteCT_VPOutput OUT;
+out gl_PerVertex
+{
+    vec4 gl_Position;
+};
+void main()
+{
+	DefualtVPInput IN_ = IN;
+	OUT = PositionNormalTextureColor3D_Stealth_VP(IN_);
+
+	gl_Position		= OUT.position;
+}
+
+#endif
+
+//-----------------------------------------------------------------------------
+//　ソフトパーティクル
+// 位置、テクスチャ、色		(FVF_POSITION|FVF_NORMAL|FVF_TEXCOORD0|FVF_COLOR0)
+//-----------------------------------------------------------------------------
+#ifdef main_PositionNormalTextureColor3D_SoftParticleVP2
+SpriteCT3D_VPOutput PositionNormalTextureColor3D_SoftParticleVP2(DefualtVPInput IN)
+{
+	SpriteCT3D_VPOutput OUT;
+
+	float4 localPosition = float4(IN.position.xyz,1.0);	
+	OUT.position = _mul(WorldViewProjection, localPosition);
+	OUT.texCoord = getUV( IN.texCoord );
+	OUT.color    = IN.color    * inputColor;
+
+	OUT.color.a *= getNearFadeFactor( OUT.position.z );
+	
+	OUT.texCoord1 = OUT.position;
+	//OUT.texCoord1.xyz = (OUT.texCoord1.xyz / OUT.texCoord1.w ) * 0.5 + 0.5;
+	return OUT;
+}
+
+in	DefualtVPInput IN;
+out	SpriteCT3D_VPOutput OUT;
+out gl_PerVertex
+{
+    vec4 gl_Position;
+};
+void main()
+{
+	DefualtVPInput IN_ = IN;
+	OUT = PositionNormalTextureColor3D_SoftParticleVP2(IN_);
+
+	gl_Position		= OUT.position;
+}
+#endif
+
+//-----------------------------------------------------------------------------
+#ifdef main_PositionNormalTextureColor3D_SoftParticleFP2
+float4 PositionNormalTextureColor3D_SoftParticleFP2(SpriteCT3D_VPOutput IN)
+{
+	float4 _color = _tex2D(VariableSamplerState, TextureSampler, IN.texCoord);
+	_color *= IN.color;
+	_color.rgb += inputSpecular.rgb * inputSpecular.a;
+
+	clip(_color.a - inputAlphaThreshold);	//αテスト(Vitaで必要)
+
+	float2 screenPos = (IN.texCoord1.xy / IN.texCoord1.w) * 0.5 + 0.5;
+	screenPos.xy *= float2(inputDownscaleFactor, inputDownscaleFactor);
+#if defined(PHYRE_D3DFX)
+	screenPos.y = 1 - screenPos.y;
+#endif
+
+	// 描画先の奥行き値
+	float depthBuf = ReadDepth( DepthBuffer, screenPos.xy );							// DepthBufferを直接参照する場合
+//	float depthBuf = TexDepth( DepthBuffer, screenPos.xy );								// DepthBufferをTextureに置き換えた場合
+	
+	// 深度を線形深度へ変換
+	depthBuf = inputCameraNearFarParams.x / (inputCameraNearFarParams.y - depthBuf );	//(1/far)/((far/(far-near))-depth)
+#if defined(PHYRE_D3DFX)
+	depthBuf *= 2;
+#endif
+
+	// 線形を戻す計算
+	// a = (-(1/y)) / depthBuf + y/(y-x)
+	
+	// 描画する物の奥行き値
+	float depthVal = (IN.texCoord1.z / IN.texCoord1.w) * 0.5 + 0.5;
+	
+	// 深度を線形深度へ変換
+	depthVal = inputCameraNearFarParams.x / (inputCameraNearFarParams.y - depthVal );	//(1/far)/((far/(far-near))-depth)
+												
+	float offset = 10;	//10で1mくらい
+	
+	float depthDelta = ( depthBuf - depthVal) * (scene.cameraFarMinusNear);										//Z=(0～1) を Z=(near-far)m 基準に変換
+
+	depthDelta = max(depthDelta,0.0);
+	float alpha = (depthDelta > offset) ? 1 : depthDelta / offset;
+	
+//	alpha = pow(alpha,2);
+//	depth = ConvertDepth( depth );
+//	float alpha = (depthBuf > depthVal) ? 1 : 0;
+	
+//	_color.rgba = float4(depthBuf,depthBuf,depthBuf,1);	//深度値テストコード
+
+	alpha = saturate(alpha);
+	_color.a *= alpha;
+	
+	return _color;
+}
+
+in	SpriteCT3D_VPOutput OUT;
+out vec4 out_FragColor;
+void main()
+{
+	out_FragColor = PositionNormalTextureColor3D_SoftParticleFP2(OUT);
+}
+#endif
+
+	
+//-----------------------------------------------------------------------------
+// Depthテクスチャ(DEPTH24) を Depthテクスチャ(DEPTH24)にレンダリング（コピー)する
+//-----------------------------------------------------------------------------
+struct CopyDepthVPOutput
+{
+	float4 position;
+	float2 texCoord0;
+//	float2 texCoord1;
+//	float2 texCoord2;
+//	float2 texCoord3;
+};
+
+#ifdef main_CopyDepthToDepthVP
+CopyDepthVPOutput CopyDepthToDepthVP(DefualtVPInput IN)
+{
+	CopyDepthVPOutput OUT;
+	float4 localPosition = float4(IN.position.xyz,1.0);	
+	OUT.position = localPosition;
+	OUT.texCoord0 = IN.texCoord;
+	
+//	const float2 offset1	= float2( 1/inputDepthBufferSize.x,                      0.0 );
+//	const float2 offset2	= float2( 1/inputDepthBufferSize.x, 1/inputDepthBufferSize.y );
+//	const float2 offset3	= float2(                      0.0, 1/inputDepthBufferSize.y );
+
+//	OUT.texCoord1 = OUT.texCoord0 + offset1;
+//	OUT.texCoord2 = OUT.texCoord0 + offset2;
+//	OUT.texCoord3 = OUT.texCoord0 + offset3;
+
+	OUT.texCoord0 *= float2(inputDownscaleFactor, inputDownscaleFactor);
+//	OUT.texCoord1 *= float2(inputDownscaleFactor, inputDownscaleFactor);
+//	OUT.texCoord2 *= float2(inputDownscaleFactor, inputDownscaleFactor);
+//	OUT.texCoord3 *= float2(inputDownscaleFactor, inputDownscaleFactor);
+
+	return OUT;
+}
+
+in	DefualtVPInput IN;
+out	CopyDepthVPOutput OUT;
+out gl_PerVertex
+{
+    vec4 gl_Position;
+};
+void main()
+{
+	DefualtVPInput IN_ = IN;
+	OUT = CopyDepthToDepthVP(IN_);
+
+	gl_Position		= OUT.position;
+}
+#endif
+
+#ifdef main_CopyDepthToDepthFP
+float CopyDepthToDepthFP(CopyDepthVPOutput IN)
+{
+	// 線形変換 すると far-nearが小さい(2000など)とうまくいかなくなる
+	// currentDepth = (1.0/scene.cameraNearFarParameters.y) / ((scene.cameraNearFarParameters.y/(scene.cameraNearFarParameters.y - scene.cameraNearFarParameters.x)) - currentDepth);
+	// currentDepth = 0.9123421234;
+	// currentDepth = 0.123456;
+	
+	// 深度バッファへの書き込み
+//	float currentDepth = ReadDepth( TextureSampler, IN.texCoord.xy );
+//	outDepth = currentDepth;
+	
+	// 近隣ピクセルのZ値から最も”遠い”値を取得（キャラとエフェクトに隙間がなるべく隙間が出来ないように）
+//	float2 depth0,depth1;
+//	depth0.x = ReadDepth( DepthBuffer, IN.texCoord0.xy );
+//	depth0.y = ReadDepth( DepthBuffer, IN.texCoord1.xy );
+//	depth1.x = ReadDepth( DepthBuffer, IN.texCoord2.xy );
+//	depth1.y = ReadDepth( DepthBuffer, IN.texCoord3.xy );
+//	float2 result = max(depth0,depth1); 
+//	float currentDepth =  max(result.x, result.y);
+//	outDepth = currentDepth;
+	float currentDepth = ReadDepth( DepthBuffer, IN.texCoord0.xy );
+	
+	return currentDepth;
+}
+
+in	CopyDepthVPOutput OUT;
+out float gl_FragDepth;
+void main()
+{
+	gl_FragDepth = CopyDepthToDepthFP(OUT);
+}
+
+#endif
+
+
+#ifdef main_CopyDepthToColorFP
+half4 CopyDepthToColorFP(CopyDepthVPOutput IN)
+{
+	float currentDepth = ReadDepth( DepthBuffer, IN.texCoord0.xy );
+	
+	//--------------------------------------------------
+	// カラーバッファへ深度値を書き込み
+	//深度値を RGB(8bitx3)に格納。
+	// R成分抽出
+	float R = floor( currentDepth * 255.0 ) / 255.0;	//round 指定された値を直近の整数値に丸めます
+	// G成分抽出
+	float Def = currentDepth - R;
+	float G = floor( Def * 65535.0 ) / 255.0;			//floor パラメーター以上の最大の整数値
+	// B成分抽出
+	Def -= G/255.0;
+	float B =  Def * 65535.0;// / 255.0;
+	return half4(R, G, B, 0);	
+}
+
+in	CopyDepthVPOutput OUT;
+out vec4 out_FragColor;
+void main()
+{
+	out_FragColor = CopyDepthToColorFP(OUT);
+}
+#endif
+
+
+//-----------------------------------------------------------------------------
+// ぼかしスプライト
+//-----------------------------------------------------------------------------
+struct SpriteBlur_VPOutput
+{
+	float4 position;
+	float4 color;
+	float2 texCoord;
+	float2 uvs0;
+	float2 uvs1;
+	float2 uvs2;
+	float2 uvs3;
+};
+
+#ifdef main_PositionTextureColor2DBlur_VP
+SpriteBlur_VPOutput PositionTextureColor2DBlur_VP(SpriteCT_VPInput IN)
+{
+	SpriteBlur_VPOutput OUT;
+	half4 localPosition = float4(IN.position.xyz,1.0);	
+	OUT.position = _mul(World, localPosition);
+	OUT.position.x *= CameraAspectRatio;
+	OUT.texCoord = IN.texCoord * inputUVShift.xy + inputUVShift.zw;
+	OUT.color    = IN.color    * inputColor;
+
+	float2 uv = IN.texCoord.xy;
+	float2 off1 = float2(1.0f/inputShaderParam.x,0);	// inputShaderParam テクスチャサイズ
+	float2 off2 = float2(1.0f/inputShaderParam.y,0);
+	OUT.uvs0 = uv - off2;
+	OUT.uvs1 = uv - off1;
+	OUT.uvs2 = uv + off1;
+	OUT.uvs3 = uv + off2;	
+	return OUT;
+}
+
+in	SpriteCT_VPInput IN;
+out	SpriteBlur_VPOutput OUT;
+out gl_PerVertex
+{
+    vec4 gl_Position;
+};
+void main()
+{
+	SpriteCT_VPInput IN_ = IN;
+	OUT = PositionTextureColor2DBlur_VP(IN_);
+
+	gl_Position		= OUT.position;
+}
+
+#endif // main_PositionTextureColor2DBlur_VP
+
+
+
+#ifdef main_PositionTextureColor2DBlur_FP
+half4 PositionTextureColor2DBlur_FP(SpriteBlur_VPOutput IN)
+{
+
+	half4 center = _h4tex2D(LinearClampSamplerState, TextureSampler, IN.texCoord.xy);
+	half4 sample0 = _h4tex2D(LinearClampSamplerState, TextureSampler,IN.uvs0);
+	half4 sample1 = _h4tex2D(LinearClampSamplerState, TextureSampler,IN.uvs1);
+	half4 sample2 = _h4tex2D(LinearClampSamplerState, TextureSampler,IN.uvs2);
+	half4 sample3 = _h4tex2D(LinearClampSamplerState, TextureSampler,IN.uvs3);
+	
+	float4 _color = center + sample0 + sample1 + sample2 + sample3;
+	_color *= 0.2;	
+	_color.a = _color.a*8;	// 透明度の水増し(「縮小背景にα合成」＋「本背景にさらにα合成」で薄くなるため。)
+
+	_color *= IN.color;
+	_color.rgb += inputSpecular.rgb * inputSpecular.a;
+
+	return _color;
+}
+
+
+in	SpriteBlur_VPOutput OUT;
+out vec4 out_FragColor;
+void main()
+{
+	out_FragColor = PositionTextureColor2DBlur_FP(OUT);
+}
+
+#endif
+
+//-----------------------------------------------------------------------------
+// 色の輝度を取得
+//-----------------------------------------------------------------------------
+half GetColorLuminance( half4 color )
+{
+//	return dot(color.rgb, half3(0.298912, 0.586611, 0.114478));	// r * 0.29 + g * 0.58 + b * 0.11
+	return 1;
+}
+//-----------------------------------------------------------------------------	
+// ガウス関数 exp( -x^2/(2*d^2) )  d=5, x=0～7
+#define  WEIGHT0  0.0920246
+#define  WEIGHT1  0.0902024
+#define  WEIGHT2  0.0849494
+#define  WEIGHT3  0.0768654
+#define  WEIGHT4  0.0668236
+#define  WEIGHT5  0.0558158
+#define  WEIGHT6  0.0447932
+#define  WEIGHT7  0.0345379
+
+// X方向,Y方向共用 inputShaderParam.w で切り替え
+half4 GetSamplePixelX( half2 uv, half sampleCount )
+{	
+	half threshold = inputShaderParam.z;
+	half samplingStepX = half(inputShaderParam.x * sampleCount) * (1.0-inputShaderParam.w);
+	half samplingStepY = half(inputShaderParam.y * sampleCount) * (inputShaderParam.w);
+	
+	half4 pixel1 = _h4tex2D( LinearClampSamplerState, TextureSampler, uv + half2(samplingStepX, samplingStepY) );
+	half4 pixel2 = _h4tex2D( LinearClampSamplerState, TextureSampler, uv - half2(samplingStepX, samplingStepY) );
+
+	half threshold1 = GetColorLuminance(pixel1) - threshold;
+	half threshold2 = GetColorLuminance(pixel2) - threshold;
+	pixel1.a *= threshold1;
+	pixel2.a *= threshold2;
+//	pixel1.rgb *= threshold1;
+//	pixel2.rgb *= threshold2;
+	return max(pixel1+pixel2,0.0);
+}
+
+
+#ifdef main_PositionTextureColor2DGaussianBlurX_FP
+
+half4 PositionTextureColor2DGaussianBlurX_FP( SpriteCT_VPOutput IN )
+{
+    half4 result;
+	half2 uv = IN.texCoord;
+
+	result  = WEIGHT0 * GetSamplePixelX(uv,0);
+	result += WEIGHT1 * GetSamplePixelX(uv,1);
+	result += WEIGHT2 * GetSamplePixelX(uv,2);
+	result += WEIGHT3 * GetSamplePixelX(uv,3);
+	result += WEIGHT4 * GetSamplePixelX(uv,4);
+	result += WEIGHT5 * GetSamplePixelX(uv,5);
+	result += WEIGHT6 * GetSamplePixelX(uv,6);
+	result += WEIGHT7 * GetSamplePixelX(uv,7);
+
+	result *= half4(IN.color);
+	result.rgb += half3(inputSpecular.rgb * inputSpecular.a);
+//	result *= 0.5; // Yを加算するため
+    return result;
+}
+
+in	SpriteCT_VPOutput OUT;
+out vec4 out_FragColor;
+void main()
+{
+	out_FragColor = PositionTextureColor2DGaussianBlurX_FP(OUT);
+}
+
+#endif
+
+
+
+#ifdef main_PositionTextureColor2DGaussianBlur_VP
+
+SpriteCT_VPOutput PositionTextureColor2DGaussianBlur_VP(SpriteCT_VPInput IN)
+{
+	SpriteCT_VPOutput OUT;
+	half4 localPosition = float4(IN.position.xyz,1.0);	
+	OUT.position = _mul(World, localPosition);
+	OUT.position.x *= CameraAspectRatio;
+	OUT.texCoord = IN.texCoord * inputUVShift.xy + inputUVShift.zw;
+	OUT.color    = IN.color    * inputColor;
+	return OUT;
+}
+
+in	SpriteCT_VPInput IN;
+out	SpriteCT_VPOutput OUT;
+out gl_PerVertex
+{
+    vec4 gl_Position;
+};
+void main()
+{
+	SpriteCT_VPInput IN_ = IN;
+	OUT = PositionTextureColor2DGaussianBlur_VP(IN_);
+
+	gl_Position		= OUT.position;
+}
+
+#endif

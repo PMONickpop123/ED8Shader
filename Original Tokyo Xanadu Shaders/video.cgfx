@@ -1,0 +1,131 @@
+layout(std140) uniform Param
+{
+uniform float4x4 WorldViewProjection;
+};
+
+// 2D
+uniform sampler2D VideoScreenTexture;
+
+// 3D
+uniform sampler2D AlphaTexture;
+uniform sampler2D MovieTexture;
+
+//=============================================================================
+// 構造体
+//=============================================================================
+
+// 2D
+struct VideoScreenVertexIn
+{
+	float3 vertex;
+	float2 uv;
+};
+
+struct FullscreenVertexOut
+{
+	float4 position;
+	float2 uv;
+};
+
+// 3D
+struct MeshVertexIn
+{
+	float3 Position;
+	float2 uv;
+};
+
+struct Video3DVertexOut
+{
+	float4 Position;
+	float2 uv0;
+	float2 uv1;
+};
+
+//=============================================================================
+// シェーダ
+//=============================================================================
+// 2D
+
+#ifdef main_VideoScreenVP
+FullscreenVertexOut VideoScreenVP(VideoScreenVertexIn IN)
+{
+	FullscreenVertexOut OUT;
+	OUT.position = float4(IN.vertex.xy, 1.0, 1.0);
+	OUT.uv = float2(IN.uv.x, -IN.uv.y); // y coord is flipped
+	return OUT;
+}
+
+in	VideoScreenVertexIn IN;
+out	FullscreenVertexOut OUT;
+out gl_PerVertex
+{
+    vec4 gl_Position;
+};
+void main()
+{
+	OUT = VideoScreenVP(IN);
+	gl_Position = OUT.position;
+}
+#endif //main_VideoScreenVP
+
+//=============================================================================
+
+#ifdef main_VideoScreenFP
+float4 VideoScreenFP(FullscreenVertexOut IN)
+{
+	return _tex2Dlod(LinearClampSamplerState, VideoScreenTexture, IN.uv, 0);
+}
+
+in	FullscreenVertexOut OUT;
+out float4 out_FragColor;
+void main()
+{
+	out_FragColor = VideoScreenFP(OUT);
+}
+#endif //main_VideoScreenFP
+
+//=============================================================================
+// 3D
+
+#ifdef main_VideoScreen3DVP
+Video3DVertexOut VideoScreen3DVP(MeshVertexIn IN)
+{
+	Video3DVertexOut OUT;
+	OUT.Position = _mul(WorldViewProjection, float4(IN.Position.xyz, 1.0));
+	OUT.uv0 = float2(IN.uv.x, 1.0 - IN.uv.y);
+	OUT.uv1 = float2(IN.uv.x, IN.uv.y);
+	return OUT;
+}
+
+in	MeshVertexIn IN;
+out	Video3DVertexOut OUT;
+out gl_PerVertex
+{
+    vec4 gl_Position;
+};
+void main()
+{
+	OUT = VideoScreen3DVP(IN);
+	gl_Position = OUT.Position;
+}
+#endif //main_VideoScreen3DVP
+
+//=============================================================================
+
+#ifdef main_VideoScreen3DFP
+
+float4 VideoScreen3DFP(Video3DVertexOut IN)
+{
+	float a = _tex2D(LinearClampSamplerState, AlphaTexture, IN.uv0).x;
+	float4 tex = _tex2Dlod(LinearClampSamplerState, MovieTexture, IN.uv1, 0);
+	return float4(tex.x, tex.y, tex.z, a);
+}
+
+in	Video3DVertexOut OUT;
+out float4 out_FragColor;
+void main()
+{
+	out_FragColor = VideoScreen3DFP(OUT);
+}
+
+#endif //main_VideoScreen3DFP

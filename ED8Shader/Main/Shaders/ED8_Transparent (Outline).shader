@@ -271,6 +271,7 @@
         // #if defined(SPHERE_MAPPING_ENABLED)
         [HideInInspector] m_start_SphereMap ("Enable Sphere Mapping", Float) = 0
         [HideInInspector][Toggle(SPHERE_MAPPING_ENABLED)]_SphereMappingEnabled ("Enable Sphere Mapping", Float) = 0
+        [Toggle(SPHERE_MAPPING_HAIRCUTICLE_ENABLED)]_SphereMappingHairCuticleEnabled ("Enable Sphere Mapping Hair Cuticle", Float) = 0
         _SphereMapSampler("Sphere Map", 2D) = "white" {}
         _SphereMapIntensity("Sphere Map Intensity", Range(0.0, 10.0)) = 1.0
         [HideInInspector] m_end_SphereMap ("Enable Sphere Mapping", Float) = 0
@@ -426,7 +427,7 @@
             #pragma shader_feature SUBTRACT_BLENDING_ENABLED
             #pragma shader_feature MULTIPLICATIVE_BLENDING_ENABLED
             #pragma shader_feature WATER_SURFACE_ENABLED
-            #pragma shader_feature_local TRANSPARENT_DELAY_ENABLED
+            //#pragma shader_feature_local TRANSPARENT_DELAY_ENABLED
             #pragma shader_feature VERTEX_COLOR_ENABLED
             #pragma shader_feature_local BLEND_VERTEX_COLOR_BY_ALPHA_ENABLED
             #pragma shader_feature_local FAR_CLIP_BY_DITHER_ENABLED
@@ -479,6 +480,7 @@
             #pragma shader_feature_local CARTOON_HILIGHT_ENABLED
             #pragma shader_feature_local EMVMAP_AS_IBL_ENABLED
             #pragma shader_feature_local SPHERE_MAPPING_ENABLED
+            #pragma shader_feature_local SPHERE_MAPPING_HAIRCUTICLE_ENABLED
             #pragma shader_feature_local CUBE_MAPPING_ENABLED
             #pragma shader_feature_local PROJECTION_MAP_ENABLED
             #pragma shader_feature_local DUDV_MAPPING_ENABLED
@@ -527,7 +529,7 @@
             #pragma shader_feature SUBTRACT_BLENDING_ENABLED
             #pragma shader_feature MULTIPLICATIVE_BLENDING_ENABLED
             #pragma shader_feature WATER_SURFACE_ENABLED
-            #pragma shader_feature_local TRANSPARENT_DELAY_ENABLED
+            //#pragma shader_feature_local TRANSPARENT_DELAY_ENABLED
             #pragma shader_feature VERTEX_COLOR_ENABLED
             #pragma shader_feature_local BLEND_VERTEX_COLOR_BY_ALPHA_ENABLED
             #pragma shader_feature_local FAR_CLIP_BY_DITHER_ENABLED
@@ -580,6 +582,7 @@
             #pragma shader_feature_local CARTOON_HILIGHT_ENABLED
             #pragma shader_feature_local EMVMAP_AS_IBL_ENABLED
             #pragma shader_feature_local SPHERE_MAPPING_ENABLED
+            #pragma shader_feature_local SPHERE_MAPPING_HAIRCUTICLE_ENABLED
             #pragma shader_feature_local CUBE_MAPPING_ENABLED
             #pragma shader_feature_local PROJECTION_MAP_ENABLED
             #pragma shader_feature_local DUDV_MAPPING_ENABLED
